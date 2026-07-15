@@ -125,7 +125,7 @@ export function StargazerScene({
       </AnimatePresence>
 
       {/* Constellation lines connecting lit stars */}
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         {STAR_POINTS.slice(0, Math.max(0, litStars - 1)).map((p, i) => {
           const next = STAR_POINTS[i + 1]
           return (

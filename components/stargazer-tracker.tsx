@@ -105,7 +105,7 @@ export function StargazerTracker() {
       <section aria-label="Night sky scene" className="h-[45vh] min-h-64 w-full">
         <StargazerScene
           completedCount={completedCount}
-          unlocked={showReveal}
+          unlocked={allDone && !showReflection && !showReveal}
           foundSecrets={foundSecrets}
           onFoundSecret={foundSecret}
         />
@@ -117,7 +117,7 @@ export function StargazerTracker() {
           <span className="font-medium text-[oklch(0.85_0.1_85)]">
             {completedCount} of 5 stars lit
           </span>
-          {showReveal && (
+          {allDone && (
             <span className="text-muted-foreground">
               {foundSecrets.length} of {STARGAZER_SECRET_COUNT} secrets
             </span>
