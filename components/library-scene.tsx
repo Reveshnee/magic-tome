@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type SecretId = 'shelf' | 'candle' | 'orb' | 'moon' | 'cat'
 
@@ -11,9 +11,9 @@ type LibrarySceneProps = {
   secretsUnlocked: boolean
   foundSecrets: Set<SecretId>
   onDiscoverSecret: (id: SecretId) => void
+  onWittyToast: (msg: string) => void
 }
 
-// Warm leather-tone books, each a little different for variety.
 const BOOK_STYLES = [
   { spine: '#8a3b2e', accent: '#e9c46a', h: 120, w: 30 },
   { spine: '#2f5d50', accent: '#d9b26f', h: 138, w: 34 },
@@ -22,14 +22,75 @@ const BOOK_STYLES = [
   { spine: '#5a3921', accent: '#f0d896', h: 146, w: 36 },
 ]
 
+// Witty lines for poking things mid-task
+const CANDLE_QUIPS = [
+  "Careful. That's the only light in here.",
+  'The candle flickers, unimpressed.',
+  'It refuses to be extinguished. Mood.',
+  "Hot. Don't touch. (You touched it, didn't you.)",
+  'The flame dances like it owns the place.',
+]
+
+const EMPTY_SHELF_QUIPS = [
+  'Nothing there yet. Keep going.',
+  'An empty shelf waiting patiently.',
+  'Room for a book. Or your excuses. Your call.',
+  'Tragically bare. Finish a task.',
+  'The shelf stares back. Expectantly.',
+]
+
+const DUST_QUIPS = [
+  'The dust scatters. Rude.',
+  'It was minding its own business.',
+  'You disturbed 400 years of peace.',
+  'The dust relocates. Dramatically.',
+]
+
+const AMBIENT_EVENTS = [
+  'A book seems to lean slightly toward you.',
+  'Something skitters behind the far shelf.',
+  'The candle above you gutters in a sourceless breeze.',
+  'A page turns somewhere. On its own.',
+  'The shadows rearrange themselves. Politely.',
+]
+
+// Funny post-unlock secret messages
+const SECRET_MESSAGES: Record<SecretId, string[]> = {
+  shelf: [
+    'A hidden compartment! It contains... a note that says "you found it."',
+    'A secret panel! Behind it: another smaller shelf. Shelfception.',
+    'Something skitters away. You choose not to investigate further.',
+  ],
+  candle: [
+    'You snuff it. The library judges you silently.',
+    'It sputters, then reignites. It will not be told what to do.',
+    'The flame whispers: "I knew you\'d come back."',
+  ],
+  orb: [
+    "The orb blinks. It was napping. Apologies all round.",
+    'It splits into three tiny sparks, then reassembles, embarrassed.',
+    'Warm. Slightly smug. Glows a little brighter now that you noticed.',
+  ],
+  moon: [
+    'The window floods with silver light. A cat outside catches your eye.',
+    'Full moon. The library hums one note louder.',
+    'You make eye contact with the moon. Neither of you look away first.',
+  ],
+  cat: [
+    "Two amber eyes blink once. Then it knocks a book off on purpose.",
+    "The cat has been watching you this whole time. It approves, begrudgingly.",
+    "It stretches. Yawns. Somehow this is more satisfying than finishing your tasks.",
+  ],
+}
+
 export function LibraryScene({
   completedCount,
   allDone,
   secretsUnlocked,
   foundSecrets,
   onDiscoverSecret,
+  onWittyToast,
 }: LibrarySceneProps) {
-  // Deterministic dust/star positions so they don't jump on re-render.
   const dust = useMemo(
     () =>
       Array.from({ length: 22 }).map((_, i) => ({
@@ -41,9 +102,66 @@ export function LibraryScene({
     [],
   )
 
+  const [crazyCandleIndex, setCrazyCandleIndex] = useState<number | null>(null)
+  const [wanderingMote, setWanderingMote] = useState(false)
+  const catIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const candleLit = completedCount >= 3
   const orbVisible = completedCount >= 4
   const glowIntense = completedCount >= 5
+
+  // Random ambient events while tasks are in progress
+  useEffect(() => {
+    if (allDone) return
+    const interval = setInterval(() => {
+      const roll = Math.random()
+      if (roll < 0.35) {
+        setCrazyCandleIndex(Math.floor(Math.random() * 4))
+        setTimeout(() => setCrazyCandleIndex(null), 1200)
+      } else if (roll < 0.55) {
+        setWanderingMote(true)
+        setTimeout(() => setWanderingMote(false), 2000)
+      }
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [allDone])
+
+  // Cat demands attention after 30s of inactivity post-unlock
+  useEffect(() => {
+    if (!secretsUnlocked) return
+    catIdleTimer.current = setTimeout(() => {
+      onWittyToast("Psst. The cat has been waiting 30 seconds for you to notice it.")
+    }, 30000)
+    return () => {
+      if (catIdleTimer.current) clearTimeout(catIdleTimer.current)
+    }
+  }, [secretsUnlocked, onWittyToast])
+
+  function tapCandle(index: number) {
+    const msg = CANDLE_QUIPS[Math.floor(Math.random() * CANDLE_QUIPS.length)]
+    onWittyToast(msg)
+    setCrazyCandleIndex(index)
+    setTimeout(() => setCrazyCandleIndex(null), 800)
+  }
+
+  function tapDust() {
+    const msg = DUST_QUIPS[Math.floor(Math.random() * DUST_QUIPS.length)]
+    onWittyToast(msg)
+  }
+
+  function tapEmptyShelf(index: number) {
+    const msg = secretsUnlocked
+      ? EMPTY_SHELF_QUIPS[index % EMPTY_SHELF_QUIPS.length]
+      : EMPTY_SHELF_QUIPS[Math.floor(Math.random() * EMPTY_SHELF_QUIPS.length)]
+    onWittyToast(msg)
+  }
+
+  function discoverSecret(id: SecretId) {
+    const msgs = SECRET_MESSAGES[id]
+    const msg = msgs[Math.floor(Math.random() * msgs.length)]
+    onWittyToast(msg)
+    onDiscoverSecret(id)
+  }
 
   return (
     <div
@@ -56,27 +174,52 @@ export function LibraryScene({
       role="img"
       aria-label={`Magical library with ${completedCount} of 5 books shelved`}
     >
-      {/* floating dust motes / faint stars */}
+      {/* floating dust motes — always tappable for a quip */}
       {dust.map((d, i) => (
-        <motion.span
+        <motion.button
           key={i}
-          className="absolute rounded-full"
+          type="button"
+          onClick={tapDust}
+          className="absolute rounded-full outline-none"
           style={{
             left: `${d.left}%`,
             top: `${d.top}%`,
-            width: d.size,
-            height: d.size,
-            background: 'oklch(0.85 0.08 90)',
+            width: d.size + 4,
+            height: d.size + 4,
+            background: 'transparent',
           }}
-          animate={{ opacity: [0.1, 0.6, 0.1], y: [0, -6, 0] }}
-          transition={{ duration: 4 + (i % 4), repeat: Infinity, delay: d.delay }}
-        />
+          aria-label="A dust mote"
+        >
+          <motion.span
+            className="block rounded-full"
+            style={{
+              width: d.size,
+              height: d.size,
+              background: 'oklch(0.85 0.08 90)',
+              margin: 'auto',
+            }}
+            animate={
+              wanderingMote && i === 7
+                ? { opacity: [0.1, 0.9, 0.1], x: [0, 18, -12, 0], y: [0, -12, 8, 0] }
+                : { opacity: [0.1, 0.6, 0.1], y: [0, -6, 0] }
+            }
+            transition={{ duration: wanderingMote && i === 7 ? 2 : 4 + (i % 4), repeat: Infinity, delay: d.delay }}
+          />
+        </motion.button>
       ))}
 
-      {/* hanging candles from the ceiling */}
+      {/* hanging ceiling candles — always tappable */}
       <div className="absolute inset-x-0 top-0 flex justify-around px-6">
         {[0, 1, 2, 3].map((i) => (
-          <HangingCandle key={i} index={i} intensity={0.5 + completedCount * 0.1} />
+          <button
+            key={i}
+            type="button"
+            onClick={() => tapCandle(i)}
+            className="outline-none"
+            aria-label={`Ceiling candle ${i + 1}`}
+          >
+            <HangingCandle index={i} intensity={0.5 + completedCount * 0.1} frantic={crazyCandleIndex === i} />
+          </button>
         ))}
       </div>
 
@@ -93,7 +236,7 @@ export function LibraryScene({
               glowIntense={glowIntense}
               secretsUnlocked={secretsUnlocked}
               found={foundSecrets.has('shelf')}
-              onDiscover={() => onDiscoverSecret('shelf')}
+              onDiscover={() => filled ? discoverSecret('shelf') : tapEmptyShelf(i)}
             />
           )
         })}
@@ -107,10 +250,9 @@ export function LibraryScene({
             initial={{ opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            disabled={!secretsUnlocked}
-            onClick={() => onDiscoverSecret('candle')}
-            className="absolute bottom-4 left-3 flex flex-col items-center sm:left-6 disabled:cursor-default"
-            aria-label={secretsUnlocked ? 'A reading candle — tap it' : 'A lit reading candle'}
+            onClick={() => secretsUnlocked ? discoverSecret('candle') : tapCandle(99)}
+            className="absolute bottom-4 left-3 flex flex-col items-center sm:left-6"
+            aria-label="A reading candle"
           >
             <SideCandle blown={secretsUnlocked && foundSecrets.has('candle')} />
           </motion.button>
@@ -136,10 +278,9 @@ export function LibraryScene({
               x: { duration: 9, repeat: Infinity, ease: 'easeInOut' },
               y: { duration: 7, repeat: Infinity, ease: 'easeInOut' },
             }}
-            disabled={!secretsUnlocked}
-            onClick={() => onDiscoverSecret('orb')}
-            className="absolute right-6 top-1/2 disabled:cursor-default"
-            aria-label={secretsUnlocked ? 'A drifting orb of light — tap it' : 'A drifting orb of light'}
+            onClick={() => secretsUnlocked ? discoverSecret('orb') : onWittyToast("The orb drifts away, unbothered.")}
+            className="absolute right-6 top-1/2"
+            aria-label="A drifting orb of light"
           >
             <span
               className="block rounded-full"
@@ -156,56 +297,114 @@ export function LibraryScene({
         )}
       </AnimatePresence>
 
-      {/* hidden crescent moon in a "window" — secret */}
+      {/* crescent moon window — teases before unlock, secret after */}
+      <button
+        type="button"
+        onClick={() =>
+          secretsUnlocked
+            ? discoverSecret('moon')
+            : onWittyToast('The moon is minding its business. As are you.')
+        }
+        className="absolute right-4 top-4 h-9 w-9 rounded-full outline-none"
+        aria-label="A crescent moon in a high window"
+        style={{
+          background: foundSecrets.has('moon')
+            ? 'radial-gradient(circle at 60% 40%, oklch(0.95 0.05 90), oklch(0.8 0.12 82))'
+            : 'transparent',
+          boxShadow: foundSecrets.has('moon')
+            ? '0 0 24px 8px oklch(0.82 0.13 82 / 55%)'
+            : 'inset -6px -2px 0 0 oklch(0.82 0.1 82 / 35%)',
+          transition: 'all 0.5s ease',
+        }}
+      />
+
+      {/* ambient text hint — floats into view randomly */}
+      <AmbientHint allDone={allDone} />
+
+      {/* hidden library cat */}
+      <button
+        type="button"
+        onClick={() =>
+          secretsUnlocked
+            ? discoverSecret('cat')
+            : onWittyToast("Something watches from the shadows. It's judging your pace.")
+        }
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 outline-none"
+        aria-label="Something lurks in the shadows"
+      >
+        <motion.span
+          className="block"
+          initial={{ y: 6, opacity: 0.25 }}
+          animate={
+            foundSecrets.has('cat')
+              ? { y: -4, opacity: 1 }
+              : { y: [6, 2, 6], opacity: [0.2, 0.4, 0.2] }
+          }
+          transition={{ duration: 3, repeat: foundSecrets.has('cat') ? 0 : Infinity }}
+        >
+          <span
+            className="inline-block h-3 w-3 rounded-full"
+            style={{
+              background: 'oklch(0.4 0.03 295)',
+              boxShadow: foundSecrets.has('cat')
+                ? '-6px 0 0 oklch(0.82 0.13 82), 6px 0 0 oklch(0.82 0.13 82)'
+                : '-6px 0 0 oklch(0.55 0.1 82 / 60%), 6px 0 0 oklch(0.55 0.1 82 / 60%)',
+            }}
+          />
+        </motion.span>
+      </button>
+
+      {/* secret counter */}
       {secretsUnlocked && (
-        <button
-          type="button"
-          onClick={() => onDiscoverSecret('moon')}
-          className="absolute right-4 top-4 h-9 w-9 rounded-full"
-          aria-label="A crescent moon glimmers in a high window — tap it"
-          style={{
-            background: foundSecrets.has('moon')
-              ? 'radial-gradient(circle at 60% 40%, oklch(0.95 0.05 90), oklch(0.8 0.12 82))'
-              : 'transparent',
-            boxShadow: foundSecrets.has('moon')
-              ? '0 0 24px 8px oklch(0.82 0.13 82 / 55%)'
-              : 'inset -6px -2px 0 0 oklch(0.82 0.1 82 / 35%)',
-            transition: 'all 0.5s ease',
-          }}
-        />
+        <div className="absolute left-3 top-3 rounded-full bg-[oklch(0.16_0.05_275/70%)] px-3 py-1 text-xs font-medium text-[oklch(0.85_0.1_85)]">
+          {foundSecrets.size} of 5 secrets found
+        </div>
       )}
 
-      {/* hidden library cat peeking from behind a shelf — secret */}
-      {secretsUnlocked && (
-        <button
-          type="button"
-          onClick={() => onDiscoverSecret('cat')}
-          className="absolute bottom-3 left-1/2 -translate-x-1/2"
-          aria-label="Something watches from the shadows — tap it"
-        >
-          <motion.span
-            className="block text-2xl leading-none"
-            initial={{ y: 6, opacity: 0.25 }}
-            animate={
-              foundSecrets.has('cat')
-                ? { y: -4, opacity: 1 }
-                : { y: [6, 2, 6], opacity: [0.2, 0.4, 0.2] }
-            }
-            transition={{ duration: 3, repeat: foundSecrets.has('cat') ? 0 : Infinity }}
+      {/* ambient hint when secrets just unlocked */}
+      <AnimatePresence>
+        {secretsUnlocked && foundSecrets.size === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ delay: 1.2, duration: 0.8 }}
+            className="absolute bottom-14 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[oklch(0.16_0.05_275/80%)] px-3 py-1 text-xs text-[oklch(0.82_0.1_85)]"
           >
-            <span
-              className="inline-block h-3 w-3 rounded-full"
-              style={{
-                background: 'oklch(0.4 0.03 295)',
-                boxShadow: foundSecrets.has('cat')
-                  ? '-6px 0 0 oklch(0.82 0.13 82), 6px 0 0 oklch(0.82 0.13 82)'
-                  : '-6px 0 0 oklch(0.55 0.1 82 / 60%), 6px 0 0 oklch(0.55 0.1 82 / 60%)',
-              }}
-            />
-          </motion.span>
-        </button>
-      )}
+            The library has secrets. Poke around.
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  )
+}
+
+// Randomly surfaces a one-liner about the library ambiance mid-session
+function AmbientHint({ allDone }: { allDone: boolean }) {
+  const [hint, setHint] = useState<string | null>(null)
+  useEffect(() => {
+    if (allDone) return
+    const t = setTimeout(() => {
+      setHint(AMBIENT_EVENTS[Math.floor(Math.random() * AMBIENT_EVENTS.length)])
+      setTimeout(() => setHint(null), 3200)
+    }, 18000 + Math.random() * 12000)
+    return () => clearTimeout(t)
+  }, [allDone])
+
+  return (
+    <AnimatePresence>
+      {hint && (
+        <motion.div
+          key={hint}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          className="pointer-events-none absolute bottom-[28%] left-1/2 w-[80%] -translate-x-1/2 rounded-lg bg-[oklch(0.16_0.05_275/75%)] px-3 py-2 text-center font-serif text-xs italic text-[oklch(0.82_0.08_90)]"
+        >
+          {hint}
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -229,19 +428,15 @@ function Bookshelf({
   return (
     <button
       type="button"
-      disabled={!secretsUnlocked}
       onClick={onDiscover}
-      className="group relative flex flex-1 flex-col items-center justify-end disabled:cursor-default"
+      className="group relative flex flex-1 flex-col items-center justify-end"
       style={{ maxWidth: 76 }}
       aria-label={
-        secretsUnlocked
-          ? `Bookshelf ${index + 1} — tap to inspect`
-          : filled
-            ? `Bookshelf ${index + 1}, book shelved`
-            : `Bookshelf ${index + 1}, empty`
+        filled
+          ? `Bookshelf ${index + 1}, book shelved — tap to inspect`
+          : `Bookshelf ${index + 1}, empty — tap it`
       }
     >
-      {/* shelf structure */}
       <div
         className="relative w-full rounded-t-md border-x border-t"
         style={{
@@ -251,12 +446,10 @@ function Bookshelf({
             'linear-gradient(180deg, oklch(0.3 0.045 60) 0%, oklch(0.24 0.04 60) 100%)',
         }}
       >
-        {/* two empty inner shelf lines */}
         <div
           className="absolute inset-x-1 top-1/3 h-[3px] rounded"
           style={{ background: 'oklch(0.2 0.03 60)' }}
         />
-        {/* the book that slides out and opens when completed */}
         <AnimatePresence>
           {filled && (
             <motion.div
@@ -271,7 +464,6 @@ function Bookshelf({
               }}
               transition={{ duration: 1.1, times: [0, 0.6, 1], ease: 'easeOut' }}
             >
-              {/* glow aura */}
               <motion.span
                 className="absolute rounded-full"
                 style={{
@@ -286,7 +478,6 @@ function Bookshelf({
                 }}
                 transition={{ duration: glowIntense ? 1.6 : 3, repeat: Infinity }}
               />
-              {/* open book: two covers + pages */}
               <div className="relative flex items-end" style={{ perspective: 400 }}>
                 <div
                   className="origin-right rounded-l-sm"
@@ -317,7 +508,6 @@ function Bookshelf({
                     boxShadow: 'inset 4px 0 6px rgba(0,0,0,0.35)',
                   }}
                 />
-                {/* gilt accent band */}
                 <span
                   className="absolute inset-x-0 top-1/2 h-[3px]"
                   style={{ background: style.accent, opacity: 0.85 }}
@@ -327,7 +517,6 @@ function Bookshelf({
           )}
         </AnimatePresence>
       </div>
-      {/* base plank */}
       <div
         className="h-2 w-[110%] rounded-sm"
         style={{ background: 'oklch(0.26 0.04 60)' }}
@@ -343,20 +532,17 @@ function Bookshelf({
   )
 }
 
-function HangingCandle({ index, intensity }: { index: number; intensity: number }) {
+function HangingCandle({ index, intensity, frantic }: { index: number; intensity: number; frantic: boolean }) {
   return (
     <div className="flex flex-col items-center" style={{ marginTop: 4 + (index % 2) * 14 }}>
-      {/* chain */}
       <div
         className="w-[2px]"
         style={{ height: 18 + (index % 3) * 10, background: 'oklch(0.5 0.03 60 / 60%)' }}
       />
-      {/* candle body */}
       <div
         className="relative w-3 rounded-sm"
         style={{ height: 22, background: 'oklch(0.85 0.03 90)' }}
       >
-        {/* flame */}
         <motion.span
           className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full"
           style={{
@@ -366,10 +552,13 @@ function HangingCandle({ index, intensity }: { index: number; intensity: number 
               'radial-gradient(circle at 50% 70%, oklch(0.95 0.13 85), oklch(0.7 0.16 55))',
             filter: 'blur(0.3px)',
           }}
-          animate={{ scaleY: [1, 1.2, 0.95, 1.1, 1], opacity: [0.85, 1, 0.9, 1, 0.85] }}
-          transition={{ duration: 1.4, repeat: Infinity }}
+          animate={
+            frantic
+              ? { scaleY: [1, 1.8, 0.5, 1.4, 1], scaleX: [1, 0.6, 1.3, 0.8, 1], rotate: [-8, 8, -12, 6, 0] }
+              : { scaleY: [1, 1.2, 0.95, 1.1, 1], opacity: [0.85, 1, 0.9, 1, 0.85] }
+          }
+          transition={{ duration: frantic ? 0.7 : 1.4, repeat: frantic ? 0 : Infinity }}
         />
-        {/* light halo */}
         <span
           className="absolute -top-6 left-1/2 -translate-x-1/2 rounded-full"
           style={{

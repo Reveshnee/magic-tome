@@ -16,13 +16,6 @@ type Task = {
 
 const ALL_SECRETS: SecretId[] = ['shelf', 'candle', 'orb', 'moon', 'cat']
 
-const SECRET_MESSAGES: Record<SecretId, string> = {
-  shelf: 'A loose panel swings open — an empty niche, just for you.',
-  candle: 'You pinch the reading candle out. The quiet gets deeper.',
-  orb: 'The orb pulses warm and follows your cursor for a heartbeat.',
-  moon: 'The window-moon brightens, spilling silver across the spines.',
-  cat: 'Two amber eyes blink once, then decide you are trustworthy.',
-}
 
 const PLACEHOLDERS = [
   'What are you following up on?',
@@ -95,11 +88,10 @@ export function MagicLibraryTracker() {
         const next = new Set(prev)
         next.add(id)
         playSecretChime()
-        showToast(SECRET_MESSAGES[id])
         return next
       })
     },
-    [showToast],
+    [],
   )
 
   const handleChoose = useCallback((index: number) => {
@@ -150,6 +142,7 @@ export function MagicLibraryTracker() {
         secretsUnlocked={secretsUnlocked}
         foundSecrets={foundSecrets}
         onDiscoverSecret={discoverSecret}
+        onWittyToast={showToast}
       />
 
       {/* progress */}

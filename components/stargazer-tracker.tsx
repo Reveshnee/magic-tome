@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { StargazerScene, STARGAZER_SECRET_COUNT } from './stargazer-scene'
@@ -31,6 +31,14 @@ export function StargazerTracker() {
   const [showReveal, setShowReveal] = useState(false)
   const [hardestId, setHardestId] = useState<number | null>(null)
   const [nudgeId, setNudgeId] = useState<number | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function showToast(msg: string) {
+    setToast(msg)
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
+  }
 
   const completedCount = tasks.filter((t) => t.done).length
   const allDone = completedCount === 5
@@ -108,6 +116,7 @@ export function StargazerTracker() {
           unlocked={allDone && !showReflection && !showReveal}
           foundSecrets={foundSecrets}
           onFoundSecret={foundSecret}
+          onWittyToast={showToast}
         />
       </section>
 
@@ -187,6 +196,22 @@ export function StargazerTracker() {
           Finish all five to unlock the sky&apos;s hidden secrets.
         </p>
       )}
+
+      {/* Witty toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            key={toast}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[oklch(0.22_0.07_275/95%)] px-5 py-2.5 text-center text-sm text-[oklch(0.9_0.05_90)] shadow-lg backdrop-blur-sm"
+            style={{ maxWidth: 'calc(100vw - 2rem)' }}
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reflection modal */}
       <AnimatePresence>
