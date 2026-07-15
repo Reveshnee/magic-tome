@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, Sparkles } from 'lucide-react'
 import { LibraryScene, type SecretId } from '@/components/library-scene'
@@ -122,6 +123,14 @@ export function MagicLibraryTracker() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-4 py-6 sm:px-6">
+      <div className="flex justify-end">
+        <Link
+          href="/"
+          className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          All trackers
+        </Link>
+      </div>
       <header className="text-center">
         <p className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.25em] text-primary">
           <Sparkles className="h-3.5 w-3.5" />
