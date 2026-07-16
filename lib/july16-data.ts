@@ -47,7 +47,7 @@ export const META = {
 
 export const TOP_FOCUS: string[] = [
   'CipherWave: Srinivas is busy drafting the v19 proposal — may only be done early next week. I sent him the docs on Teams today. Had a good call with Emilie at 12:30, weekly check-in at 2pm. Her asks before we go ahead with v19 (pricelist tracking, SMTP relay, BCC) still need to happen first. Maintenance is a new scope item that must go into the proposal. July hours — 74 confirmed, only 35.5 used so far. Need estimates for what\'s left.',
-  'Travel IT: Go-live pushed by a week, now targeting 22 Jul. Still 3 APIs outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Phase 2 scope hasn\'t been defined yet — we need to get discovery workshops in the diary. Redeployment decision still sitting with management. BRS still not signed.',
+  'Travel IT: Phase 1 - waiting for feedback from Venu. Still 3 APIs outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Phase 2 scope hasn\'t been defined yet — we need to get discovery workshops in the diary. Redeployment decision still sitting with management. BRS still not signed.',
   'Tiger Brands: Still waiting on Venu to reply to Mike about keeping Stefan on the team.',
   'Burgess: Rohith asked Hartaj to extend the quotation expiry but no response yet. MSA is still being worked on.',
   'Zoom Fiber: Quotation went to Moeen on 3 Jul — nearly two weeks and nothing back. Do we chase or park this one?',
