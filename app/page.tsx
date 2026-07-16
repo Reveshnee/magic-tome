@@ -2,10 +2,32 @@ import Link from 'next/link'
 
 const TOOLS = [
   {
+    href: '/ceo',
+    title: 'CEO Briefing — 16 Jul',
+    description: 'Interactive portfolio update for Venu · 14 clients · 8 action items',
+    badge: 'Interactive',
+    accentFrom: 'rgba(15,23,42,0.7)',
+    accentTo: 'rgba(15,23,42,0.4)',
+    border: 'border-slate-600/40',
+    dot: 'bg-slate-300',
+    glow: '0 0 28px 0px rgba(15,23,42,0.4)',
+  },
+  {
+    href: '/ceo-static',
+    title: 'CEO Briefing — Print',
+    description: 'Static printable version · Send as PDF or share the link',
+    badge: 'Printable',
+    accentFrom: 'rgba(15,23,42,0.5)',
+    accentTo: 'rgba(15,23,42,0.2)',
+    border: 'border-slate-600/30',
+    dot: 'bg-slate-400',
+    glow: '0 0 28px 0px rgba(15,23,42,0.2)',
+  },
+  {
     href: '/dashboard',
     title: 'LFI Dashboard',
     description: 'Client portfolio · Kanban board · Financials · Wins',
-    badge: '13 clients',
+    badge: 'June 2026',
     accentFrom: 'rgba(20,184,166,0.18)',
     accentTo: 'rgba(20,184,166,0.04)',
     border: 'border-teal-500/30',
