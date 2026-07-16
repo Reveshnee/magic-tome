@@ -3,10 +3,16 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
   Clock, Search, Sparkles, ChevronRight,
 } from 'lucide-react'
+
+const MOOD_IMAGES = [
+  { src: '/cur8/mood-cozy.jpg', label: 'Still moments' },
+  { src: '/cur8/mood-coast.png', label: 'Dreaming of elsewhere' },
+]
 import { CATEGORIES, loadItems, loadFolders, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -25,11 +31,19 @@ export default function Cur8Home() {
   const [folders, setFolders] = useState<Cur8Folder[]>([])
   const [search, setSearch] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [moodIndex, setMoodIndex] = useState(0)
 
   useEffect(() => {
     setItems(loadItems())
     setFolders(loadFolders())
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMoodIndex((prev) => (prev + 1) % MOOD_IMAGES.length)
+    }, 5000)
+    return () => clearInterval(timer)
   }, [])
 
   const recent = [...items]
@@ -145,6 +159,63 @@ export default function Cur8Home() {
             Everything you love, in one beautiful place.
           </p>
         </motion.div>
+
+        {/* ── Mood banner ── */}
+        <div className="relative mb-10 overflow-hidden rounded-3xl" style={{ height: '220px' }}>
+          <AnimatePresence mode="wait">
+            {MOOD_IMAGES.map((img, i) =>
+              i === moodIndex ? (
+                <motion.div
+                  key={img.src}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.2 }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={img.src}
+                    alt={img.label}
+                    fill
+                    className="object-cover object-center"
+                    sizes="(max-width: 768px) 100vw, 960px"
+                    priority={i === 0}
+                  />
+                  {/* overlay */}
+                  <div className="absolute inset-0"
+                    style={{ background: 'linear-gradient(to top, rgba(42,26,53,0.55) 0%, transparent 55%)' }} />
+                  {/* label */}
+                  <div className="absolute bottom-4 left-5">
+                    <p className="font-serif text-sm italic text-white/90">{img.label}</p>
+                  </div>
+                  {/* dot indicators */}
+                  <div className="absolute bottom-4 right-5 flex gap-1.5">
+                    {MOOD_IMAGES.map((_, j) => (
+                      <button
+                        key={j}
+                        onClick={() => setMoodIndex(j)}
+                        aria-label={`Show image ${j + 1}`}
+                        className="h-1.5 rounded-full transition-all duration-300"
+                        style={{
+                          width: j === moodIndex ? '20px' : '6px',
+                          backgroundColor: j === moodIndex ? 'white' : 'rgba(255,255,255,0.45)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              ) : null
+            )}
+          </AnimatePresence>
+
+          {/* Frosted glass quote */}
+          <div className="absolute left-5 top-5 rounded-2xl px-4 py-2.5"
+            style={{ backgroundColor: 'rgba(255,255,255,0.22)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)' }}>
+            <p className="font-serif text-sm font-medium text-white">
+              {mounted ? `${items.length} things saved` : 'Your sanctuary'}
+            </p>
+          </div>
+        </div>
 
         {/* ── Category grid ── */}
         <section className="mb-12">
