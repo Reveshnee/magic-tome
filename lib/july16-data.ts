@@ -46,14 +46,14 @@ export const META = {
 }
 
 export const TOP_FOCUS: string[] = [
-  'CipherWave: v19 proposal — Srinivas drafting (may slip to early next week). You sent him docs on Teams today. Emilie alignment — Call done 12:30pm today. Weekly touch-base at 2pm. Her pre-upgrade asks (pricelist tracking, SMTP relay, BCC) must happen before v19. Maintenance section — new scope, needs to be in the proposal. July hours — 74 confirmed, 35.5 used. Need estimates for remaining items.',
-  'Travel IT: Phase 1 — go-live postponed 1 week (~22 Jul). 3 APIs still outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Phase 2 — scope undefined, needs discovery workshops. Resource redeployment — management decision still pending. BRS — still unsigned.',
-  'Tiger Brands: Stefan — waiting on Venu to reply to Mike.',
-  'Burgess: Quotation expiry — Rohith asked Hartaj to extend, no response yet. MSA status — working on MSA.',
-  'Zoom Fiber: Moeen — quotation sent 3 Jul, no response in almost 2 weeks. Park or chase?',
-  'VMCH: Wama currently working on website.',
-  'Agrément SA: RFQ submitted — awaiting outcome.',
-  'MultiChoice: April/May POs — needed so Sipokazi can issue Thami\'s contract. Still sitting.',
+  'CipherWave: Srinivas is busy drafting the v19 proposal — may only be done early next week. I sent him the docs on Teams today. Had a good call with Emilie at 12:30, weekly check-in at 2pm. Her asks before we go ahead with v19 (pricelist tracking, SMTP relay, BCC) still need to happen first. Maintenance is a new scope item that must go into the proposal. July hours — 74 confirmed, only 35.5 used so far. Need estimates for what\'s left.',
+  'Travel IT: Go-live pushed by a week, now targeting 22 Jul. Still 3 APIs outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Phase 2 scope hasn\'t been defined yet — we need to get discovery workshops in the diary. Redeployment decision still sitting with management. BRS still not signed.',
+  'Tiger Brands: Still waiting on Venu to reply to Mike about keeping Stefan on the team.',
+  'Burgess: Rohith asked Hartaj to extend the quotation expiry but no response yet. MSA is still being worked on.',
+  'Zoom Fiber: Quotation went to Moeen on 3 Jul — nearly two weeks and nothing back. Do we chase or park this one?',
+  'VMCH: Wama is busy with the website at the moment.',
+  'Agrément SA: RFQ is in — waiting to hear back.',
+  'MultiChoice: April/May POs are still stuck. Sipokazi needs them before she can issue Thami\'s contract.',
 ]
 
 export const CLIENTS: Client[] = [
@@ -64,7 +64,7 @@ export const CLIENTS: Client[] = [
     health: 'At Risk',
     contacts: 'Murali / Sharmidha / Philip Katz',
     update:
-      'BRS still unsigned — scope creep risk persists. Phase 1 go-live postponed from 15 Jul to week of 22 Jul: 3 APIs still outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Internal meeting held 15 Jul (Venu, Sharmidha, Phoenix). Phase 2 scope currently undefined, discovery workshops required.',
+      'BRS still unsigned — scope creep risk persists. Phase 1 go-live postponed from 15 Jul to week of 22 Jul: 3 APIs still outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Internal meeting held 15 Jul (Venu, Sharmidha, Reveshnee). Phase 2 scope currently undefined, discovery workshops required.',
     nextActions: [
       'Murali to confirm Phase 1 closure + share Phase 2 decisions next week',
       'Dev team to estimate remaining Phase 1 items for Phase 2 carryover',
@@ -265,10 +265,11 @@ export const PROPOSALS: Proposal[] = [
 ]
 
 export const VENU_ITEMS: VenuItem[] = [
-  { priority: 'critical', client: 'Tiger Brands', item: 'Reply to Mike re retaining Stefan — outstanding since 9 Jul' },
-  { priority: 'critical', client: 'Travel IT', item: 'Resource redeployment decision — Vishnu flagged idle team risk. Decision was due Wed 15 Jul.' },
-  { priority: 'critical', client: 'BCX / Nedbank (PRASA)', item: 'Update Venu on call with Zweli' },
-  { priority: 'high', client: 'MultiChoice', item: 'April/May POs confirmation so Sipokazi can issue Thami\'s contract' },
-  { priority: 'high', client: 'Zoom Fibre', item: 'Chase Moeen directly re quotation (sent 3 Jul, no response) or park it?' },
-  { priority: 'high', client: 'Odoo / Burgess', item: 'Hartaj escalation support — ghosting on 3 items. Direct outreach to Odoo leadership?' },
+  { priority: 'critical', client: 'Tiger Brands', item: 'Please reply to Mike about Stefan — this has been sitting since 9 Jul' },
+  { priority: 'critical', client: 'Travel IT', item: 'We need a call on the redeployment decision. Vishnu flagged the idle team risk and it was already due on Wed.' },
+  { priority: 'critical', client: 'BCX / Nedbank (PRASA)', item: 'Need to update you on my call with Zweli' },
+  { priority: 'high', client: 'MultiChoice', item: 'Can you confirm the April/May POs? Sipokazi is waiting on these before she can sort out Thami\'s contract' },
+  { priority: 'high', client: 'MultiChoice', item: 'Need to respond to Prajwala on salary' },
+  { priority: 'high', client: 'Zoom Fibre', item: 'Moeen hasn\'t come back on the quotation from 3 Jul — do we go back to him or leave it for now?' },
+  { priority: 'high', client: 'Odoo / Burgess', item: 'Hartaj is not responding on three things. Would you be able to reach out to someone at Odoo directly?' },
 ]
