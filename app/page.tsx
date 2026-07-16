@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
 const WORK_TOOLS = [
   {
@@ -115,17 +116,23 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
   )
 }
 
-function getGreeting() {
-  const hour = new Date().getHours()
+function getGreeting(hour: number) {
   if (hour < 12) return 'Good morning'
   if (hour < 17) return 'Good afternoon'
   return 'Good evening'
 }
 
 export default function Home() {
-  const today = new Date().toLocaleDateString('en-ZA', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
+  const [greeting, setGreeting] = useState('')
+  const [today, setToday] = useState('')
+
+  useEffect(() => {
+    const now = new Date()
+    setGreeting(getGreeting(now.getHours()))
+    setToday(now.toLocaleDateString('en-ZA', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    }))
+  }, [])
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 font-sans">
@@ -137,7 +144,7 @@ export default function Home() {
             Linkfields Innovations
           </p>
           <h1 className="font-serif text-3xl font-bold text-slate-900 text-balance leading-snug">
-            {getGreeting()}, Reveshnee.
+            {greeting ? `${greeting}, Reveshnee.` : 'Welcome, Reveshnee.'}
           </h1>
           <p className="mt-1.5 text-sm text-slate-400">{today}</p>
         </header>
