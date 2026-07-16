@@ -1,6 +1,6 @@
 'use client'
 
-import { CLIENTS, META, PROPOSALS, TOP_FOCUS, VENU_ITEMS } from '@/lib/july16-data'
+import { CLIENTS, META, PROPOSALS, VENU_ITEMS } from '@/lib/july16-data'
 
 const HEALTH_STYLE: Record<string, string> = {
   'At Risk': 'bg-red-100 text-red-700 border border-red-200',
@@ -31,11 +31,7 @@ export default function StaticCEODashboard() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Linkfields Innovations</p>
               <h1 className="font-serif text-3xl font-bold text-slate-900">Portfolio Update</h1>
-              <p className="mt-1 text-sm text-slate-500">{META.week} &middot; {META.owner} &middot; {META.division}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Prepared for</p>
-              <p className="font-semibold text-slate-800">Venu (CEO)</p>
+              <p className="mt-1 text-sm text-slate-500">{META.week.split(' ').slice(-3).join(' ')} &middot; {META.owner} &middot; {META.division}</p>
             </div>
           </div>
         </div>
@@ -57,38 +53,22 @@ export default function StaticCEODashboard() {
           ))}
         </div>
 
-        {/* Two column: Top Focus + Venu Actions */}
-        <div className="mb-8 grid grid-cols-2 gap-6">
-          {/* Top Focus */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Top Focus This Week</h2>
-            <ol className="space-y-2">
-              {TOP_FOCUS.map((item, i) => (
-                <li key={i} className="flex gap-2 text-sm text-slate-700">
-                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-slate-700">{i + 1}</span>
-                  <span className={item.startsWith('[Venu]') ? 'font-semibold text-red-700' : ''}>{item}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          {/* Venu Needs to Action */}
-          <div className="rounded-xl border border-red-200 bg-red-50 p-5">
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-red-600">What I Need From You, Venu</h2>
-            <ol className="space-y-2">
-              {VENU_ITEMS.map((v, i) => (
-                <li key={i} className="flex gap-2 text-sm">
-                  <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${v.priority === 'critical' ? 'bg-red-600' : 'bg-amber-500'}`}>
-                    {v.priority === 'critical' ? '!' : '·'}
-                  </span>
-                  <span>
-                    <span className="font-semibold text-slate-700">{v.client}: </span>
-                    <span className="text-slate-600">{v.item}</span>
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </div>
+        {/* Venu Actions — full width */}
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-red-600">What I Need From You, Venu</h2>
+          <ol className="space-y-2">
+            {VENU_ITEMS.map((v, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${v.priority === 'critical' ? 'bg-red-600' : 'bg-amber-500'}`}>
+                  {i + 1}
+                </span>
+                <span>
+                  <span className="font-semibold text-slate-700">{v.client}: </span>
+                  <span className="text-slate-600">{v.item}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Client table */}
