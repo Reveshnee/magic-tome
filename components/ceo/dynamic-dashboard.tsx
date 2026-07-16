@@ -233,7 +233,7 @@ export default function DynamicCEODashboard() {
 
               {/* Quick Venu summary */}
               <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6">
-                <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-red-600">Followups - Venu ({VENU_ITEMS.length} items)</h2>
+                <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-red-600">Followups - Venu ({VENU_ITEMS.filter(v => v.priority !== 'cancelled').length} items)</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {VENU_ITEMS.map((v, i) => (
                     <div key={i} className={`flex gap-3 rounded-xl border bg-white p-4 ${v.priority === 'cancelled' ? 'border-slate-100 opacity-50' : 'border-red-100'}`}>
