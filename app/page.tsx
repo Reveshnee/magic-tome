@@ -37,6 +37,16 @@ const WORK_TOOLS = [
 
 const PERSONAL_TOOLS = [
   {
+    href: '/cur8',
+    title: 'Cur8',
+    subtitle: 'Your personal content library',
+    description: '8 categories — YouTube, TikTok, Articles, Images and more. Paste a link, it saves instantly.',
+    badge: 'New',
+    badgeColor: 'bg-emerald-100 text-emerald-700',
+    accent: 'border-l-emerald-400',
+    icon: '◈',
+  },
+  {
     href: '/library',
     title: 'Magic Library',
     subtitle: 'Candlelit dark academia',
@@ -44,7 +54,7 @@ const PERSONAL_TOOLS = [
     badge: 'Daily ritual',
     badgeColor: 'bg-amber-100 text-amber-700',
     accent: 'border-l-amber-400',
-    icon: '📚',
+    icon: '◉',
   },
   {
     href: '/stargazer',
@@ -54,7 +64,7 @@ const PERSONAL_TOOLS = [
     badge: 'Daily ritual',
     badgeColor: 'bg-violet-100 text-violet-700',
     accent: 'border-l-violet-400',
-    icon: '✨',
+    icon: '◎',
   },
 ]
 
