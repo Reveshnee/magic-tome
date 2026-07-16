@@ -4,16 +4,19 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
-  Clock, Search, Sparkles, ChevronRight,
+  Clock, Search, Sparkles, ChevronRight, LogOut,
 } from 'lucide-react'
+import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
+import { getCur8Data } from '@/app/actions/cur8'
+import { authClient } from '@/lib/auth-client'
 
 const MOOD_IMAGES = [
   { src: '/cur8/mood-cozy.jpg', label: 'Still moments' },
   { src: '/cur8/mood-coast.png', label: 'Dreaming of elsewhere' },
 ]
-import { CATEGORIES, loadItems, loadFolders, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   play: Play,
@@ -27,6 +30,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 export default function Cur8Home() {
+  const router = useRouter()
   const [items, setItems] = useState<Cur8Item[]>([])
   const [folders, setFolders] = useState<Cur8Folder[]>([])
   const [search, setSearch] = useState('')
@@ -34,10 +38,20 @@ export default function Cur8Home() {
   const [moodIndex, setMoodIndex] = useState(0)
 
   useEffect(() => {
-    setItems(loadItems())
-    setFolders(loadFolders())
-    setMounted(true)
+    getCur8Data()
+      .then((data) => {
+        setItems(data.items as Cur8Item[])
+        setFolders(data.folders as Cur8Folder[])
+      })
+      .catch(() => {})
+      .finally(() => setMounted(true))
   }, [])
+
+  async function handleSignOut() {
+    await authClient.signOut()
+    router.push('/cur8/sign-in')
+    router.refresh()
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -93,22 +107,34 @@ export default function Cur8Home() {
               </p>
             </div>
 
-            {/* Search */}
-            <div className="relative flex-1 max-w-xs hidden sm:block">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--muted-foreground)' }} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your collection..."
-                className="w-full rounded-full border py-2 pl-8 pr-4 text-sm outline-none transition focus:ring-2"
-                style={{
-                  borderColor: 'var(--border)',
-                  backgroundColor: 'var(--muted)',
-                  color: 'var(--foreground)',
-                }}
-              />
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="relative flex-1 max-w-xs hidden sm:block">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2"
+                  style={{ color: 'var(--muted-foreground)' }} />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search your collection..."
+                  className="w-full rounded-full border py-2 pl-8 pr-4 text-sm outline-none transition focus:ring-2"
+                  style={{
+                    borderColor: 'var(--border)',
+                    backgroundColor: 'var(--muted)',
+                    color: 'var(--foreground)',
+                  }}
+                />
+              </div>
+
+              {/* Sign out */}
+              <button
+                onClick={handleSignOut}
+                aria-label="Sign out"
+                className="flex h-9 w-9 items-center justify-center rounded-full border transition hover:bg-white"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }}
+              >
+                <LogOut size={15} style={{ color: 'var(--muted-foreground)' }} />
+              </button>
             </div>
           </div>
 

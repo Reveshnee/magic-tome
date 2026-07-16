@@ -10,10 +10,17 @@ import {
 } from 'lucide-react'
 import {
   CATEGORIES,
-  loadItems, saveItems,
-  loadFolders, saveFolders,
   type Cur8Item, type Cur8Folder, type Category,
 } from '@/lib/cur8-store'
+import {
+  getCur8Data,
+  createItem as createItemAction,
+  moveItem as moveItemAction,
+  duplicateItem as duplicateItemAction,
+  deleteItem as deleteItemAction,
+  createFolder as createFolderAction,
+  deleteFolder as deleteFolderAction,
+} from '@/app/actions/cur8'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   play: Play, music: Music, camera: Camera, users: Users,
@@ -44,9 +51,16 @@ export default function Cur8Category({ category }: Props) {
   const [preview, setPreview] = useState<Partial<Cur8Item> | null>(null)
   const [fetchError, setFetchError] = useState('')
 
+  function refresh() {
+    return getCur8Data().then((data) => {
+      setAllItems(data.items as Cur8Item[])
+      setFolders((data.folders as Cur8Folder[]).filter((f) => f.category === category))
+    })
+  }
+
   useEffect(() => {
-    setAllItems(loadItems())
-    setFolders(loadFolders().filter((f) => f.category === category))
+    refresh().catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category])
 
   useEffect(() => {
@@ -62,33 +76,19 @@ export default function Cur8Category({ category }: Props) {
     : catItems.filter((i) => i.folderId === activeFolder)
 
   // ── Folder actions ──
-  function createFolder() {
+  async function createFolder() {
     if (!newFolderName.trim()) return
-    const folder: Cur8Folder = {
-      id: Date.now().toString(),
-      category,
-      name: newFolderName.trim(),
-      createdAt: new Date().toISOString(),
-    }
-    const allFolders = [...loadFolders(), folder]
-    saveFolders(allFolders)
-    setFolders(allFolders.filter((f) => f.category === category))
+    const folder = await createFolderAction(category, newFolderName.trim())
+    setFolders((prev) => [folder as Cur8Folder, ...prev])
     setNewFolderName('')
     setShowNewFolder(false)
     setActiveFolder(folder.id)
   }
 
-  function deleteFolder(id: string) {
-    // Unassign items from this folder
-    const updated = loadItems().map((i) =>
-      i.folderId === id ? { ...i, folderId: undefined } : i
-    )
-    saveItems(updated)
-    setAllItems(updated)
-    const allFolders = loadFolders().filter((f) => f.id !== id)
-    saveFolders(allFolders)
-    setFolders(allFolders.filter((f) => f.category === category))
+  async function deleteFolder(id: string) {
+    await deleteFolderAction(id)
     if (activeFolder === id) setActiveFolder(null)
+    await refresh()
   }
 
   // ── Link fetch & save ──
@@ -110,52 +110,42 @@ export default function Cur8Category({ category }: Props) {
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!preview) return
-    const newItem: Cur8Item = {
-      id: Date.now().toString(),
+    const created = await createItemAction({
       category,
       folderId: selectedFolderForItem,
       url: preview.url!,
       title: preview.title || preview.url!,
-      description: preview.description || '',
-      thumbnail: preview.thumbnail || '',
-      favicon: preview.favicon || '',
-      savedAt: new Date().toISOString(),
-    }
-    const updated = [newItem, ...loadItems()]
-    saveItems(updated)
-    setAllItems(updated)
+      description: preview.description || undefined,
+      thumbnail: preview.thumbnail || undefined,
+      favicon: preview.favicon || undefined,
+    })
+    setAllItems((prev) => [created as Cur8Item, ...prev])
     setShowAdd(false)
     setUrl('')
     setPreview(null)
     setSelectedFolderForItem(undefined)
   }
 
-  function handleDelete(id: string) {
-    const updated = loadItems().filter((i) => i.id !== id)
-    saveItems(updated)
-    setAllItems(updated)
+  async function handleDelete(id: string) {
+    setAllItems((prev) => prev.filter((i) => i.id !== id))
+    await deleteItemAction(id)
   }
 
-  function handleDuplicate(id: string) {
-    const item = allItems.find((i) => i.id === id)
-    if (!item) return
-    const copy: Cur8Item = { ...item, id: Date.now().toString(), savedAt: new Date().toISOString() }
-    const updated = [copy, ...loadItems()]
-    saveItems(updated)
-    setAllItems(updated)
+  async function handleDuplicate(id: string) {
     setMenuItemId(null)
+    const copy = await duplicateItemAction(id)
+    if (copy) setAllItems((prev) => [copy as Cur8Item, ...prev])
   }
 
-  function handleMoveToFolder(itemId: string, folderId: string | undefined) {
-    const updated = loadItems().map((i) =>
-      i.id === itemId ? { ...i, folderId } : i
+  async function handleMoveToFolder(itemId: string, folderId: string | undefined) {
+    setAllItems((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, folderId } : i))
     )
-    saveItems(updated)
-    setAllItems(updated)
     setMoveItemId(null)
     setMenuItemId(null)
+    await moveItemAction(itemId, folderId)
   }
 
   function closeModal() {

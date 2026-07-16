@@ -1,10 +1,10 @@
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import Cur8Home from '@/components/cur8/cur8-home'
+import { Cur8AuthForm } from '@/components/cur8/cur8-auth-form'
 
-export default async function Cur8Page() {
+export default async function Cur8SignInPage() {
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) redirect('/cur8/sign-in')
-  return <Cur8Home />
+  if (session?.user) redirect('/cur8')
+  return <Cur8AuthForm mode="sign-in" />
 }
