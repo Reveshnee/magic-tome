@@ -46,9 +46,9 @@ export default function StaticCEODashboard() {
             { label: 'Done', value: META.stats.done, color: 'bg-blue-50 border-blue-200' },
             { label: 'New', value: META.stats.new, color: 'bg-purple-50 border-purple-200' },
           ].map((s) => (
-            <div key={s.label} className={`rounded-xl border p-3 text-center ${s.color}`}>
+            <div key={s.label} className={`rounded-xl border px-2 py-3 text-center ${s.color}`}>
               <p className="text-2xl font-bold text-slate-800">{s.value}</p>
-              <p className="text-xs text-slate-500">{s.label}</p>
+              <p className="whitespace-nowrap text-xs text-slate-500">{s.label}</p>
             </div>
           ))}
         </div>

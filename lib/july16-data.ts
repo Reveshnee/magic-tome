@@ -252,7 +252,7 @@ export const CLIENTS: Client[] = [
 ]
 
 export const PROPOSALS: Proposal[] = [
-  { client: 'CipherWave', opportunity: 'Odoo v19 Upgrade', value: '~1 month effort (TBC)', stage: 'Proposal Shared', nextAction: 'Srinivas K drafting formal proposal, due Fri 17 Jul.', owner: 'Reveshnee / Srinivas K' },
+  { client: 'CipherWave', opportunity: 'Odoo v19 Upgrade', value: '~1 month effort (TBC)', stage: 'Drafting Proposal', nextAction: 'Srinivas K drafting formal proposal, due Fri 17 Jul.', owner: 'Reveshnee / Srinivas K' },
   { client: 'CipherWave', opportunity: 'Phase 1.5 Implementation', value: 'R828,857', stage: 'On Hold', nextAction: 'Scope still overdue from Emilie since end June.', owner: 'Reveshnee' },
   { client: 'BCX', opportunity: 'Nedbank Cloud Engineering', value: 'TBC', stage: 'Proposal Shared', nextAction: 'Two revisions sent to Ranjith 9 Jul.', owner: 'Reveshnee / Michelle' },
   { client: 'BCX/Nedbank', opportunity: 'PRASA RFQ (subcontractor)', value: 'TBC', stage: 'Not Proceeding', nextAction: 'Confirmed not proceeding after call with Zweli.', owner: 'Reveshnee' },

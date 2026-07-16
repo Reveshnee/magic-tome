@@ -184,9 +184,9 @@ export default function DynamicCEODashboard() {
                   { label: 'Done', value: META.stats.done, color: 'bg-blue-600 text-white' },
                   { label: 'New', value: META.stats.new, color: 'bg-purple-600 text-white' },
                 ].map((s) => (
-                  <div key={s.label} className={`rounded-2xl p-5 text-center ${s.color}`}>
+                  <div key={s.label} className={`rounded-2xl px-2 py-5 text-center ${s.color}`}>
                     <p className="text-3xl font-bold">{s.value}</p>
-                    <p className="mt-0.5 text-xs font-medium opacity-80">{s.label}</p>
+                    <p className="mt-0.5 whitespace-nowrap text-xs font-medium opacity-80">{s.label}</p>
                   </div>
                 ))}
               </div>
