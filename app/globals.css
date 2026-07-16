@@ -161,26 +161,29 @@
   }
 }
 
-/* Cur8 scoped light theme — sea green / teal / soft blue */
+/* Cur8 — Pisces / Libra feminine palette */
 .cur8 {
   color-scheme: light;
-  --background: #f0fafa;
-  --foreground: #0d2b2b;
+  --background: #fdf8ff;
+  --foreground: #2a1a35;
   --card: #ffffff;
-  --card-foreground: #0d2b2b;
-  --muted: #e4f4f4;
-  --muted-foreground: #4a7070;
-  --border: #cce8e8;
-  --primary: #0d9488;
+  --card-foreground: #2a1a35;
+  --muted: #f5eeff;
+  --muted-foreground: #7a6585;
+  --border: #e8d8f5;
+  --primary: #9b72cf;
   --primary-foreground: #ffffff;
-  --accent: #3b82f6;
+  --accent: #e879a0;
   --accent-foreground: #ffffff;
-  --ring: #0d9488;
-  --cur8-teal: #0d9488;
-  --cur8-blue: #3b82f6;
-  --cur8-sage: #6abfb8;
-  --cur8-highlight: #f59e0b;
-  --cur8-surface: #f7fdfd;
+  --ring: #c4a0e8;
+  /* brand tokens */
+  --cur8-rose:    #f0a0bf;
+  --cur8-lilac:   #c4a0e8;
+  --cur8-sky:     #a0c8f0;
+  --cur8-pearl:   #faf5ff;
+  --cur8-gold:    #e8c87a;
+  --cur8-sage:    #a0d4c8;
+  --cur8-surface: #fef9ff;
 }
 
 @layer base {

@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
-  FolderOpen, Clock, Search, Sparkles,
+  Clock, Search, Sparkles, ChevronRight,
 } from 'lucide-react'
 import { CATEGORIES, loadItems, loadFolders, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 
@@ -24,10 +24,12 @@ export default function Cur8Home() {
   const [items, setItems] = useState<Cur8Item[]>([])
   const [folders, setFolders] = useState<Cur8Folder[]>([])
   const [search, setSearch] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setItems(loadItems())
     setFolders(loadFolders())
+    setMounted(true)
   }, [])
 
   const recent = [...items]
@@ -42,65 +44,117 @@ export default function Cur8Home() {
     : []
 
   return (
-    <div className="cur8 min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+    <div className="cur8 relative min-h-screen overflow-x-hidden"
+      style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+
+      {/* Ambient orbs — purely decorative, pointer-events-none */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full opacity-20 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #c4a0e8, transparent 70%)' }} />
+        <div className="absolute -right-24 top-1/3 h-80 w-80 rounded-full opacity-15 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #f0a0bf, transparent 70%)' }} />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full opacity-10 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #a0c8f0, transparent 70%)' }} />
+      </div>
 
       {/* ── Header ── */}
-      <header className="border-b px-5 py-5 sm:px-8" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
+      <header className="relative border-b px-5 py-6 sm:px-10"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(12px)' }}>
         <div className="mx-auto max-w-5xl">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
+
+            {/* Brand */}
             <div>
-              <h1 className="font-serif text-3xl font-bold tracking-tight" style={{ color: 'var(--foreground)' }}>
-                Cur<span style={{ color: 'var(--cur8-teal)' }}>8</span>
-              </h1>
-              <p className="mt-0.5 text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>
-                Your personal content library · {items.length} saved
+              <div className="flex items-baseline gap-1">
+                <h1 className="font-serif text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground)' }}>
+                  Cur
+                </h1>
+                <span className="font-serif text-4xl font-bold"
+                  style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  8
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs font-medium tracking-wide" style={{ color: 'var(--muted-foreground)' }}>
+                {mounted ? `${items.length} things saved` : 'Your personal sanctuary'}
               </p>
             </div>
+
             {/* Search */}
-            <div className="relative hidden sm:block">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--muted-foreground)' }} />
+            <div className="relative flex-1 max-w-xs hidden sm:block">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2"
+                style={{ color: 'var(--muted-foreground)' }} />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search everything..."
-                className="w-56 rounded-xl border py-2 pl-8 pr-3 text-sm outline-none transition focus:ring-2"
-                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
+                placeholder="Search your collection..."
+                className="w-full rounded-full border py-2 pl-8 pr-4 text-sm outline-none transition focus:ring-2"
+                style={{
+                  borderColor: 'var(--border)',
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--foreground)',
+                }}
               />
             </div>
           </div>
 
           {/* Search results */}
-          {filtered.length > 0 && (
-            <div className="mt-3 rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }}>
-              <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>{filtered.length} results</p>
-              <div className="space-y-1.5">
-                {filtered.map((item) => (
-                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-lg p-2 transition hover:bg-white text-sm font-medium"
-                    style={{ color: 'var(--foreground)' }}>
-                    <span className="text-xs px-1.5 py-0.5 rounded-md font-semibold"
-                      style={{ backgroundColor: 'var(--border)', color: 'var(--muted-foreground)' }}>
-                      {item.category}
-                    </span>
-                    {item.title}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {filtered.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="mt-3 rounded-2xl border p-3"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}
+              >
+                <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                  {filtered.length} results
+                </p>
+                <div className="space-y-1">
+                  {filtered.map((item) => (
+                    <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-2.5 rounded-xl p-2 text-sm font-medium transition hover:bg-violet-50"
+                      style={{ color: 'var(--foreground)' }}>
+                      <span className="rounded-full px-2 py-0.5 text-xs"
+                        style={{ backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}>
+                        {item.category}
+                      </span>
+                      <span className="truncate">{item.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
+      <main className="relative mx-auto max-w-5xl px-5 py-10 sm:px-10">
+
+        {/* ── Welcome line ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <p className="font-serif text-2xl font-medium leading-snug" style={{ color: 'var(--foreground)' }}>
+            Welcome back, Reveshnee.
+          </p>
+          <p className="mt-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+            Everything you love, in one beautiful place.
+          </p>
+        </motion.div>
 
         {/* ── Category grid ── */}
-        <section>
-          <div className="mb-4 flex items-center gap-2">
-            <FolderOpen size={15} style={{ color: 'var(--cur8-teal)' }} />
+        <section className="mb-12">
+          <div className="mb-5 flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
-              Categories
+              Your categories
             </h2>
+            <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              {folders.length} folders total
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -112,36 +166,47 @@ export default function Cur8Home() {
               return (
                 <motion.div
                   key={cat.name}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
+                  transition={{ delay: i * 0.06, type: 'spring', stiffness: 260, damping: 22 }}
                 >
                   <Link href={`/cur8/${cat.name.toLowerCase()}`}>
-                    <div className={`group cursor-pointer rounded-2xl border bg-gradient-to-br p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${cat.tileFrom} ${cat.tileTo} ${cat.border}`}>
-                      {/* Icon */}
-                      <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${cat.tileFrom}`}
-                        style={{ boxShadow: '0 1px 4px 0 rgba(0,0,0,0.06)' }}>
-                        {Icon && <Icon size={18} className={cat.accent} />}
+                    <div className={`group relative cursor-pointer overflow-hidden rounded-2xl border bg-gradient-to-br p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${cat.tileFrom} ${cat.tileTo} ${cat.border}`}>
+
+                      {/* shimmer on hover */}
+                      <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                        style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.35) 0%, transparent 60%)' }} />
+
+                      {/* Icon circle */}
+                      <div className={`relative mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 shadow-sm`}>
+                        {Icon && <Icon size={19} className={cat.accent} />}
                       </div>
 
-                      <h3 className="font-semibold text-sm leading-tight" style={{ color: 'var(--foreground)' }}>
+                      <h3 className="relative text-sm font-bold leading-tight" style={{ color: 'var(--foreground)' }}>
                         {cat.name}
                       </h3>
-                      <p className="mt-0.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      <p className="relative mt-0.5 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                         {cat.description}
                       </p>
 
-                      {/* Stats row */}
-                      <div className="mt-3 flex items-center justify-between">
+                      {/* Footer row */}
+                      <div className="relative mt-3 flex items-center justify-between">
                         <span className={`text-xs font-semibold ${cat.accent}`}>
                           {count} {count === 1 ? 'item' : 'items'}
                         </span>
-                        {folderCount > 0 && (
+                        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Open</span>
+                          <ChevronRight size={11} style={{ color: 'var(--muted-foreground)' }} />
+                        </div>
+                      </div>
+
+                      {folderCount > 0 && (
+                        <div className="relative mt-1.5">
                           <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                             {folderCount} {folderCount === 1 ? 'folder' : 'folders'}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </Link>
                 </motion.div>
@@ -152,9 +217,9 @@ export default function Cur8Home() {
 
         {/* ── Recently saved ── */}
         {recent.length > 0 && (
-          <section className="mt-10">
-            <div className="mb-4 flex items-center gap-2">
-              <Clock size={15} style={{ color: 'var(--cur8-teal)' }} />
+          <section>
+            <div className="mb-5 flex items-center gap-2">
+              <Clock size={14} style={{ color: 'var(--cur8-lilac)' }} />
               <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
                 Recently saved
               </h2>
@@ -172,22 +237,30 @@ export default function Cur8Home() {
                     rel="noopener noreferrer"
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="group rounded-xl border bg-white p-3 transition hover:shadow-sm hover:-translate-y-0.5"
+                    transition={{ delay: i * 0.05 }}
+                    className="group relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
                     style={{ borderColor: 'var(--border)' }}
                   >
+                    {/* shimmer */}
+                    <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 z-10"
+                      style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 60%)' }} />
+
                     {item.thumbnail ? (
                       <img src={item.thumbnail} alt={item.title}
-                        className="mb-2 h-20 w-full rounded-lg object-cover" />
+                        className="h-24 w-full object-cover" />
                     ) : (
-                      <div className={`mb-2 flex h-20 w-full items-center justify-center rounded-lg bg-gradient-to-br ${cat?.tileFrom} ${cat?.tileTo}`}>
+                      <div className={`flex h-24 w-full items-center justify-center bg-gradient-to-br ${cat?.tileFrom} ${cat?.tileTo}`}>
                         {Icon && <Icon size={22} className={cat?.accent} />}
                       </div>
                     )}
-                    <p className="line-clamp-2 text-xs font-medium leading-snug" style={{ color: 'var(--foreground)' }}>
-                      {item.title}
-                    </p>
-                    <span className={`mt-1 block text-xs font-semibold ${cat?.accent}`}>{item.category}</span>
+                    <div className="p-2.5">
+                      <p className="line-clamp-2 text-xs font-semibold leading-snug" style={{ color: 'var(--foreground)' }}>
+                        {item.title}
+                      </p>
+                      <span className={`mt-1 block text-xs font-medium ${cat?.accent ?? ''}`}>
+                        {item.category}
+                      </span>
+                    </div>
                   </motion.a>
                 )
               })}
@@ -198,13 +271,13 @@ export default function Cur8Home() {
         {/* ── Empty state ── */}
         {items.length === 0 && (
           <section className="mt-16 flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl"
-              style={{ backgroundColor: 'var(--muted)' }}>
-              <Sparkles size={28} style={{ color: 'var(--cur8-teal)' }} />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl"
+              style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))' }}>
+              <Sparkles size={32} className="text-white" />
             </div>
-            <h2 className="mt-4 font-serif text-xl font-bold">Start saving things you love</h2>
-            <p className="mt-1.5 max-w-xs text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-              Pick a category above, paste a link, and Cur8 pulls the preview for you automatically.
+            <h2 className="mt-5 font-serif text-2xl font-bold">Your space awaits</h2>
+            <p className="mt-2 max-w-xs text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
+              Pick a category, paste a link — Cur8 takes care of the rest.
             </p>
           </section>
         )}

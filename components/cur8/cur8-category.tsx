@@ -167,11 +167,19 @@ export default function Cur8Category({ category }: Props) {
   }
 
   return (
-    <div className="cur8 min-h-screen" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+    <div className="cur8 relative min-h-screen overflow-x-hidden" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+
+      {/* Ambient orbs */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #c4a0e8, transparent 70%)' }} />
+        <div className="absolute -right-16 bottom-1/4 h-64 w-64 rounded-full opacity-15 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #f0a0bf, transparent 70%)' }} />
+      </div>
 
       {/* ── Header ── */}
-      <header className="border-b px-5 py-4 sm:px-8"
-        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
+      <header className="relative border-b px-5 py-4 sm:px-8"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(12px)' }}>
         <div className="mx-auto max-w-5xl">
           <Link href="/cur8"
             className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium transition hover:opacity-70"
@@ -190,13 +198,13 @@ export default function Cur8Category({ category }: Props) {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95"
-              style={{ backgroundColor: 'var(--primary)' }}
-            >
-              <Plus size={15} /> Save link
-            </button>
+              <button
+                onClick={() => setShowAdd(true)}
+                className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95"
+                style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))' }}
+              >
+                <Plus size={15} /> Save link
+              </button>
           </div>
         </div>
       </header>
