@@ -36,8 +36,8 @@ export const META = {
   owner: 'Reveshnee Gajadhar',
   division: 'Strategic Accounts',
   stats: {
-    active: 14,
-    onTrack: 3,
+    active: 13,
+    onTrack: 2,
     watch: 3,
     atRisk: 2,
     done: 4,
@@ -50,7 +50,7 @@ export const TOP_FOCUS: string[] = [
   'Travel IT: Phase 1 - waiting for feedback from Venu. Still 3 APIs outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Phase 2 scope hasn\'t been defined yet — we need to get discovery workshops in the diary. Redeployment decision still sitting with management. BRS still not signed.',
   'Tiger Brands: Still waiting on Venu to reply to Mike about keeping Stefan on the team.',
   'Burgess: Rohith asked Hartaj to extend the quotation expiry but no response yet. MSA is still being worked on.',
-  'Zoom Fiber: Quotation went to Moeen on 3 Jul — nearly two weeks and nothing back. Do we chase or park this one?',
+  'Zoom Fibre: Quotation sent to Moeen on 3 Jul. He replied on 16 Jul — waiting for feedback.',
   'VMCH: Wama is busy with the website at the moment.',
   'Agrément SA: RFQ is in — waiting to hear back.',
   'MultiChoice: April/May POs are still stuck. Sipokazi needs them before she can issue Thami\'s contract.',
@@ -78,7 +78,7 @@ export const CLIENTS: Client[] = [
   },
   {
     id: 2,
-    name: 'BCX / Nedbank (PRASA)',
+    name: 'BCX / PRASA',
     engagement: 'Cloud Engineering Proposal + PRASA RFQ',
     health: 'Done',
     contacts: 'Ranjith Naidu / Praveen Ponnam',
@@ -87,7 +87,7 @@ export const CLIENTS: Client[] = [
     nextActions: ['No further action on PRASA RFQ'],
     venuActions: [],
     owner: 'Reveshnee',
-    urgency: 'low',
+    urgency: 'none',
   },
   {
     id: 3,
@@ -244,7 +244,7 @@ export const PROPOSALS: Proposal[] = [
   { client: 'CipherWave', opportunity: 'Odoo v19 Upgrade', value: '~1 month effort (TBC)', stage: 'Drafting Proposal', nextAction: 'Srinivas K drafting formal proposal, due Fri 17 Jul.', owner: 'Reveshnee / Srinivas K' },
   { client: 'CipherWave', opportunity: 'Phase 1.5 Implementation', value: 'R828,857', stage: 'On Hold', nextAction: 'Scope still overdue from Emilie since end June.', owner: 'Reveshnee' },
   { client: 'BCX', opportunity: 'Nedbank Cloud Engineering', value: 'TBC', stage: 'Proposal Shared', nextAction: 'Two revisions sent to Ranjith 9 Jul.', owner: 'Reveshnee / Michelle' },
-  { client: 'BCX/Nedbank', opportunity: 'PRASA RFQ (subcontractor)', value: 'TBC', stage: 'Not Proceeding', nextAction: 'Confirmed not proceeding after call with Zweli.', owner: 'Reveshnee' },
+  { client: 'BCX / PRASA', opportunity: 'PRASA RFQ (subcontractor)', value: 'TBC', stage: 'Not Proceeding', nextAction: 'Confirmed not proceeding after call with Zweli.', owner: 'Reveshnee' },
   { client: 'Tiger Brands', opportunity: 'EDMS v2.0 (Albany Doc Approval)', value: 'Pricing pending', stage: 'Proposal Shared', nextAction: 'Sent to Chris Lacy 24 Jun, no response since.', owner: 'Reveshnee / Rushana' },
   { client: 'Tiger Brands', opportunity: 'TCoE + UiPath RPA', value: 'TBC', stage: 'On Hold', nextAction: 'Paused client-side.', owner: 'Reveshnee / Venu' },
   { client: 'Agrément SA', opportunity: 'Digitalisation RFQ (36-month)', value: 'TBC', stage: 'Submitted', nextAction: 'Submitted 15 Jul ahead of deadline.', owner: 'Reveshnee / Prince' },
@@ -256,9 +256,8 @@ export const PROPOSALS: Proposal[] = [
 export const VENU_ITEMS: VenuItem[] = [
   { priority: 'critical', client: 'Tiger Brands', item: 'Please reply to Mike about Stefan — this has been sitting since 9 Jul' },
   { priority: 'critical', client: 'Travel IT', item: 'We need a call on the redeployment decision. Vishnu flagged the idle team risk and it was already due on Wed.' },
-  { priority: 'cancelled', client: 'BCX / Nedbank (PRASA)', item: 'Need to update you on my call with Zweli — not proceeding' },
+  { priority: 'cancelled', client: 'BCX / PRASA', item: 'Need to update you on my call with Zweli — not proceeding' },
   { priority: 'high', client: 'MultiChoice', item: 'Can you confirm the April/May POs? Sipokazi is waiting on these before she can sort out Thami\'s contract' },
   { priority: 'high', client: 'MultiChoice', item: 'Need to respond to Prajwala on salary' },
-  { priority: 'high', client: 'Zoom Fibre', item: 'Moeen hasn\'t come back on the quotation from 3 Jul — do we go back to him or leave it for now?' },
   { priority: 'high', client: 'Odoo / Burgess', item: 'Hartaj is not responding on three things. Would you be able to reach out to someone at Odoo directly?' },
 ]
