@@ -26,7 +26,7 @@ export interface Proposal {
 }
 
 export interface VenuItem {
-  priority: 'critical' | 'high'
+  priority: 'critical' | 'high' | 'cancelled'
   client: string
   item: string
 }
@@ -267,7 +267,7 @@ export const PROPOSALS: Proposal[] = [
 export const VENU_ITEMS: VenuItem[] = [
   { priority: 'critical', client: 'Tiger Brands', item: 'Please reply to Mike about Stefan — this has been sitting since 9 Jul' },
   { priority: 'critical', client: 'Travel IT', item: 'We need a call on the redeployment decision. Vishnu flagged the idle team risk and it was already due on Wed.' },
-  { priority: 'critical', client: 'BCX / Nedbank (PRASA)', item: 'Need to update you on my call with Zweli' },
+  { priority: 'cancelled', client: 'BCX / Nedbank (PRASA)', item: 'Need to update you on my call with Zweli — not proceeding' },
   { priority: 'high', client: 'MultiChoice', item: 'Can you confirm the April/May POs? Sipokazi is waiting on these before she can sort out Thami\'s contract' },
   { priority: 'high', client: 'MultiChoice', item: 'Need to respond to Prajwala on salary' },
   { priority: 'high', client: 'Zoom Fibre', item: 'Moeen hasn\'t come back on the quotation from 3 Jul — do we go back to him or leave it for now?' },

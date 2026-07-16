@@ -71,13 +71,20 @@ export default function StaticCEODashboard() {
           <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-red-600">Followups - Venu</h2>
           <ol className="space-y-2">
             {VENU_ITEMS.map((v, i) => (
-              <li key={i} className="flex gap-2 text-sm">
-                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${v.priority === 'critical' ? 'bg-red-600' : 'bg-amber-500'}`}>
+              <li key={i} className={`flex gap-2 text-sm ${v.priority === 'cancelled' ? 'opacity-50' : ''}`}>
+                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  v.priority === 'critical' ? 'bg-red-600 text-white' :
+                  v.priority === 'cancelled' ? 'bg-slate-300 text-slate-500' :
+                  'bg-amber-500 text-white'
+                }`}>
                   {i + 1}
                 </span>
                 <span>
-                  <span className="font-semibold text-slate-700">{v.client}: </span>
-                  <span className="text-slate-600">{v.item}</span>
+                  <span className={`font-semibold ${v.priority === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{v.client}: </span>
+                  <span className={v.priority === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-600'}>{v.item}</span>
+                  {v.priority === 'cancelled' && (
+                    <span className="ml-2 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-xs font-semibold text-slate-500">Not proceeding</span>
+                  )}
                 </span>
               </li>
             ))}
