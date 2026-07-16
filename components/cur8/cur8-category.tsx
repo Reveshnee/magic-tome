@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
-  Folder, FolderOpen, Check,
+  Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -34,6 +34,10 @@ export default function Cur8Category({ category }: Props) {
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [selectedFolderForItem, setSelectedFolderForItem] = useState<string | undefined>(undefined)
 
+  // Context menu state
+  const [menuItemId, setMenuItemId] = useState<string | null>(null)
+  const [moveItemId, setMoveItemId] = useState<string | null>(null)
+
   // Add modal state
   const [url, setUrl] = useState('')
   const [fetching, setFetching] = useState(false)
@@ -44,6 +48,13 @@ export default function Cur8Category({ category }: Props) {
     setAllItems(loadItems())
     setFolders(loadFolders().filter((f) => f.category === category))
   }, [category])
+
+  useEffect(() => {
+    if (!menuItemId) return
+    function handleOutside() { setMenuItemId(null); setMoveItemId(null) }
+    document.addEventListener('click', handleOutside)
+    return () => document.removeEventListener('click', handleOutside)
+  }, [menuItemId])
 
   const catItems = allItems.filter((i) => i.category === category)
   const visibleItems = activeFolder === null
@@ -125,6 +136,26 @@ export default function Cur8Category({ category }: Props) {
     const updated = loadItems().filter((i) => i.id !== id)
     saveItems(updated)
     setAllItems(updated)
+  }
+
+  function handleDuplicate(id: string) {
+    const item = allItems.find((i) => i.id === id)
+    if (!item) return
+    const copy: Cur8Item = { ...item, id: Date.now().toString(), savedAt: new Date().toISOString() }
+    const updated = [copy, ...loadItems()]
+    saveItems(updated)
+    setAllItems(updated)
+    setMenuItemId(null)
+  }
+
+  function handleMoveToFolder(itemId: string, folderId: string | undefined) {
+    const updated = loadItems().map((i) =>
+      i.id === itemId ? { ...i, folderId } : i
+    )
+    saveItems(updated)
+    setAllItems(updated)
+    setMoveItemId(null)
+    setMenuItemId(null)
   }
 
   function closeModal() {
@@ -339,16 +370,89 @@ export default function Cur8Category({ category }: Props) {
                       </p>
                     </div>
 
-                    {/* Hover actions */}
-                    <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      <a href={item.url} target="_blank" rel="noopener noreferrer"
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-sm">
-                        <ExternalLink size={12} className="text-slate-500" />
-                      </a>
-                      <button onClick={() => handleDelete(item.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-sm">
-                        <Trash2 size={12} className="text-red-400" />
+                    {/* Three-dot context menu */}
+                    <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuItemId(menuItemId === item.id ? null : item.id); setMoveItemId(null) }}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-sm"
+                      >
+                        <MoreVertical size={13} className="text-slate-500" />
                       </button>
+
+                      <AnimatePresence>
+                        {menuItemId === item.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            className="absolute right-0 top-9 z-30 w-44 overflow-hidden rounded-xl border bg-white shadow-lg"
+                            style={{ borderColor: 'var(--border)' }}
+                          >
+                            {/* Move to folder */}
+                            {moveItemId === item.id ? (
+                              <div className="p-2">
+                                <p className="mb-1.5 px-1 text-xs font-bold" style={{ color: 'var(--muted-foreground)' }}>Move to folder</p>
+                                <button
+                                  onClick={() => handleMoveToFolder(item.id, undefined)}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50"
+                                  style={{ color: item.folderId === undefined ? 'var(--cur8-teal)' : 'var(--foreground)' }}
+                                >
+                                  <FolderOpen size={11} /> No folder {item.folderId === undefined && <Check size={10} className="ml-auto" />}
+                                </button>
+                                {folders.map((f) => (
+                                  <button
+                                    key={f.id}
+                                    onClick={() => handleMoveToFolder(item.id, f.id)}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50"
+                                    style={{ color: item.folderId === f.id ? 'var(--cur8-teal)' : 'var(--foreground)' }}
+                                  >
+                                    <Folder size={11} /> <span className="truncate">{f.name}</span>
+                                    {item.folderId === f.id && <Check size={10} className="ml-auto shrink-0" />}
+                                  </button>
+                                ))}
+                                <button
+                                  onClick={() => setMoveItemId(null)}
+                                  className="mt-1 w-full rounded-lg px-2 py-1 text-xs font-medium hover:bg-slate-50"
+                                  style={{ color: 'var(--muted-foreground)' }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <a
+                                  href={item.url} target="_blank" rel="noopener noreferrer"
+                                  className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium hover:bg-slate-50"
+                                  style={{ color: 'var(--foreground)' }}
+                                >
+                                  <ExternalLink size={12} /> Open link
+                                </a>
+                                <button
+                                  onClick={() => setMoveItemId(item.id)}
+                                  className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium hover:bg-slate-50"
+                                  style={{ color: 'var(--foreground)' }}
+                                >
+                                  <FolderInput size={12} /> Move to folder
+                                </button>
+                                <button
+                                  onClick={() => handleDuplicate(item.id)}
+                                  className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium hover:bg-slate-50"
+                                  style={{ color: 'var(--foreground)' }}
+                                >
+                                  <Copy size={12} /> Duplicate
+                                </button>
+                                <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+                                <button
+                                  onClick={() => { handleDelete(item.id); setMenuItemId(null) }}
+                                  className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium text-red-500 hover:bg-red-50"
+                                >
+                                  <Trash2 size={12} /> Delete
+                                </button>
+                              </>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </motion.div>
                 ))}
