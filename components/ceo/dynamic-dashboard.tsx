@@ -153,7 +153,7 @@ export default function DynamicCEODashboard() {
                 {tab}
                 {tab === 'Venu Actions' && (
                   <span className="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold text-white">
-                    {VENU_ITEMS.filter((v) => v.priority === 'critical').length}
+                    {VENU_ITEMS.filter((v) => v.priority === 'critical' || v.priority === 'high').length}
                   </span>
                 )}
                 {activeTab === tab && (
@@ -192,14 +192,14 @@ export default function DynamicCEODashboard() {
               </div>
 
               <div className="grid gap-6 lg:grid-cols-2">
-                {/* Top Focus */}
+                {/* Focus Areas */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Top Focus This Week</h2>
+                  <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Focus Areas</h2>
                   <ol className="space-y-3">
                     {TOP_FOCUS.map((item, i) => (
                       <li key={i} className="flex gap-3 text-sm text-slate-700">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">{i + 1}</span>
-                        <span className={item.startsWith('[Venu]') ? 'font-semibold text-red-700' : ''}>{item}</span>
+                        <span>{item}</span>
                       </li>
                     ))}
                   </ol>
@@ -233,18 +233,23 @@ export default function DynamicCEODashboard() {
 
               {/* Quick Venu summary */}
               <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6">
-                <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-red-600">What I Need From You, Venu ({VENU_ITEMS.length} items)</h2>
+                <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-red-600">Followups - Venu ({VENU_ITEMS.length} items)</h2>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {VENU_ITEMS.map((v, i) => (
-                    <div key={i} className="flex gap-3 rounded-xl border border-red-100 bg-white p-4">
-                      <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                        v.priority === 'critical' ? 'bg-red-600' : 'bg-amber-500'
+                    <div key={i} className={`flex gap-3 rounded-xl border bg-white p-4 ${v.priority === 'cancelled' ? 'border-slate-100 opacity-50' : 'border-red-100'}`}>
+                      <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        v.priority === 'critical' ? 'bg-red-600 text-white' :
+                        v.priority === 'cancelled' ? 'bg-slate-300 text-slate-500' :
+                        'bg-amber-500 text-white'
                       }`}>
-                        {v.priority === 'critical' ? '!' : '~'}
+                        {i + 1}
                       </span>
                       <div>
-                        <p className="text-xs font-bold text-slate-700">{v.client}</p>
-                        <p className="mt-0.5 text-xs text-slate-600">{v.item}</p>
+                        <p className={`text-xs font-bold ${v.priority === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{v.client}</p>
+                        <p className={`mt-0.5 text-xs ${v.priority === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-600'}`}>{v.item}</p>
+                        {v.priority === 'cancelled' && (
+                          <span className="mt-1 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-xs font-semibold text-slate-500">Not proceeding</span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -357,29 +362,35 @@ export default function DynamicCEODashboard() {
                   <div
                     key={i}
                     className={`rounded-2xl border p-5 shadow-sm ${
-                      v.priority === 'critical'
+                      v.priority === 'cancelled'
+                        ? 'border-slate-100 bg-white opacity-50'
+                        : v.priority === 'critical'
                         ? 'border-red-200 bg-white'
                         : 'border-amber-100 bg-white'
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
-                        v.priority === 'critical' ? 'bg-red-600' : 'bg-amber-500'
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        v.priority === 'critical' ? 'bg-red-600 text-white' :
+                        v.priority === 'cancelled' ? 'bg-slate-300 text-slate-500' :
+                        'bg-amber-500 text-white'
                       }`}>
                         {i + 1}
                       </span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-semibold text-slate-900">{v.client}</p>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
-                            v.priority === 'critical'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {v.priority}
-                          </span>
+                          <p className={`font-semibold ${v.priority === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{v.client}</p>
+                          {v.priority === 'cancelled' ? (
+                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-500">Not proceeding</span>
+                          ) : (
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${
+                              v.priority === 'critical' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {v.priority}
+                            </span>
+                          )}
                         </div>
-                        <p className="mt-1 text-sm text-slate-600">{v.item}</p>
+                        <p className={`mt-1 text-sm ${v.priority === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-600'}`}>{v.item}</p>
                       </div>
                     </div>
                   </div>
