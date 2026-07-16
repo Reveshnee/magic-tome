@@ -1,122 +1,160 @@
+'use client'
+
 import Link from 'next/link'
 
-const TOOLS = [
+const WORK_TOOLS = [
   {
     href: '/ceo',
-    title: 'CEO Briefing — 16 Jul',
-    description: 'Interactive portfolio update for Venu · 14 clients · 8 action items',
+    title: 'CEO Briefing',
+    subtitle: '16 July 2026',
+    description: 'Full portfolio update for Venu — all 14 clients, proposals, and your followup list.',
     badge: 'Interactive',
-    accentFrom: 'rgba(15,23,42,0.7)',
-    accentTo: 'rgba(15,23,42,0.4)',
-    border: 'border-slate-600/40',
-    dot: 'bg-slate-300',
-    glow: '0 0 28px 0px rgba(15,23,42,0.4)',
+    badgeColor: 'bg-sky-100 text-sky-700',
+    accent: 'border-l-sky-500',
+    icon: '📋',
   },
   {
     href: '/ceo-static',
-    title: 'CEO Briefing — Print',
-    description: 'Static printable version · Send as PDF or share the link',
-    badge: 'Printable',
-    accentFrom: 'rgba(15,23,42,0.5)',
-    accentTo: 'rgba(15,23,42,0.2)',
-    border: 'border-slate-600/30',
-    dot: 'bg-slate-400',
-    glow: '0 0 28px 0px rgba(15,23,42,0.2)',
+    title: 'CEO Briefing',
+    subtitle: 'Print / Share version',
+    description: 'Clean, printable version. Open the link on any device or save as a PDF.',
+    badge: 'Shareable',
+    badgeColor: 'bg-slate-100 text-slate-600',
+    accent: 'border-l-slate-400',
+    icon: '🖨️',
   },
   {
     href: '/dashboard',
     title: 'LFI Dashboard',
-    description: 'Client portfolio · Kanban board · Financials · Wins',
-    badge: 'June 2026',
-    accentFrom: 'rgba(20,184,166,0.18)',
-    accentTo: 'rgba(20,184,166,0.04)',
-    border: 'border-teal-500/30',
-    dot: 'bg-teal-400',
-    glow: '0 0 28px 0px rgba(20,184,166,0.18)',
+    subtitle: 'June 2026',
+    description: 'Your full client portfolio — kanban board, financials, wins, and Venu actions.',
+    badge: 'Kanban',
+    badgeColor: 'bg-teal-100 text-teal-700',
+    accent: 'border-l-teal-500',
+    icon: '📊',
   },
+]
+
+const PERSONAL_TOOLS = [
   {
     href: '/library',
     title: 'Magic Library',
-    description: 'Five tasks. Five glowing books. Hidden secrets after.',
+    subtitle: 'Candlelit dark academia',
+    description: 'Five tasks. Five glowing books. Hidden secrets unlock when you finish.',
     badge: 'Daily ritual',
-    accentFrom: 'oklch(0.82 0.13 82 / 18%)',
-    accentTo: 'oklch(0.82 0.13 82 / 3%)',
-    border: 'border-[oklch(0.82_0.13_82/30%)]',
-    dot: 'bg-[oklch(0.82_0.13_82)]',
-    glow: '0 0 28px 0px oklch(0.82 0.13 82 / 18%)',
+    badgeColor: 'bg-amber-100 text-amber-700',
+    accent: 'border-l-amber-400',
+    icon: '📚',
   },
   {
     href: '/stargazer',
     title: "Stargazer's Sky",
-    description: 'Five tasks. Five stars. A constellation by the end.',
+    subtitle: 'Calm night sky',
+    description: 'Five tasks become five stars. Watch your constellation grow as you go.',
     badge: 'Daily ritual',
-    accentFrom: 'rgba(139,92,246,0.18)',
-    accentTo: 'rgba(139,92,246,0.04)',
-    border: 'border-violet-500/30',
-    dot: 'bg-violet-400',
-    glow: '0 0 28px 0px rgba(139,92,246,0.18)',
+    badgeColor: 'bg-violet-100 text-violet-700',
+    accent: 'border-l-violet-400',
+    icon: '✨',
   },
 ]
 
-export default function Home() {
+function ToolCard({ tool }: { tool: typeof WORK_TOOLS[0] }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[oklch(0.16_0.04_270)] px-4 py-14 font-sans">
-      <div className="w-full max-w-lg">
+    <Link
+      href={tool.href}
+      className={`group flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 border-l-4 ${tool.accent}`}
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-2xl">
+        {tool.icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <div>
+            <h2 className="font-serif text-lg font-bold leading-tight text-slate-900">
+              {tool.title}
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">{tool.subtitle}</p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tool.badgeColor}`}>
+            {tool.badge}
+          </span>
+        </div>
+        <p className="text-sm text-slate-500 leading-relaxed">
+          {tool.description}
+        </p>
+      </div>
+      <svg
+        className="mt-1 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-slate-500"
+        width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden
+      >
+        <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </Link>
+  )
+}
 
-        <header className="mb-10 text-center">
-          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Phoenix&apos;s workspace
+function SectionLabel({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-3 mb-3">
+      <span className="text-xs font-bold uppercase tracking-widest text-slate-400">{label}</span>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-400">
+        {count}
+      </span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  )
+}
+
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+export default function Home() {
+  const today = new Date().toLocaleDateString('en-ZA', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  })
+
+  return (
+    <main className="min-h-screen bg-slate-50 px-4 py-10 font-sans">
+      <div className="mx-auto w-full max-w-xl">
+
+        {/* Header */}
+        <header className="mb-10">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">
+            Linkfields Innovations
           </p>
-          <h1 className="font-serif text-4xl font-bold text-balance text-foreground">
-            What do you need today?
+          <h1 className="font-serif text-3xl font-bold text-slate-900 text-balance leading-snug">
+            {getGreeting()}, Reveshnee.
           </h1>
-          <p className="mt-3 text-sm text-muted-foreground text-pretty">
-            Your tools, all in one place. Pick one and go.
-          </p>
+          <p className="mt-1.5 text-sm text-slate-400">{today}</p>
         </header>
 
-        <div className="flex flex-col gap-3">
-          {TOOLS.map((tool) => (
-            <Link
-              key={tool.href}
-              href={tool.href}
-              className={`group relative overflow-hidden rounded-2xl border p-5 transition-all duration-200 hover:scale-[1.015] hover:shadow-xl active:scale-[0.99] ${tool.border}`}
-              style={{
-                background: `linear-gradient(135deg, ${tool.accentFrom}, ${tool.accentTo})`,
-                boxShadow: tool.glow,
-              }}
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${tool.dot}`} />
-                    <h2 className="font-serif text-xl font-bold text-foreground leading-none">
-                      {tool.title}
-                    </h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed pl-4">
-                    {tool.description}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-3">
-                  <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-                    {tool.badge}
-                  </span>
-                  <svg
-                    className="text-muted-foreground transition-transform duration-200 group-hover:translate-x-1"
-                    width="16" height="16" viewBox="0 0 16 16" fill="none"
-                    aria-hidden
-                  >
-                    <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {/* Work section */}
+        <section className="mb-8" aria-label="Work tools">
+          <SectionLabel label="Work" count={WORK_TOOLS.length} />
+          <div className="flex flex-col gap-3">
+            {WORK_TOOLS.map((tool) => (
+              <ToolCard key={tool.href} tool={tool} />
+            ))}
+          </div>
+        </section>
 
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          More tools on the way &mdash; ask V for a fresh one anytime.
+        {/* Personal section */}
+        <section className="mb-10" aria-label="Personal tools">
+          <SectionLabel label="Personal" count={PERSONAL_TOOLS.length} />
+          <div className="flex flex-col gap-3">
+            {PERSONAL_TOOLS.map((tool) => (
+              <ToolCard key={tool.href} tool={tool} />
+            ))}
+          </div>
+        </section>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-slate-300">
+          More tools on the way &mdash; just ask V.
         </p>
       </div>
     </main>
