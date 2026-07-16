@@ -46,11 +46,14 @@ export const META = {
 }
 
 export const TOP_FOCUS: string[] = [
-  '[Venu] Reply to Mike re retaining Stefan — outstanding since 9 Jul (Tiger Brands)',
-  'URGENT: Chase Praveen before PRASA RFQ closes Fri 17 Jul (BCX/Nedbank)',
-  '[Venu] Sign-off on R&P workshop scheduling (CipherWave)',
-  '[Venu] Resource redeployment decision + Phase 2 scope (Travel IT)',
-  'Chase Destiny Global directly — JPC RFQ has gone quiet since 17 Jun',
+  'CipherWave: v19 proposal — Srinivas drafting (may slip to early next week). You sent him docs on Teams today. Emilie alignment — Call done 12:30pm today. Weekly touch-base at 2pm. Her pre-upgrade asks (pricelist tracking, SMTP relay, BCC) must happen before v19. Maintenance section — new scope, needs to be in the proposal. July hours — 74 confirmed, 35.5 used. Need estimates for remaining items.',
+  'Travel IT: Phase 1 — go-live postponed 1 week (~22 Jul). 3 APIs still outstanding (Cancel, Payment Redirect, Itinerary Retrieval). Phase 2 — scope undefined, needs discovery workshops. Resource redeployment — management decision still pending. BRS — still unsigned.',
+  'Tiger Brands: Stefan — waiting on Venu to reply to Mike.',
+  'Burgess: Quotation expiry — Rohith asked Hartaj to extend, no response yet. MSA status — working on MSA.',
+  'Zoom Fiber: Moeen — quotation sent 3 Jul, no response in almost 2 weeks. Park or chase?',
+  'VMCH: Wama currently working on website.',
+  'Agrément SA: RFQ submitted — awaiting outcome.',
+  'MultiChoice: April/May POs — needed so Sipokazi can issue Thami\'s contract. Still sitting.',
 ]
 
 export const CLIENTS: Client[] = [
@@ -264,9 +267,7 @@ export const PROPOSALS: Proposal[] = [
 export const VENU_ITEMS: VenuItem[] = [
   { priority: 'critical', client: 'Tiger Brands', item: 'Reply to Mike re retaining Stefan — outstanding since 9 Jul' },
   { priority: 'critical', client: 'Travel IT', item: 'Resource redeployment decision — Vishnu flagged idle team risk. Decision was due Wed 15 Jul.' },
-  { priority: 'critical', client: 'BCX / Nedbank (PRASA)', item: 'Escalate to Praveen\'s manager or pull out of tender — RFQ closes Fri 17 Jul' },
-  { priority: 'critical', client: 'CipherWave', item: 'R&P workshops sign-off — cannot schedule with Emilie until approved' },
-  { priority: 'high', client: 'CipherWave', item: 'July hours confirmation — what is billable from the 69hr budget (12 used)' },
+  { priority: 'critical', client: 'BCX / Nedbank (PRASA)', item: 'Update Venu on call with Zweli' },
   { priority: 'high', client: 'MultiChoice', item: 'April/May POs confirmation so Sipokazi can issue Thami\'s contract' },
   { priority: 'high', client: 'Zoom Fibre', item: 'Chase Moeen directly re quotation (sent 3 Jul, no response) or park it?' },
   { priority: 'high', client: 'Odoo / Burgess', item: 'Hartaj escalation support — ghosting on 3 items. Direct outreach to Odoo leadership?' },

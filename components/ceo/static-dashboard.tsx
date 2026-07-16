@@ -1,6 +1,6 @@
 'use client'
 
-import { CLIENTS, META, PROPOSALS, VENU_ITEMS } from '@/lib/july16-data'
+import { CLIENTS, META, PROPOSALS, TOP_FOCUS, VENU_ITEMS } from '@/lib/july16-data'
 
 const HEALTH_STYLE: Record<string, string> = {
   'At Risk': 'bg-red-100 text-red-700 border border-red-200',
@@ -53,9 +53,22 @@ export default function StaticCEODashboard() {
           ))}
         </div>
 
-        {/* Venu Actions — full width */}
+        {/* Focus Areas */}
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Focus Areas</h2>
+          <ol className="space-y-2">
+            {TOP_FOCUS.map((item, i) => (
+              <li key={i} className="flex gap-2 text-sm text-slate-700">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-slate-700">{i + 1}</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Followups - Venu */}
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-5">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-red-600">What I Need From You, Venu</h2>
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-red-600">Followups - Venu</h2>
           <ol className="space-y-2">
             {VENU_ITEMS.map((v, i) => (
               <li key={i} className="flex gap-2 text-sm">
