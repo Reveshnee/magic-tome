@@ -8,9 +8,17 @@ export type Category =
   | 'Documents'
   | 'Web'
 
+export interface Cur8Folder {
+  id: string
+  category: Category
+  name: string
+  createdAt: string
+}
+
 export interface Cur8Item {
   id: string
   category: Category
+  folderId?: string   // undefined = "All" / uncategorised
   url: string
   title: string
   description?: string
@@ -21,87 +29,122 @@ export interface Cur8Item {
 
 export const CATEGORIES: {
   name: Category
-  color: string
-  bg: string
-  icon: string
+  lucideIcon: string   // icon name to display (we render inline SVG per category)
+  accent: string       // tailwind text colour
+  tileFrom: string     // gradient start
+  tileTo: string       // gradient end
+  border: string
+  pill: string         // badge bg
   description: string
 }[] = [
   {
     name: 'YouTube',
-    color: 'text-red-600',
-    bg: 'bg-red-50 border-red-100',
-    icon: '▶',
-    description: 'Videos & playlists',
+    lucideIcon: 'play',
+    accent: 'text-rose-500',
+    tileFrom: 'from-rose-50',
+    tileTo: 'to-orange-50',
+    border: 'border-rose-100',
+    pill: 'bg-rose-100 text-rose-600',
+    description: 'Videos & channels',
   },
   {
     name: 'TikTok',
-    color: 'text-slate-800',
-    bg: 'bg-slate-50 border-slate-100',
-    icon: '♪',
-    description: 'Short videos',
+    lucideIcon: 'music',
+    accent: 'text-slate-700',
+    tileFrom: 'from-slate-50',
+    tileTo: 'to-zinc-50',
+    border: 'border-slate-200',
+    pill: 'bg-slate-100 text-slate-600',
+    description: 'Short-form videos',
   },
   {
     name: 'Instagram',
-    color: 'text-pink-600',
-    bg: 'bg-pink-50 border-pink-100',
-    icon: '◈',
+    lucideIcon: 'camera',
+    accent: 'text-fuchsia-500',
+    tileFrom: 'from-fuchsia-50',
+    tileTo: 'to-pink-50',
+    border: 'border-fuchsia-100',
+    pill: 'bg-fuchsia-100 text-fuchsia-600',
     description: 'Posts & reels',
   },
   {
     name: 'Facebook',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50 border-blue-100',
-    icon: '⬡',
+    lucideIcon: 'users',
+    accent: 'text-blue-500',
+    tileFrom: 'from-blue-50',
+    tileTo: 'to-sky-50',
+    border: 'border-blue-100',
+    pill: 'bg-blue-100 text-blue-600',
     description: 'Posts & groups',
   },
   {
     name: 'Articles',
-    color: 'text-amber-700',
-    bg: 'bg-amber-50 border-amber-100',
-    icon: '◉',
+    lucideIcon: 'newspaper',
+    accent: 'text-amber-600',
+    tileFrom: 'from-amber-50',
+    tileTo: 'to-yellow-50',
+    border: 'border-amber-100',
+    pill: 'bg-amber-100 text-amber-700',
     description: 'Reads & research',
   },
   {
     name: 'Images',
-    color: 'text-teal-600',
-    bg: 'bg-teal-50 border-teal-100',
-    icon: '▣',
+    lucideIcon: 'image-icon',
+    accent: 'text-teal-500',
+    tileFrom: 'from-teal-50',
+    tileTo: 'to-cyan-50',
+    border: 'border-teal-100',
+    pill: 'bg-teal-100 text-teal-600',
     description: 'Inspiration & visuals',
   },
   {
     name: 'Documents',
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50 border-indigo-100',
-    icon: '▤',
+    lucideIcon: 'file-text',
+    accent: 'text-indigo-500',
+    tileFrom: 'from-indigo-50',
+    tileTo: 'to-violet-50',
+    border: 'border-indigo-100',
+    pill: 'bg-indigo-100 text-indigo-600',
     description: 'Files & PDFs',
   },
   {
     name: 'Web',
-    color: 'text-emerald-600',
-    bg: 'bg-emerald-50 border-emerald-100',
-    icon: '◎',
+    lucideIcon: 'globe',
+    accent: 'text-emerald-500',
+    tileFrom: 'from-emerald-50',
+    tileTo: 'to-teal-50',
+    border: 'border-emerald-100',
+    pill: 'bg-emerald-100 text-emerald-600',
     description: 'Tools & websites',
   },
 ]
 
-// Sample seed items so the app looks populated on first open
-export const SEED_ITEMS: Cur8Item[] = [
-  {
-    id: '1',
-    category: 'YouTube',
-    url: 'https://youtube.com',
-    title: 'Your first saved video will appear here',
-    description: 'Paste any YouTube link to get started',
-    thumbnail: '',
-    savedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    category: 'Articles',
-    url: 'https://example.com',
-    title: 'Your first article will appear here',
-    description: 'Paste any article link to get started',
-    thumbnail: '',
-    savedAt: new Date().toISOString(),
-  },
-]
+export const SEED_ITEMS: Cur8Item[] = []
+export const SEED_FOLDERS: Cur8Folder[] = []
+
+// ── localStorage helpers ──────────────────────────────────────────────
+export function loadItems(): Cur8Item[] {
+  if (typeof window === 'undefined') return SEED_ITEMS
+  try {
+    const s = localStorage.getItem('cur8_items')
+    return s ? JSON.parse(s) : SEED_ITEMS
+  } catch { return SEED_ITEMS }
+}
+
+export function saveItems(items: Cur8Item[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('cur8_items', JSON.stringify(items))
+}
+
+export function loadFolders(): Cur8Folder[] {
+  if (typeof window === 'undefined') return SEED_FOLDERS
+  try {
+    const s = localStorage.getItem('cur8_folders')
+    return s ? JSON.parse(s) : SEED_FOLDERS
+  } catch { return SEED_FOLDERS }
+}
+
+export function saveFolders(folders: Cur8Folder[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('cur8_folders', JSON.stringify(folders))
+}
