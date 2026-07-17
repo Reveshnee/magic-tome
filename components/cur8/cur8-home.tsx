@@ -182,7 +182,7 @@ export default function Cur8Home() {
                   <div style={{ width: 34, height: 34, borderRadius: '50%', backgroundColor: ts.soft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {Icon && <Icon size={15} style={{ color: ts.accent }} />}
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-text)', textAlign: 'center' }}>{cat.name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-text)', textAlign: 'center' }}>{cat.displayName}</span>
                 </div>
               </Link>
             )
@@ -261,7 +261,7 @@ export default function Cur8Home() {
                     <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>{count} saved</span>
                   </div>
                   <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14 }}>
-                    <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: '#f5f0e8', textShadow: '0 2px 6px rgba(0,0,0,0.3)', marginBottom: 4 }}>{cat.name}</h3>
+                    <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: '#f5f0e8', textShadow: '0 2px 6px rgba(0,0,0,0.3)', marginBottom: 4 }}>{cat.displayName}</h3>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.25)' }}>
                       <span style={{ fontSize: 10, color: '#f5f0e8', fontWeight: 500 }}>Open</span>
                       <ChevronRight size={9} color="#f5f0e8" />
@@ -294,7 +294,7 @@ export default function Cur8Home() {
                   {/* label row */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 10px' }}>
                     <div>
-                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 13, fontWeight: 700, color: 'var(--c-text)', marginBottom: 1 }}>{cat.name}</h3>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 13, fontWeight: 700, color: 'var(--c-text)', marginBottom: 1 }}>{cat.displayName}</h3>
                       <p style={{ fontSize: 10, color: 'var(--c-muted)' }}>{count} saved</p>
                     </div>
                     <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: ts.soft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

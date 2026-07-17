@@ -206,7 +206,7 @@ export default function Cur8Category({ category }: Props) {
         {/* Title over banner */}
         <div className="absolute bottom-4 left-5 flex items-end justify-between right-5">
           <div>
-            <h1 className="font-serif text-2xl font-bold" style={{ color: '#1a2e2b' }}>{category}</h1>
+            <h1 className="font-serif text-2xl font-bold" style={{ color: '#1a2e2b' }}>{cat.displayName}</h1>
             <p className="text-xs" style={{ color: '#3d5552' }}>{cat.description} · {catItems.length} saved</p>
           </div>
           <button

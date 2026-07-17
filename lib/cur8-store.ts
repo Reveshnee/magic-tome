@@ -29,16 +29,18 @@ export interface Cur8Item {
 
 export const CATEGORIES: {
   name: Category
-  lucideIcon: string   // icon name to display (we render inline SVG per category)
-  accent: string       // tailwind text colour
-  tileFrom: string     // gradient start
-  tileTo: string       // gradient end
+  displayName: string  // garden-themed tile label shown in the UI
+  lucideIcon: string
+  accent: string
+  tileFrom: string
+  tileTo: string
   border: string
-  pill: string         // badge bg
+  pill: string
   description: string
 }[] = [
   {
     name: 'YouTube',
+    displayName: 'The Grove',
     lucideIcon: 'play',
     accent: 'text-rose-400',
     tileFrom: 'from-rose-50',
@@ -49,6 +51,7 @@ export const CATEGORIES: {
   },
   {
     name: 'TikTok',
+    displayName: 'Bloom',
     lucideIcon: 'music',
     accent: 'text-purple-400',
     tileFrom: 'from-purple-50',
@@ -59,6 +62,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Instagram',
+    displayName: 'The Greenhouse',
     lucideIcon: 'camera',
     accent: 'text-pink-400',
     tileFrom: 'from-pink-50',
@@ -69,6 +73,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Facebook',
+    displayName: 'The Current',
     lucideIcon: 'users',
     accent: 'text-sky-400',
     tileFrom: 'from-sky-50',
@@ -79,6 +84,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Articles',
+    displayName: 'The Archive',
     lucideIcon: 'newspaper',
     accent: 'text-violet-400',
     tileFrom: 'from-violet-50',
@@ -89,6 +95,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Images',
+    displayName: 'Sanctuary',
     lucideIcon: 'image-icon',
     accent: 'text-teal-400',
     tileFrom: 'from-teal-50',
@@ -99,6 +106,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Documents',
+    displayName: 'The Tide',
     lucideIcon: 'file-text',
     accent: 'text-indigo-400',
     tileFrom: 'from-indigo-50',
@@ -109,6 +117,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Web',
+    displayName: 'Ember',
     lucideIcon: 'globe',
     accent: 'text-fuchsia-400',
     tileFrom: 'from-fuchsia-50',
