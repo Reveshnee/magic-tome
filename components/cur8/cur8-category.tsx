@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
-  Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput,
+  Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -61,13 +61,16 @@ function getThumbnailFromUrl(url: string, stored: string | undefined): string {
 }
 
 // Determine how to render a URL in the preview panel
-function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'iframe' {
+function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'audio' | 'iframe' {
   try {
     const u = new URL(url)
     if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') return 'youtube'
     const path = u.pathname.toLowerCase()
-    if (path.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) return 'image'
+    if (path.match(/\.(jpg|jpeg|png|gif|webp|svg|avif)$/)) return 'image'
+    if (path.match(/\.(mp4|webm|mov|avi|mkv)$/)) return 'video'
+    if (path.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
     if (path.match(/\.pdf$/) || u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) return 'pdf'
+    if (path.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf' // route through Google Viewer
   } catch {}
   return 'iframe'
 }
@@ -105,6 +108,11 @@ export default function Cur8Category({ category }: Props) {
   const [multiPreviews, setMultiPreviews] = useState<(Partial<Cur8Item> & { selected: boolean })[]>([])
   const [selectedItem, setSelectedItem] = useState<Cur8Item | null>(null)
   const [fetchError, setFetchError] = useState('')
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
 
   function refresh() {
     return getCur8Data().then((data) => {
@@ -138,6 +146,58 @@ export default function Cur8Category({ category }: Props) {
     await deleteFolderAction(id)
     if (activeFolder === id) setActiveFolder(null)
     await refresh()
+  }
+
+  // ── File drag-and-drop & upload ──
+  const handleFileDrop = useCallback(async (files: FileList | File[]) => {
+    const fileArray = Array.from(files)
+    if (fileArray.length === 0) return
+    setUploading(true)
+    setUploadError('')
+    try {
+      const saved = await Promise.all(
+        fileArray.map(async (file) => {
+          const fd = new FormData()
+          fd.append('file', file)
+          const res = await fetch('/api/cur8/upload', { method: 'POST', body: fd })
+          if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
+          const { url } = await res.json()
+          // Derive a friendly title from the filename
+          const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+          return createItemAction({
+            category,
+            folderId: selectedFolderForItem,
+            url,
+            title,
+            description: `${file.type || 'file'} · ${(file.size / 1024).toFixed(0)} KB`,
+            thumbnail: file.type.startsWith('image/') ? url : undefined,
+          })
+        })
+      )
+      setAllItems((prev) => [...(saved.filter(Boolean) as Cur8Item[]), ...prev])
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }, [category, selectedFolderForItem])
+
+  function onDragEnter(e: React.DragEvent) {
+    e.preventDefault()
+    dragCounter.current++
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true)
+  }
+  function onDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false) }
+  }
+  function onDragOver(e: React.DragEvent) { e.preventDefault() }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDragging(false)
+    if (e.dataTransfer.files.length > 0) handleFileDrop(e.dataTransfer.files)
   }
 
   function normaliseUrl(raw: string) {
@@ -270,6 +330,28 @@ export default function Cur8Category({ category }: Props) {
       )
     }
 
+    if (type === 'video') {
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video src={item.url} controls style={{ maxWidth: '100%', maxHeight: '100%' }} />
+        </div>
+      )
+    }
+
+    if (type === 'audio') {
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 32 }}>
+          <div style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Music size={36} color={tileStyle.accent} />
+          </div>
+          <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 16, fontWeight: 600, color: '#f5f0e8', textAlign: 'center' }}>{item.title}</p>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio src={item.url} controls style={{ width: '100%', maxWidth: 380 }} />
+        </div>
+      )
+    }
+
     if (type === 'pdf') {
       // Build a proper embed URL depending on source
       let embedUrl = item.url
@@ -313,7 +395,29 @@ export default function Cur8Category({ category }: Props) {
   const THUMB_PAGE_SIZE = 8
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0d2420', color: '#f5f0e8', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif', overflow: 'hidden' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0d2420', color: '#f5f0e8', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
+
+      {/* ── Drag-and-drop overlay ── */}
+      {isDragging && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: 'rgba(13,36,32,0.92)', backdropFilter: 'blur(8px)', border: `2px dashed ${tileStyle.accent}`, borderRadius: 0, pointerEvents: 'none' }}>
+          <Upload size={48} color={tileStyle.accent} />
+          <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 24, fontWeight: 700, color: '#f5f0e8' }}>Drop files to save</p>
+          <p style={{ fontSize: 14, color: 'rgba(245,240,232,0.55)' }}>Images, PDFs, documents — anything</p>
+        </div>
+      )}
+
+      {/* ── Upload in-progress toast ── */}
+      {(uploading || uploadError) && (
+        <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 90, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', borderRadius: 50, backgroundColor: uploadError ? '#3a1212' : '#0a2e28', border: `1px solid ${uploadError ? '#c85a40' : tileStyle.accent}44`, boxShadow: '0 4px 20px rgba(0,0,0,0.4)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {uploading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading files…</> : <><X size={14} color="#c85a40" /> {uploadError} <button onClick={() => setUploadError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', marginLeft: 4, padding: 0 }}><X size={11} /></button></>}
+        </div>
+      )}
 
       {/* ── Banner ── */}
       <div style={{ position: 'relative', height: 100, flexShrink: 0, overflow: 'hidden' }}>
@@ -595,6 +699,32 @@ export default function Cur8Category({ category }: Props) {
                 </button>
               </div>
               <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', marginTop: 5 }}>Works with YouTube, TikTok, Instagram, articles, Google Docs, images, and any webpage</p>
+
+              {/* File upload divider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(245,240,232,0.1)' }} />
+                <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.35)', flexShrink: 0 }}>or upload a file</span>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(245,240,232,0.1)' }} />
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.mp4,.mp3"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files?.length) {
+                    handleFileDrop(e.target.files)
+                    closeModal()
+                  }
+                }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 12, fontSize: 13, fontWeight: 600, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.07)', border: '1.5px dashed rgba(245,240,232,0.2)', cursor: 'pointer' }}
+              >
+                <Paperclip size={14} /> Choose files from your device
+              </button>
 
               {fetchError && <p style={{ fontSize: 12, color: '#c9a84c', marginTop: 8 }}>{fetchError}</p>}
 
