@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X } from 'lucide-react'
+import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
+import { getSettings, type Cur8Settings } from '@/app/actions/notes'
 
 interface Props {
   open: boolean
@@ -27,12 +28,30 @@ const PROMPTS = [
 export default function CategoryReflections({ open, onClose, categoryLabel, accent, reflections, onAdd, onDelete }: Props) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
+  const [settings, setSettings] = useState<Cur8Settings | null>(null)
   const baseRef = useRef('')
   const { start, stop, listening, supported: micSupported } = useDictation((text) => {
     setDraft((baseRef.current ? baseRef.current + ' ' : '') + text)
   })
 
   const prompt = PROMPTS[reflections.length % PROMPTS.length]
+
+  // Load the shared mem.ai email settings the first time the drawer opens
+  useEffect(() => {
+    if (open && !settings) getSettings().then(setSettings).catch(() => {})
+  }, [open, settings])
+
+  // Open the user's own email app pre-addressed to mem.ai, tagging the garden
+  // so filed reflections stay grouped by area.
+  function emailReflection(body: string) {
+    const to = (settings?.memEmail || 'save@mem.ai').trim()
+    const cc = (settings?.emailTo || '').trim()
+    const params = new URLSearchParams()
+    params.set('subject', `Cur8 reflection · ${categoryLabel}`)
+    params.set('body', `${body}\n\n— Reflection from ${categoryLabel} (Cur8)`)
+    if (cc) params.set('cc', cc)
+    window.location.href = `mailto:${encodeURIComponent(to)}?${params.toString()}`
+  }
 
   function toggleMic() {
     if (listening) { stop(); return }
@@ -46,6 +65,7 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
     setSaving(true)
     if (listening) stop()
     await onAdd(body).catch(() => {})
+    if (settings?.autoEmail) emailReflection(body)
     setDraft('')
     baseRef.current = ''
     setSaving(false)
@@ -130,17 +150,26 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
               exit={{ opacity: 0, height: 0, marginBottom: -8 }}
               style={{ position: 'relative', padding: '12px 14px', borderRadius: 12, backgroundColor: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.08)', borderLeft: `3px solid ${accent}` }}
             >
-              <p style={{ fontSize: 13, color: '#f5f0e8', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', paddingRight: 22 }}>{r.body}</p>
+              <p style={{ fontSize: 13, color: '#f5f0e8', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', paddingRight: 48 }}>{r.body}</p>
               <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.4)', marginTop: 6, display: 'block' }}>
                 {new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
               </span>
-              <button
-                onClick={() => onDelete(r.id)}
-                title="Delete reflection"
-                style={{ position: 'absolute', top: 10, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
-              >
-                <Trash2 size={13} />
-              </button>
+              <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => emailReflection(r.body)}
+                  title="Send to mem.ai by email"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
+                >
+                  <Mail size={13} />
+                </button>
+                <button
+                  onClick={() => onDelete(r.id)}
+                  title="Delete reflection"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
