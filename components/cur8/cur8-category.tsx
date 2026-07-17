@@ -15,7 +15,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen } from 'lucide-react'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -126,11 +126,32 @@ export default function Cur8Category({ category }: Props) {
   const { isMobile } = useViewport()
   const { speak, stop: stopSpeak, speaking, supported: ttsSupported } = useReadAloud()
   const [mobileTab, setMobileTab] = useState<'browse' | 'preview' | 'links'>('browse')
+  const [reflections, setReflections] = useState<ReflectionDTO[]>([])
+  const [showReflections, setShowReflections] = useState(false)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
     const text = [item.title, item.description].filter(Boolean).join('. ')
     speak(text, 0.95)
+  }
+
+  // Mark an item as opened (drives the "not yet accessed" stat) then open it
+  function openItem(item: Cur8Item) {
+    if (!item.openedAt) {
+      setAllItems((prev) => prev.map((it) => it.id === item.id ? { ...it, openedAt: new Date().toISOString() } : it))
+      markItemOpened(item.id).catch(() => {})
+    }
+    window.open(item.url, '_blank', 'noopener,noreferrer')
+  }
+
+  // Reflection handlers (category-tied notes, distinct from global brain dump)
+  async function addReflection(body: string) {
+    const r = await createReflection(category, body).catch(() => null)
+    if (r) setReflections((prev) => [r, ...prev])
+  }
+  async function removeReflection(id: string) {
+    setReflections((prev) => prev.filter((r) => r.id !== id))
+    await deleteReflection(id).catch(() => {})
   }
 
   // On mobile, jump to the preview tab whenever an item is opened
@@ -147,6 +168,10 @@ export default function Cur8Category({ category }: Props) {
   }
 
   useEffect(() => { refresh().catch(() => {}) }, [category])
+
+  useEffect(() => {
+    getReflections(category).then(setReflections).catch(() => {})
+  }, [category])
 
   useEffect(() => {
     if (!menuItemId) return
@@ -453,12 +478,20 @@ export default function Cur8Category({ category }: Props) {
           <Link href="/cur8" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', textDecoration: 'none', backgroundColor: 'rgba(245,240,232,0.12)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}>
             <ArrowLeft size={10} /> All gardens
           </Link>
-          <button
-            onClick={() => setShowAdd(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 16px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
-          >
-            <Plus size={11} /> Save link
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setShowReflections(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.12)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
+            >
+              <NotebookPen size={11} /> Reflect{reflections.length > 0 ? ` · ${reflections.length}` : ''}
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 16px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+            >
+              <Plus size={11} /> Save link
+            </button>
+          </div>
         </div>
         {/* Title */}
         <div style={{ position: 'absolute', bottom: 10, left: 16, display: 'flex', alignItems: 'baseline', gap: 10 }}>
@@ -466,6 +499,9 @@ export default function Cur8Category({ category }: Props) {
           <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0 }}>{cat.description} · {catItems.length} saved</p>
         </div>
       </div>
+
+      {/* ── Stats bar ── */}
+      <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />
 
       {/* ── Mobile tab switcher ── */}
       {isMobile && (
@@ -598,10 +634,10 @@ export default function Cur8Category({ category }: Props) {
                     {speaking ? <Square size={11} /> : <Volume2 size={11} />} {speaking ? 'Stop' : 'Listen'}
                   </button>
                 )}
-                <a href={selectedItem.url} target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, textDecoration: 'none', flexShrink: 0 }}>
+                <button onClick={() => openItem(selectedItem)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <ExternalLink size={11} /> Open
-                </a>
+                </button>
                 <button onClick={() => setSelectedItem(null)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <X size={11} /> Close
@@ -691,12 +727,12 @@ export default function Cur8Category({ category }: Props) {
                           </div>
                         ) : (
                           <>
-                            <a href={item.url} target="_blank" rel="noopener noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', textDecoration: 'none' }}
+                            <button onClick={() => { openItem(item); setMenuItemId(null) }}
+                              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
                               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                               <ExternalLink size={12} /> Open link
-                            </a>
+                            </button>
                             <button onClick={() => setMoveItemId(item.id)}
                               style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
                               onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
@@ -858,6 +894,17 @@ export default function Cur8Category({ category }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Reflections drawer ── */}
+      <CategoryReflections
+        open={showReflections}
+        onClose={() => setShowReflections(false)}
+        categoryLabel={cat.displayName}
+        accent={tileStyle.accent}
+        reflections={reflections}
+        onAdd={addReflection}
+        onDelete={removeReflection}
+      />
     </div>
   )
 }

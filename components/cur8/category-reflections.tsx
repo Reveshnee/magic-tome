@@ -2,11 +2,13 @@
 
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb } from 'lucide-react'
+import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
 
 interface Props {
+  open: boolean
+  onClose: () => void
   categoryLabel: string
   accent: string
   reflections: ReflectionDTO[]
@@ -22,7 +24,7 @@ const PROMPTS = [
   'Note a thought before it slips away…',
 ]
 
-export default function CategoryReflections({ categoryLabel, accent, reflections, onAdd, onDelete }: Props) {
+export default function CategoryReflections({ open, onClose, categoryLabel, accent, reflections, onAdd, onDelete }: Props) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const baseRef = useRef('')
@@ -50,17 +52,33 @@ export default function CategoryReflections({ categoryLabel, accent, reflections
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 560, margin: '0 auto', padding: '8px 4px' }}>
-      {/* Heading */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <PenLine size={16} color={accent} />
-        </div>
-        <div>
-          <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>Reflections</h3>
-          <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0 }}>Thoughts tied to {categoryLabel}</p>
-        </div>
-      </div>
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{ position: 'fixed', inset: 0, zIndex: 120, backgroundColor: 'rgba(6,18,16,0.6)', backdropFilter: 'blur(3px)' }}
+          />
+          <motion.div
+            initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+            transition={{ type: 'spring', stiffness: 320, damping: 34 }}
+            role="dialog" aria-label={`Reflections for ${categoryLabel}`}
+            style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 121, width: 'min(440px, 92vw)', display: 'flex', flexDirection: 'column', gap: 14, padding: '20px 18px', overflowY: 'auto', backgroundColor: '#0a1e1b', borderLeft: '1px solid rgba(245,240,232,0.1)', boxShadow: '-8px 0 40px rgba(0,0,0,0.5)' }}
+          >
+            {/* Heading */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <PenLine size={16} color={accent} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>Reflections</h3>
+                <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0 }}>Thoughts tied to {categoryLabel}</p>
+              </div>
+              <button onClick={onClose} aria-label="Close reflections" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
 
       {/* Prompt hint */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
@@ -131,7 +149,10 @@ export default function CategoryReflections({ categoryLabel, accent, reflections
             No reflections yet — jot the first thought about this garden above.
           </p>
         )}
-      </div>
-    </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   )
 }
