@@ -273,12 +273,10 @@ export default function Cur8Category({ category }: Props) {
     getReflections(category).then(setReflections).catch(() => {})
   }, [category])
 
-  useEffect(() => {
-    if (!menuItemId && !menuFolderId) return
-    function handleOutside() { setMenuItemId(null); setMoveItemId(null); setGardenPickItemId(null); setMenuFolderId(null) }
-    document.addEventListener('click', handleOutside)
-    return () => document.removeEventListener('click', handleOutside)
-  }, [menuItemId, menuFolderId])
+  // NOTE: menus are closed by their own fixed click-catcher overlays.
+  // We must NOT add a native document click listener here — React's
+  // stopPropagation() does not stop native document listeners, so it would
+  // close the menu on the very click that opens a submenu (Move to folder).
 
   const catItems = allItems.filter((i) => i.category === category)
   const visibleItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
