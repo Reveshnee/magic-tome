@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
+  GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
@@ -37,8 +37,8 @@ const KOI: React.CSSProperties = {
 } as React.CSSProperties
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  play: Play, music: Music, camera: Camera, users: Users,
-  newspaper: Newspaper, 'image-icon': ImageIcon, 'file-text': FileText, globe: Globe,
+  'graduation-cap': GraduationCap, briefcase: Briefcase, shirt: Shirt, heart: Heart,
+  brain: Brain, sparkles: Sparkles, clapperboard: Clapperboard, 'folder-open': FolderOpen,
 }
 
 const TILE_ACCENT: Record<string, string> = {

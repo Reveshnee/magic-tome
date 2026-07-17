@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
+  GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
 } from 'lucide-react'
@@ -36,8 +36,8 @@ import CategoryStatsBar from '@/components/cur8/category-stats-bar'
 import CategoryReflections from '@/components/cur8/category-reflections'
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  play: Play, music: Music, camera: Camera, users: Users,
-  newspaper: Newspaper, 'image-icon': ImageIcon, 'file-text': FileText, globe: Globe,
+  'graduation-cap': GraduationCap, briefcase: Briefcase, shirt: Shirt, heart: Heart,
+  brain: Brain, sparkles: Sparkles, clapperboard: Clapperboard, 'folder-open': FolderOpen,
 }
 
 function extractYouTubeId(url: string): string | null {
