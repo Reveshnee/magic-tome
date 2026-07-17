@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
+import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import { getCur8Data } from '@/app/actions/cur8'
 import { authClient } from '@/lib/auth-client'
 import FloatingParticles from '@/components/cur8/widgets/floating-particles'
@@ -73,6 +74,7 @@ export default function Cur8Home() {
   const [quote, setQuote] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [calm, setCalm] = useCalmMode()
+  const { displayName } = useGardenNames()
 
   // Surprise me — open a random saved item (reduces decision paralysis)
   function surpriseMe() {
@@ -271,7 +273,7 @@ export default function Cur8Home() {
                   onMouseLeave={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = 'rgba(245,240,232,0.5)' }}
                 >
                   {Icon && <Icon size={12} color={accent} />}
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', whiteSpace: 'nowrap' }}>{cat.displayName}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', whiteSpace: 'nowrap' }}>{displayName(cat.name)}</span>
                   {count > 0 && (
                     <span style={{ fontSize: 9, fontWeight: 700, backgroundColor: accent, color: '#fff', borderRadius: 50, padding: '1px 5px', minWidth: 14, textAlign: 'center' }}>{count}</span>
                   )}
@@ -353,7 +355,7 @@ export default function Cur8Home() {
                     transition={{ type: 'spring', stiffness: 280 }}
                     style={{ position: 'relative', height: 220, borderRadius: 20, overflow: 'hidden', cursor: 'pointer', border: '1px solid rgba(245,240,232,0.08)' }}
                   >
-                    <Image src={cat.tileImage} alt={cat.displayName} fill style={{ objectFit: 'cover' }} sizes="600px" />
+                    <Image src={cat.tileImage} alt={displayName(cat.name)} fill style={{ objectFit: 'cover' }} sizes="600px" />
                     <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(160deg, transparent 20%, rgba(13,36,32,0.88) 100%)` }} />
                     {/* Category badge */}
                     <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 50, backgroundColor: accent, backdropFilter: 'blur(4px)' }}>
@@ -362,7 +364,7 @@ export default function Cur8Home() {
                     </div>
                     <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
                       <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>{cat.description}</p>
-                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 26, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>{cat.displayName}</h3>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 26, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>{displayName(cat.name)}</h3>
                     </div>
                   </motion.div>
                 </Link>
@@ -382,7 +384,7 @@ export default function Cur8Home() {
                     transition={{ type: 'spring', stiffness: 280 }}
                     style={{ position: 'relative', height: 132, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', border: '1px solid rgba(245,240,232,0.08)', backgroundColor: 'var(--c-surface)' }}
                   >
-                    <Image src={cat.tileImage} alt={cat.displayName} fill style={{ objectFit: 'cover' }} sizes="240px" />
+                    <Image src={cat.tileImage} alt={displayName(cat.name)} fill style={{ objectFit: 'cover' }} sizes="240px" />
                     <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(160deg, rgba(13,36,32,0.15) 0%, rgba(13,36,32,0.92) 100%)` }} />
                     {/* Left accent bar */}
                     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: accent }} />
@@ -395,7 +397,7 @@ export default function Cur8Home() {
                       <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 9, fontWeight: 700, backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(4px)', color: '#f5f0e8', borderRadius: 50, padding: '2px 8px' }}>{count}</div>
                     )}
                     <div style={{ position: 'absolute', bottom: 12, left: 14, right: 10 }}>
-                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 700, color: 'var(--c-cream)', margin: 0, marginBottom: 2, lineHeight: 1.2 }}>{cat.displayName}</h3>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 700, color: 'var(--c-cream)', margin: 0, marginBottom: 2, lineHeight: 1.2 }}>{displayName(cat.name)}</h3>
                       <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>{cat.description}</p>
                     </div>
                   </motion.div>

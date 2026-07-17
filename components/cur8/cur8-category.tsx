@@ -15,7 +15,8 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw } from 'lucide-react'
+import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -128,6 +129,10 @@ export default function Cur8Category({ category }: Props) {
   const [mobileTab, setMobileTab] = useState<'browse' | 'preview' | 'links'>('browse')
   const [reflections, setReflections] = useState<ReflectionDTO[]>([])
   const [showReflections, setShowReflections] = useState(false)
+  const { displayName, defaultName, isCustom, rename, reset } = useGardenNames()
+  const gardenName = displayName(category)
+  const [renaming, setRenaming] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -142,6 +147,21 @@ export default function Cur8Category({ category }: Props) {
       markItemOpened(item.id).catch(() => {})
     }
     window.open(item.url, '_blank', 'noopener,noreferrer')
+  }
+
+  // Rename this garden
+  function openRename() {
+    setNameDraft(gardenName)
+    setRenaming(true)
+  }
+  async function saveRename() {
+    const next = nameDraft.trim()
+    if (next && next !== gardenName) await rename(category, next)
+    setRenaming(false)
+  }
+  async function resetName() {
+    await reset(category)
+    setRenaming(false)
   }
 
   // Reflection handlers (category-tied notes, distinct from global brain dump)
@@ -494,8 +514,18 @@ export default function Cur8Category({ category }: Props) {
           </div>
         </div>
         {/* Title */}
-        <div style={{ position: 'absolute', bottom: 10, left: 16, display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>{cat.displayName}</h1>
+        <div style={{ position: 'absolute', bottom: 10, left: 16, right: 16, display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>{gardenName}</h1>
+            <button
+              onClick={openRename}
+              aria-label="Rename this garden"
+              title="Rename this garden"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--c-cream)', cursor: 'pointer', backdropFilter: 'blur(8px)' }}
+            >
+              <Pencil size={12} />
+            </button>
+          </div>
           <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0 }}>{cat.description} · {catItems.length} saved</p>
         </div>
       </div>
@@ -773,7 +803,7 @@ export default function Cur8Category({ category }: Props) {
             <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
               style={{ width: '100%', maxWidth: 440, borderRadius: 20, backgroundColor: '#122e29', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(245,240,232,0.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8' }}>Save to {cat.displayName}</h2>
+                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8' }}>Save to {gardenName}</h2>
                 <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.4)', display: 'flex' }}><X size={17} /></button>
               </div>
 
@@ -867,7 +897,7 @@ export default function Cur8Category({ category }: Props) {
                   </div>
                   <button onClick={handleSave}
                     style={{ marginTop: 10, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
-                    Save {multiPreviews.filter(p => p.selected).length} links to {cat.displayName}
+                    Save {multiPreviews.filter(p => p.selected).length} links to {gardenName}
                   </button>
                 </div>
               )}
@@ -886,7 +916,7 @@ export default function Cur8Category({ category }: Props) {
                   </div>
                   <button onClick={handleSave}
                     style={{ marginTop: 12, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
-                    Save to {cat.displayName}{selectedFolderForItem ? ` · ${folders.find((f) => f.id === selectedFolderForItem)?.name}` : ''}
+                    Save to {gardenName}{selectedFolderForItem ? ` · ${folders.find((f) => f.id === selectedFolderForItem)?.name}` : ''}
                   </button>
                 </>
               )}
@@ -899,12 +929,67 @@ export default function Cur8Category({ category }: Props) {
       <CategoryReflections
         open={showReflections}
         onClose={() => setShowReflections(false)}
-        categoryLabel={cat.displayName}
+        categoryLabel={gardenName}
         accent={tileStyle.accent}
         reflections={reflections}
         onAdd={addReflection}
         onDelete={removeReflection}
       />
+
+      {/* ── Rename garden modal ── */}
+      <AnimatePresence>
+        {renaming && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setRenaming(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 140, backgroundColor: 'rgba(6,18,16,0.6)', backdropFilter: 'blur(3px)' }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              role="dialog" aria-label="Rename garden"
+              style={{ position: 'fixed', zIndex: 141, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(380px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Pencil size={15} color={tileStyle.accent} />
+                </div>
+                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>Rename this garden</h2>
+              </div>
+              <p style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.5)', margin: '0 0 14px', lineHeight: 1.5 }}>
+                Give this area a name that fits you. It updates everywhere — the tile, header, save buttons and email subjects.
+              </p>
+              <input
+                autoFocus
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) saveRename() }}
+                maxLength={40}
+                placeholder={defaultName(category)}
+                style={{ width: '100%', padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, outline: 'none' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                <button
+                  onClick={saveRename}
+                  style={{ flex: 1, padding: '10px', borderRadius: 11, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, backgroundColor: tileStyle.accent, color: '#fff' }}
+                >
+                  Save name
+                </button>
+                {isCustom(category) && (
+                  <button
+                    onClick={resetName}
+                    title={`Reset to "${defaultName(category)}"`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '10px 14px', borderRadius: 11, border: '1px solid rgba(245,240,232,0.15)', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)' }}
+                  >
+                    <RotateCcw size={13} /> Reset
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

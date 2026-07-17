@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { cur8Item, cur8Folder, cur8Reflection } from '@/lib/db/schema'
+import { cur8Item, cur8Folder, cur8Reflection, cur8GardenName } from '@/lib/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
@@ -223,4 +223,39 @@ export async function createReflection(category: string, body: string): Promise<
 export async function deleteReflection(id: string) {
   const userId = await getUserId()
   await db.delete(cur8Reflection).where(and(eq(cur8Reflection.id, id), eq(cur8Reflection.userId, userId)))
+}
+
+// ─── Custom garden names ───
+// Returns a map of category → custom name for any gardens the user has renamed.
+export async function getGardenNames(): Promise<Record<string, string>> {
+  const userId = await getUserId()
+  const rows = await db
+    .select()
+    .from(cur8GardenName)
+    .where(eq(cur8GardenName.userId, userId))
+  const map: Record<string, string> = {}
+  for (const r of rows) map[r.category] = r.name
+  return map
+}
+
+export async function renameGarden(category: string, name: string) {
+  const userId = await getUserId()
+  const trimmed = name.trim().slice(0, 40)
+  if (!trimmed) return
+  const updatedAt = new Date()
+  await db
+    .insert(cur8GardenName)
+    .values({ userId, category, name: trimmed, updatedAt })
+    .onConflictDoUpdate({
+      target: [cur8GardenName.userId, cur8GardenName.category],
+      set: { name: trimmed, updatedAt },
+    })
+}
+
+// Remove the override so the garden reverts to its default name.
+export async function resetGardenName(category: string) {
+  const userId = await getUserId()
+  await db
+    .delete(cur8GardenName)
+    .where(and(eq(cur8GardenName.userId, userId), eq(cur8GardenName.category, category)))
 }

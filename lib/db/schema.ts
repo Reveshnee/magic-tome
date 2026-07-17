@@ -3,6 +3,7 @@ import {
   text,
   timestamp,
   boolean,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 
 // ─── Better Auth tables ───
@@ -106,3 +107,13 @@ export const cur8Setting = pgTable('cur8_setting', {
   autoEmail: boolean('autoEmail').notNull().default(false),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })
+
+// Per-user custom names for the 8 gardens (overrides the default displayName)
+export const cur8GardenName = pgTable('cur8_garden_name', {
+  userId: text('userId').notNull(),
+  category: text('category').notNull(),
+  name: text('name').notNull(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.category] }),
+}))
