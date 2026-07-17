@@ -2,9 +2,21 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
-import { Sparkles } from 'lucide-react'
+import { Leaf } from 'lucide-react'
+
+const KOI: React.CSSProperties = {
+  '--c-bg':      '#f2f5f2',
+  '--c-surface': '#ffffff',
+  '--c-teal':    '#0d3d3a',
+  '--c-coral':   '#c85a40',
+  '--c-sage':    '#5a9e84',
+  '--c-text':    '#1a2e2b',
+  '--c-muted':   '#6b8884',
+  '--c-border':  'rgba(13,61,58,0.10)',
+} as React.CSSProperties
 
 export function Cur8AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const router = useRouter()
@@ -37,103 +49,83 @@ export function Cur8AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   }
 
   return (
-    <div className="cur8 relative flex min-h-screen items-center justify-center overflow-hidden px-4"
-      style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+    <div style={{ ...KOI, backgroundColor: 'var(--c-bg)', color: 'var(--c-text)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif' }}>
 
-      {/* Ambient orbs */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full opacity-25 blur-3xl"
-          style={{ background: 'radial-gradient(circle, #c4a0e8, transparent 70%)' }} />
-        <div className="absolute -right-20 bottom-0 h-80 w-80 rounded-full opacity-20 blur-3xl"
-          style={{ background: 'radial-gradient(circle, #f0a0bf, transparent 70%)' }} />
+      {/* Hero strip */}
+      <div style={{ position: 'relative', height: 180, overflow: 'hidden', flexShrink: 0 }}>
+        <Image src="/cur8/koi-pond.jpg" alt="Koi pond" fill style={{ objectFit: 'cover', objectPosition: 'center 40%' }} priority sizes="100vw" />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,61,58,0.2) 0%, rgba(242,245,242,1) 100%)' }} />
+        <div style={{ position: 'absolute', top: 18, left: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', backgroundColor: 'var(--c-coral)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Leaf size={14} color="#fff" />
+          </div>
+          <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 700, color: '#f5f0e8', textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>cur8</span>
+        </div>
       </div>
 
-      <div className="relative w-full max-w-sm">
-        {/* Brand */}
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-3xl shadow-sm"
-            style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))' }}>
-            <Sparkles size={26} className="text-white" />
+      {/* Form area */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '0 20px 40px' }}>
+        <div style={{ width: '100%', maxWidth: 360, marginTop: -24 }}>
+
+          {/* Card */}
+          <div style={{ backgroundColor: 'var(--c-surface)', borderRadius: 24, padding: 24, boxShadow: '0 4px 24px rgba(13,61,58,0.10)', border: '1.5px solid var(--c-border)' }}>
+            <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 700, color: 'var(--c-teal)', marginBottom: 4 }}>
+              {isSignUp ? "Create your garden" : "Welcome back"}
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--c-muted)', marginBottom: 20 }}>
+              {isSignUp ? "Your private space to curate everything you love." : "Sign in to tend your garden."}
+            </p>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {isSignUp && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label htmlFor="name" style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your name</label>
+                  <input
+                    id="name" value={name} onChange={(e) => setName(e.target.value)}
+                    required autoComplete="name"
+                    style={{ padding: '10px 14px', borderRadius: 12, border: '1.5px solid var(--c-border)', backgroundColor: '#f2f5f2', color: 'var(--c-text)', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label htmlFor="email" style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
+                <input
+                  id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  required autoComplete="email"
+                  style={{ padding: '10px 14px', borderRadius: 12, border: '1.5px solid var(--c-border)', backgroundColor: '#f2f5f2', color: 'var(--c-text)', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label htmlFor="password" style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Password</label>
+                <input
+                  id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                  required minLength={8}
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  style={{ padding: '10px 14px', borderRadius: 12, border: '1.5px solid var(--c-border)', backgroundColor: '#f2f5f2', color: 'var(--c-text)', fontSize: 13, outline: 'none' }}
+                />
+                {isSignUp && <p style={{ fontSize: 11, color: 'var(--c-muted)' }}>At least 8 characters</p>}
+              </div>
+
+              {error && <p style={{ fontSize: 12, color: '#c85a40' }} role="alert">{error}</p>}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ marginTop: 4, padding: '12px', borderRadius: 50, backgroundColor: 'var(--c-teal)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.65 : 1 }}
+              >
+                {loading ? 'Please wait...' : isSignUp ? 'Create my garden' : 'Enter my garden'}
+              </button>
+            </form>
           </div>
-          <div className="mt-3 flex items-baseline gap-0.5">
-            <h1 className="font-serif text-3xl font-bold" style={{ color: 'var(--foreground)' }}>Cur</h1>
-            <span className="font-serif text-3xl font-bold"
-              style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              8
-            </span>
-          </div>
-          <p className="mt-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            {isSignUp ? 'Create your personal space' : 'Welcome back to your space'}
+
+          <p style={{ marginTop: 16, textAlign: 'center', fontSize: 13, color: 'var(--c-muted)' }}>
+            {isSignUp ? 'Already have a garden? ' : "Don't have a garden yet? "}
+            <Link href={isSignUp ? '/cur8/sign-in' : '/cur8/sign-up'}
+              style={{ color: 'var(--c-teal)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+              {isSignUp ? 'Sign in' : 'Create one'}
+            </Link>
           </p>
         </div>
-
-        <form onSubmit={handleSubmit}
-          className="flex flex-col gap-4 rounded-3xl border p-6 shadow-sm"
-          style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
-
-          {isSignUp && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="name" className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-                Your name
-              </label>
-              <input
-                id="name" value={name} onChange={(e) => setName(e.target.value)}
-                required autoComplete="name"
-                className="rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:ring-2"
-                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-              Email
-            </label>
-            <input
-              id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              required autoComplete="email"
-              className="rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:ring-2"
-              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-              Password
-            </label>
-            <input
-              id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-              required minLength={8}
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              className="rounded-xl border px-3 py-2.5 text-sm outline-none transition focus:ring-2"
-              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--muted)' }}
-            />
-            {isSignUp && (
-              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                At least 8 characters
-              </p>
-            )}
-          </div>
-
-          {error && (
-            <p className="text-sm text-red-500" role="alert">{error}</p>
-          )}
-
-          <button type="submit" disabled={loading}
-            className="mt-1 rounded-full py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95 disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))' }}>
-            {loading ? 'Please wait...' : isSignUp ? 'Create my space' : 'Sign in'}
-          </button>
-        </form>
-
-        <p className="mt-5 text-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          {isSignUp ? 'Already have a space? ' : "Don't have a space yet? "}
-          <Link href={isSignUp ? '/cur8/sign-in' : '/cur8/sign-up'}
-            className="font-semibold underline-offset-4 hover:underline"
-            style={{ color: 'var(--primary)' }}>
-            {isSignUp ? 'Sign in' : 'Create one'}
-          </Link>
-        </p>
       </div>
     </div>
   )

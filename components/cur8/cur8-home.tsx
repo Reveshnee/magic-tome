@@ -1,37 +1,55 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
-  Search, LogOut, Plus, Sparkles, Clock, Leaf, ChevronRight,
+  Search, LogOut, Plus, Clock, ChevronRight, Leaf,
 } from 'lucide-react'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 import { getCur8Data } from '@/app/actions/cur8'
 import { authClient } from '@/lib/auth-client'
+
+/* ── Inline CSS variables — bypass the global dark cascade entirely ── */
+const KOI: React.CSSProperties = {
+  '--c-bg':        '#f2f5f2',
+  '--c-surface':   '#ffffff',
+  '--c-surface2':  '#eef2ee',
+  '--c-teal':      '#0d3d3a',
+  '--c-midteal':   '#1a5c56',
+  '--c-sage':      '#5a9e84',
+  '--c-seafoam':   '#8ec8b4',
+  '--c-coral':     '#c85a40',
+  '--c-gold':      '#b8892a',
+  '--c-forest':    '#2e6b4f',
+  '--c-slate':     '#4a6d78',
+  '--c-dustyrose': '#c07878',
+  '--c-cream':     '#f5f0e8',
+  '--c-text':      '#1a2e2b',
+  '--c-muted':     '#6b8884',
+  '--c-border':    'rgba(13,61,58,0.10)',
+} as React.CSSProperties
 
 const ICON_MAP: Record<string, React.ElementType> = {
   play: Play, music: Music, camera: Camera, users: Users,
   newspaper: Newspaper, 'image-icon': ImageIcon, 'file-text': FileText, globe: Globe,
 }
 
-/* Per-category koi palette accents */
-const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
-  YouTube:   { accent: '#d4614a', accentLight: '#faecea', image: '/cur8/tile-ember.png' },
-  TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
-  Instagram: { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
-  Facebook:  { accent: '#4a6d78', accentLight: '#e8f0f4', image: '/cur8/tile-tide.png' },
-  Articles:  { accent: '#c4922a', accentLight: '#f5ede0', image: '/cur8/tile-archive.png' },
-  Images:    { accent: '#5a9e84', accentLight: '#e8f4ef', image: '/cur8/tile-sanctuary.png' },
-  Documents: { accent: '#2e6b4f', accentLight: '#e8f4ee', image: '/cur8/tile-grove.png' },
-  Web:       { accent: '#1a5c56', accentLight: '#e4f0ee', image: '/cur8/tile-greenhouse.png' },
-}
+type TileStyle = { accent: string; soft: string; image: string; textDark?: boolean }
 
-const hour = typeof window !== 'undefined' ? new Date().getHours() : 9
-const GREETING = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+const TILE_STYLES: Record<string, TileStyle> = {
+  YouTube:   { accent: '#c85a40', soft: 'rgba(200,90,64,0.10)',  image: '/cur8/tile-ember.png' },
+  TikTok:    { accent: '#c07878', soft: 'rgba(192,120,120,0.10)', image: '/cur8/tile-bloom.png' },
+  Instagram: { accent: '#c07878', soft: 'rgba(192,120,120,0.10)', image: '/cur8/tile-bloom.png' },
+  Facebook:  { accent: '#4a6d78', soft: 'rgba(74,109,120,0.10)', image: '/cur8/tile-tide.png' },
+  Articles:  { accent: '#b8892a', soft: 'rgba(184,137,42,0.10)', image: '/cur8/tile-archive.png' },
+  Images:    { accent: '#5a9e84', soft: 'rgba(90,158,132,0.10)', image: '/cur8/tile-sanctuary.png' },
+  Documents: { accent: '#2e6b4f', soft: 'rgba(46,107,79,0.10)', image: '/cur8/tile-grove.png' },
+  Web:       { accent: '#1a5c56', soft: 'rgba(26,92,86,0.10)',   image: '/cur8/tile-greenhouse.png' },
+}
 
 export default function Cur8Home() {
   const router = useRouter()
@@ -39,8 +57,11 @@ export default function Cur8Home() {
   const [folders, setFolders] = useState<Cur8Folder[]>([])
   const [search, setSearch] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [greeting, setGreeting] = useState('Good morning')
 
   useEffect(() => {
+    const h = new Date().getHours()
+    setGreeting(h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening')
     getCur8Data()
       .then((data) => {
         setItems(data.items as Cur8Item[])
@@ -58,7 +79,7 @@ export default function Cur8Home() {
 
   const recent = [...items]
     .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
-    .slice(0, 5)
+    .slice(0, 6)
 
   const filtered = search.trim()
     ? items.filter((i) =>
@@ -67,15 +88,14 @@ export default function Cur8Home() {
       )
     : []
 
-  /* Split categories: first two are featured (large tiles), rest are small */
   const featured = CATEGORIES.slice(0, 2)
-  const small = CATEGORIES.slice(2)
+  const rest = CATEGORIES.slice(2)
 
   return (
-    <div className="cur8 min-h-screen" style={{ backgroundColor: 'var(--cur8-body)', color: 'var(--foreground)' }}>
+    <div style={{ ...KOI, backgroundColor: 'var(--c-bg)', color: 'var(--c-text)', minHeight: '100vh', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif' }}>
 
-      {/* ── Hero — full-bleed koi pond ── */}
-      <div className="relative overflow-hidden" style={{ height: '280px' }}>
+      {/* ── Hero ── */}
+      <div style={{ position: 'relative', height: '300px', overflow: 'hidden' }}>
         <Image
           src="/cur8/koi-pond.jpg"
           alt="Phoenix's garden"
@@ -84,161 +104,126 @@ export default function Cur8Home() {
           priority
           sizes="100vw"
         />
-        {/* fade to body at bottom */}
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, rgba(13,61,58,0.2) 0%, rgba(238,242,238,0) 50%, rgba(238,242,238,1) 100%)' }}
-        />
+        {/* gradient fade to body */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,61,58,0.15) 0%, rgba(13,61,58,0.0) 45%, rgba(242,245,242,1) 100%)' }} />
 
-        {/* Nav bar */}
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--cur8-coral)' }}>
-              <Leaf size={14} color="#fff" />
+        {/* top nav */}
+        <nav style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'var(--c-coral)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(200,90,64,0.4)' }}>
+              <Leaf size={15} color="#fff" />
             </div>
-            <span className="font-serif text-base font-bold" style={{ color: '#f5f0e8', textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>
+            <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}>
               cur8
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Search pill */}
-            <div
-              className="hidden sm:flex items-center gap-2 rounded-full px-3 py-1.5"
-              style={{ backgroundColor: 'rgba(13,61,58,0.45)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.22)', width: '175px' }}
-            >
-              <Search size={12} style={{ color: 'rgba(245,240,232,0.75)' }} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your garden..."
-                className="bg-transparent outline-none text-xs w-full"
-                style={{ color: '#f5f0e8' }}
-              />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               onClick={handleSignOut}
               aria-label="Sign out"
-              className="flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ backgroundColor: 'rgba(13,61,58,0.45)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.22)' }}
+              style={{ width: 34, height: 34, borderRadius: '50%', backgroundColor: 'rgba(13,61,58,0.5)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             >
-              <LogOut size={14} style={{ color: '#f5f0e8' }} />
+              <LogOut size={14} color="#f5f0e8" />
             </button>
           </div>
-        </div>
+        </nav>
 
-        {/* Greeting — sits over the fade */}
-        <div className="absolute bottom-5 left-5">
-          <p className="text-sm font-medium" style={{ color: '#1a2e2b' }}>{GREETING}, Phoenix</p>
-          <h1 className="font-serif text-3xl font-bold leading-tight" style={{ color: '#1a2e2b' }}>
+        {/* greeting */}
+        <div style={{ position: 'absolute', bottom: 18, left: 20 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--c-teal)', marginBottom: 2 }}>{greeting}, Phoenix</p>
+          <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 28, fontWeight: 700, color: 'var(--c-teal)', lineHeight: 1.1 }}>
             {"Phoenix's Garden"}
           </h1>
         </div>
       </div>
 
-      {/* Search results overlay */}
-      <AnimatePresence>
-        {filtered.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="mx-4 mt-2 rounded-2xl border p-3"
-            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--cur8-card)', boxShadow: '0 4px 16px rgba(13,61,58,0.1)' }}
-          >
-            <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
-              {filtered.length} results
-            </p>
-            <div className="space-y-1">
-              {filtered.map((item) => (
-                <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 rounded-xl p-2 text-sm font-medium transition hover:bg-white"
-                  style={{ color: 'var(--foreground)' }}>
-                  <span className="rounded-full px-2 py-0.5 text-xs" style={{ backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}>
-                    {item.category}
-                  </span>
-                  <span className="truncate">{item.title}</span>
-                </a>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ── Content ── */}
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 16px 80px' }}>
 
-      <div className="mx-auto max-w-2xl px-4 pb-16">
-
-        {/* Stats + quick add */}
-        <div className="mt-4 mb-5 flex items-center gap-3">
-          {mounted && items.length > 0 && (
-            <>
-              <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                {items.length} things tended
-              </span>
-              <span style={{ color: 'var(--muted-foreground)' }}>·</span>
-              <div className="flex items-center gap-1">
-                <Sparkles size={12} style={{ color: 'var(--cur8-gold)' }} />
-                <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  {CATEGORIES.length} gardens
-                </span>
-              </div>
-            </>
-          )}
+        {/* Search bar */}
+        <div style={{ position: 'relative', marginTop: 16, marginBottom: 20 }}>
+          <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-muted)' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search your garden..."
+            style={{ width: '100%', paddingLeft: 38, paddingRight: 16, paddingTop: 11, paddingBottom: 11, borderRadius: 50, border: '1.5px solid var(--c-border)', backgroundColor: 'var(--c-surface)', color: 'var(--c-text)', fontSize: 13, outline: 'none', boxSizing: 'border-box', boxShadow: '0 1px 4px rgba(13,61,58,0.06)' }}
+          />
         </div>
 
-        {/* Quick add pill */}
-        <Link href={`/cur8/${CATEGORIES[0].name.toLowerCase()}`}>
-          <div
-            className="flex items-center gap-3 rounded-2xl px-4 py-3 mb-7 cursor-pointer transition hover:shadow-md"
-            style={{ backgroundColor: 'var(--cur8-card)', border: '1.5px solid rgba(13,61,58,0.1)', boxShadow: '0 2px 12px rgba(13,61,58,0.06)' }}
-          >
-            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--cur8-coral)' }}>
-              <Plus size={14} color="#fff" />
-            </div>
-            <span className="flex-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Paste a link to tend your garden...
-            </span>
-            <div className="rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: 'var(--cur8-teal)', color: 'var(--cur8-cream)' }}>
-              Add
-            </div>
-          </div>
-        </Link>
+        {/* Search results */}
+        <AnimatePresence>
+          {filtered.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+              style={{ backgroundColor: 'var(--c-surface)', border: '1.5px solid var(--c-border)', borderRadius: 16, padding: 12, marginBottom: 16, boxShadow: '0 4px 16px rgba(13,61,58,0.08)' }}
+            >
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--c-muted)', marginBottom: 8 }}>{filtered.length} results</p>
+              {filtered.map((item) => (
+                <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 10, textDecoration: 'none', color: 'var(--c-text)' }}>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 50, backgroundColor: TILE_STYLES[item.category]?.soft, color: TILE_STYLES[item.category]?.accent }}>{item.category}</span>
+                  <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</span>
+                </a>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Quick save row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 24 }}>
+          {CATEGORIES.slice(0, 4).map((cat) => {
+            const ts = TILE_STYLES[cat.name]
+            const Icon = ICON_MAP[cat.lucideIcon]
+            return (
+              <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 6px', borderRadius: 16, backgroundColor: 'var(--c-surface)', border: '1.5px solid var(--c-border)', cursor: 'pointer' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', backgroundColor: ts.soft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {Icon && <Icon size={15} style={{ color: ts.accent }} />}
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-text)', textAlign: 'center' }}>{cat.name}</span>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
 
         {/* Recently tended */}
         {recent.length > 0 && (
-          <section className="mb-8">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock size={13} style={{ color: 'var(--cur8-sage)' }} />
-                <h2 className="font-serif text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
+          <section style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Clock size={13} style={{ color: 'var(--c-sage)' }} />
+                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 600, color: 'var(--c-text)' }}>
                   Recently tended
                 </h2>
               </div>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
               {recent.map((item, i) => {
-                const style = TILE_STYLES[item.category]
+                const ts = TILE_STYLES[item.category]
                 return (
                   <motion.a
                     key={item.id}
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    initial={{ opacity: 0, x: 10 }}
+                    initial={{ opacity: 0, x: 8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
-                    className="relative flex-none overflow-hidden rounded-2xl cursor-pointer"
-                    style={{ width: '130px', height: '84px', border: '1.5px solid rgba(13,61,58,0.07)', boxShadow: '0 2px 8px rgba(13,61,58,0.08)' }}
+                    style={{ flexShrink: 0, width: 120, height: 80, borderRadius: 14, overflow: 'hidden', position: 'relative', textDecoration: 'none', display: 'block', border: '1.5px solid var(--c-border)' }}
                   >
                     {item.thumbnail ? (
-                      <img src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
+                      <img src={item.thumbnail} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <Image src={style?.image ?? '/cur8/tile-grove.png'} alt={item.title} fill className="object-cover" sizes="130px" />
+                      <Image src={ts?.image ?? '/cur8/tile-grove.png'} alt={item.title} fill style={{ objectFit: 'cover' }} sizes="120px" />
                     )}
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,61,58,0.82) 0%, transparent 55%)' }} />
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <p className="line-clamp-2 font-medium leading-tight" style={{ color: '#f5f0e8', fontSize: '9px' }}>{item.title}</p>
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.85) 0%, transparent 55%)' }} />
+                    <div style={{ position: 'absolute', bottom: 6, left: 7, right: 7 }}>
+                      <p style={{ fontSize: 9, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
                     </div>
-                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full" style={{ backgroundColor: style?.accent ?? '#5a9e84' }} />
+                    <div style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', backgroundColor: ts?.accent ?? '#5a9e84' }} />
                   </motion.a>
                 )
               })}
@@ -246,121 +231,95 @@ export default function Cur8Home() {
           </section>
         )}
 
-        {/* Your Gardens header */}
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-serif text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
+        {/* Your Gardens */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 600, color: 'var(--c-text)' }}>
             Your gardens
           </h2>
-          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            {CATEGORIES.length} areas
-          </span>
+          <span style={{ fontSize: 11, color: 'var(--c-muted)' }}>{CATEGORIES.length} areas</span>
         </div>
 
-        {/* Bento grid */}
-        <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        {/* Featured tiles — 2 tall side by side */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          {featured.map((cat) => {
+            const ts = TILE_STYLES[cat.name]
+            const Icon = ICON_MAP[cat.lucideIcon]
+            const count = items.filter((i) => i.category === cat.name).length
+            return (
+              <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  style={{ position: 'relative', height: 200, borderRadius: 22, overflow: 'hidden', cursor: 'pointer', boxShadow: '0 4px 20px rgba(13,61,58,0.10)', border: '1.5px solid var(--c-border)' }}
+                >
+                  <Image src={ts.image} alt={cat.name} fill style={{ objectFit: 'cover' }} sizes="200px" />
+                  {/* gentle overlay */}
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(165deg, rgba(255,255,255,0.08) 0%, rgba(13,61,58,0.55) 100%)' }} />
+                  {/* count chip */}
+                  <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 50, backgroundColor: ts.accent }}>
+                    {Icon && <Icon size={10} color="#fff" />}
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>{count} saved</span>
+                  </div>
+                  <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14 }}>
+                    <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: '#f5f0e8', textShadow: '0 2px 6px rgba(0,0,0,0.3)', marginBottom: 4 }}>{cat.name}</h3>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.25)' }}>
+                      <span style={{ fontSize: 10, color: '#f5f0e8', fontWeight: 500 }}>Open</span>
+                      <ChevronRight size={9} color="#f5f0e8" />
+                    </div>
+                  </div>
+                </motion.div>
+              </Link>
+            )
+          })}
+        </div>
 
-          {/* Row 1: featured left (tall), two small stacked right */}
-          <div style={{ gridRow: 'span 2' }}>
-            <FeaturedTile cat={featured[0]} count={items.filter(i => i.category === featured[0].name).length} />
-          </div>
-          <SmallTile cat={small[0]} count={items.filter(i => i.category === small[0].name).length} />
-          <SmallTile cat={small[1]} count={items.filter(i => i.category === small[1].name).length} />
-
-          {/* Row 2: two small left, featured right */}
-          <SmallTile cat={small[2]} count={items.filter(i => i.category === small[2].name).length} />
-          <div style={{ gridRow: 'span 2' }}>
-            <FeaturedTile cat={featured[1]} count={items.filter(i => i.category === featured[1].name).length} />
-          </div>
-
-          {/* Row 3 */}
-          <SmallTile cat={small[3]} count={items.filter(i => i.category === small[3].name).length} />
-
-          {/* Row 4: remaining two */}
-          <SmallTile cat={small[4]} count={items.filter(i => i.category === small[4].name).length} />
-          <SmallTile cat={small[5]} count={items.filter(i => i.category === small[5].name).length} />
+        {/* Rest — 2-column grid of medium cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {rest.map((cat) => {
+            const ts = TILE_STYLES[cat.name]
+            const Icon = ICON_MAP[cat.lucideIcon]
+            const count = items.filter((i) => i.category === cat.name).length
+            return (
+              <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  style={{ position: 'relative', borderRadius: 18, overflow: 'hidden', cursor: 'pointer', backgroundColor: 'var(--c-surface)', border: '1.5px solid var(--c-border)', boxShadow: '0 2px 10px rgba(13,61,58,0.06)' }}
+                >
+                  {/* image strip — top 75px */}
+                  <div style={{ position: 'relative', height: 75, overflow: 'hidden' }}>
+                    <Image src={ts.image} alt={cat.name} fill style={{ objectFit: 'cover' }} sizes="160px" />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 30%, rgba(255,255,255,0.96) 100%)' }} />
+                  </div>
+                  {/* label row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 10px' }}>
+                    <div>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 13, fontWeight: 700, color: 'var(--c-text)', marginBottom: 1 }}>{cat.name}</h3>
+                      <p style={{ fontSize: 10, color: 'var(--c-muted)' }}>{count} saved</p>
+                    </div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: ts.soft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {Icon && <Icon size={12} style={{ color: ts.accent }} />}
+                    </div>
+                  </div>
+                </motion.div>
+              </Link>
+            )
+          })}
         </div>
 
         {/* Empty state */}
         {mounted && items.length === 0 && (
-          <div className="mt-12 flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl" style={{ backgroundColor: 'var(--cur8-sage)' }}>
-              <Sparkles size={28} color="#fff" />
+          <div style={{ marginTop: 40, textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: 'var(--c-sage)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <Plus size={24} color="#fff" />
             </div>
-            <h2 className="mt-4 font-serif text-xl font-bold">Your garden awaits</h2>
-            <p className="mt-2 max-w-xs text-sm leading-relaxed" style={{ color: 'var(--muted-foreground)' }}>
-              Pick a category and paste a link — Cur8 tends the rest.
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: 'var(--c-text)', marginBottom: 6 }}>Your garden awaits</h2>
+            <p style={{ fontSize: 13, color: 'var(--c-muted)', lineHeight: 1.6, maxWidth: 260, margin: '0 auto' }}>
+              Pick a garden above and paste a link — Cur8 tends the rest.
             </p>
           </div>
         )}
       </div>
     </div>
-  )
-}
-
-/* ── Featured tile (tall) ──────────────────────────────────────────── */
-function FeaturedTile({ cat, count }: { cat: typeof CATEGORIES[0]; count: number }) {
-  const Icon = ICON_MAP[cat.lucideIcon]
-  const style = TILE_STYLES[cat.name]
-  return (
-    <Link href={`/cur8/${cat.name.toLowerCase()}`}>
-      <div
-        className="group relative cursor-pointer overflow-hidden"
-        style={{ borderRadius: '24px', height: '280px', boxShadow: '0 4px 20px rgba(13,61,58,0.12)', border: `1.5px solid ${style.accentLight}` }}
-      >
-        <Image src={style.image} alt={cat.name} fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="200px" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(170deg, rgba(0,0,0,0.04) 0%, rgba(13,61,58,0.70) 100%)' }} />
-        <div className="absolute inset-0 flex flex-col justify-between p-5">
-          <div
-            className="inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1"
-            style={{ backgroundColor: style.accent }}
-          >
-            {Icon && <Icon size={11} color="#fff" />}
-            <span className="text-xs font-semibold text-white">{count} saved</span>
-          </div>
-          <div>
-            <h3 className="font-serif text-2xl font-bold leading-tight" style={{ color: '#f5f0e8', textShadow: '0 2px 8px rgba(0,0,0,0.35)' }}>
-              {cat.name}
-            </h3>
-            <p className="mt-1 text-sm" style={{ color: 'rgba(245,240,232,0.72)' }}>{cat.description}</p>
-            <div
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-              style={{ backgroundColor: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(10px)', color: '#f5f0e8', border: '1px solid rgba(255,255,255,0.25)' }}
-            >
-              Open garden <ChevronRight size={11} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
-}
-
-/* ── Small tile ────────────────────────────────────────────────────── */
-function SmallTile({ cat, count }: { cat: typeof CATEGORIES[0]; count: number }) {
-  const Icon = ICON_MAP[cat.lucideIcon]
-  const style = TILE_STYLES[cat.name]
-  return (
-    <Link href={`/cur8/${cat.name.toLowerCase()}`}>
-      <div
-        className="group relative cursor-pointer overflow-hidden flex flex-col"
-        style={{ borderRadius: '20px', height: '128px', backgroundColor: 'var(--cur8-card)', boxShadow: '0 2px 10px rgba(13,61,58,0.07)', border: `1.5px solid ${style.accentLight}` }}
-      >
-        {/* image strip */}
-        <div className="relative flex-1 overflow-hidden" style={{ borderRadius: '18px 18px 0 0' }}>
-          <Image src={style.image} alt={cat.name} fill className="object-cover transition-transform duration-700 group-hover:scale-105" sizes="160px" />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 30%, rgba(247,249,247,0.92) 100%)' }} />
-        </div>
-        {/* label row */}
-        <div className="flex items-center justify-between px-3 py-2" style={{ backgroundColor: 'var(--cur8-card)' }}>
-          <div>
-            <h3 className="font-serif text-sm font-semibold leading-tight" style={{ color: 'var(--foreground)' }}>{cat.name}</h3>
-            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{count} saved</p>
-          </div>
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: style.accentLight }}>
-            {Icon && <Icon size={13} style={{ color: style.accent }} />}
-          </div>
-        </div>
-      </div>
-    </Link>
   )
 }

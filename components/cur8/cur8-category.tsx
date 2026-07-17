@@ -170,7 +170,7 @@ export default function Cur8Category({ category }: Props) {
   }
 
   return (
-    <div className="cur8 relative min-h-screen overflow-x-hidden" style={{ backgroundColor: 'var(--cur8-body)', color: 'var(--foreground)' }}>
+    <div className="relative min-h-screen overflow-x-hidden" style={{ backgroundColor: '#f2f5f2', color: '#1a2e2b', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif' }}>
 
       {/* ── Category banner ── */}
       <div className="relative overflow-hidden" style={{ height: '160px' }}>
@@ -184,7 +184,7 @@ export default function Cur8Category({ category }: Props) {
         />
         <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, rgba(13,61,58,0.15) 0%, rgba(238,242,238,0) 40%, rgba(238,242,238,1) 100%)' }}
+          style={{ background: 'linear-gradient(to bottom, rgba(13,61,58,0.15) 0%, rgba(242,245,242,0) 40%, rgba(242,245,242,1) 100%)' }}
         />
 
         {/* Nav inside banner */}
@@ -226,14 +226,14 @@ export default function Cur8Category({ category }: Props) {
         <aside className="w-48 shrink-0">
           <div className="sticky top-6">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted-foreground)' }}>
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6b8884' }}>
                 Folders
               </span>
               <button
                 onClick={() => setShowNewFolder(true)}
                 className="rounded-lg p-1 transition hover:opacity-70"
                 title="New folder"
-                style={{ color: 'var(--cur8-teal)' }}
+                style={{ color: '#0d3d3a' }}
               >
                 <FolderPlus size={15} />
               </button>
@@ -259,11 +259,11 @@ export default function Cur8Category({ category }: Props) {
                       }}
                       placeholder="Folder name"
                       className="min-w-0 flex-1 rounded-lg border px-2 py-1.5 text-xs outline-none focus:ring-1"
-                      style={{ borderColor: 'var(--border)' }}
+                      style={{ borderColor: 'rgba(13,61,58,0.12)' }}
                       autoFocus
                     />
                     <button onClick={createFolder} className="rounded-lg p-1.5 text-white"
-                      style={{ backgroundColor: 'var(--primary)' }}>
+                      style={{ backgroundColor: '#0d3d3a' }}>
                       <Check size={12} />
                     </button>
                   </div>
@@ -277,7 +277,7 @@ export default function Cur8Category({ category }: Props) {
               <button
                 onClick={() => setActiveFolder(null)}
                 className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition ${activeFolder === null ? 'font-semibold text-white' : 'hover:bg-white'}`}
-                style={activeFolder === null ? { backgroundColor: 'var(--primary)', color: '#fff' } : { color: 'var(--foreground)' }}
+                style={activeFolder === null ? { backgroundColor: '#0d3d3a', color: '#fff' } : { color: '#1a2e2b' }}
               >
                 <FolderOpen size={14} />
                 <span>All</span>
@@ -292,7 +292,7 @@ export default function Cur8Category({ category }: Props) {
                     <button
                       onClick={() => setActiveFolder(folder.id)}
                       className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition ${isActive ? 'font-semibold text-white' : 'hover:bg-white'}`}
-                      style={isActive ? { backgroundColor: 'var(--cur8-sage)', color: '#fff' } : { color: 'var(--foreground)' }}
+                      style={isActive ? { backgroundColor: '#5a9e84', color: '#fff' } : { color: '#1a2e2b' }}
                     >
                       <Folder size={14} />
                       <span className="truncate">{folder.name}</span>
@@ -309,7 +309,7 @@ export default function Cur8Category({ category }: Props) {
               })}
 
               {folders.length === 0 && (
-                <p className="px-3 py-2 text-xs italic" style={{ color: 'var(--muted-foreground)' }}>
+                <p className="px-3 py-2 text-xs italic" style={{ color: '#6b8884' }}>
                   No folders yet
                 </p>
               )}
@@ -325,7 +325,7 @@ export default function Cur8Category({ category }: Props) {
                 {Icon && <Icon size={26} className={cat.accent} />}
               </div>
               <p className="mt-4 font-serif text-lg font-semibold">Nothing here yet</p>
-              <p className="mt-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              <p className="mt-1 text-sm" style={{ color: '#6b8884' }}>
                 {activeFolder
                   ? 'No items in this folder. Save a link and assign it here.'
                   : 'Paste a link and hit Save — the preview fetches automatically.'}
@@ -333,7 +333,7 @@ export default function Cur8Category({ category }: Props) {
               <button
                 onClick={() => setShowAdd(true)}
                 className="mt-5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-                style={{ backgroundColor: 'var(--primary)' }}
+                style={{ backgroundColor: '#0d3d3a' }}
               >
                 Save your first {category} link
               </button>
@@ -349,7 +349,7 @@ export default function Cur8Category({ category }: Props) {
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ delay: i * 0.04 }}
                     className="group relative overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-0.5 hover:shadow-md"
-                    style={{ borderColor: 'var(--border)' }}
+                    style={{ borderColor: 'rgba(13,61,58,0.10)' }}
                   >
                     {/* Thumbnail */}
                     {item.thumbnail ? (
@@ -374,16 +374,16 @@ export default function Cur8Category({ category }: Props) {
 
                     <div className="p-4">
                       <p className="line-clamp-2 text-sm font-semibold leading-snug"
-                        style={{ color: 'var(--foreground)' }}>
+                        style={{ color: '#1a2e2b' }}>
                         {item.title}
                       </p>
                       {item.description && (
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed"
-                          style={{ color: 'var(--muted-foreground)' }}>
+                          style={{ color: '#6b8884' }}>
                           {item.description}
                         </p>
                       )}
-                      <p className="mt-2 truncate text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      <p className="mt-2 truncate text-xs" style={{ color: '#6b8884' }}>
                         {(() => { try { return new URL(item.url).hostname.replace('www.', '') } catch { return item.url } })()}
                       </p>
                     </div>
@@ -404,16 +404,16 @@ export default function Cur8Category({ category }: Props) {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -4 }}
                             className="absolute right-0 top-9 z-30 w-44 overflow-hidden rounded-xl border bg-white shadow-lg"
-                            style={{ borderColor: 'var(--border)' }}
+                            style={{ borderColor: 'rgba(13,61,58,0.10)' }}
                           >
                             {/* Move to folder */}
                             {moveItemId === item.id ? (
                               <div className="p-2">
-                                <p className="mb-1.5 px-1 text-xs font-bold" style={{ color: 'var(--muted-foreground)' }}>Move to folder</p>
+                                <p className="mb-1.5 px-1 text-xs font-bold" style={{ color: '#6b8884' }}>Move to folder</p>
                                 <button
                                   onClick={() => handleMoveToFolder(item.id, undefined)}
                                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50"
-                                  style={{ color: item.folderId === undefined ? 'var(--cur8-teal)' : 'var(--foreground)' }}
+                                  style={{ color: item.folderId === undefined ? '#0d3d3a' : '#1a2e2b' }}
                                 >
                                   <FolderOpen size={11} /> No folder {item.folderId === undefined && <Check size={10} className="ml-auto" />}
                                 </button>
@@ -422,7 +422,7 @@ export default function Cur8Category({ category }: Props) {
                                     key={f.id}
                                     onClick={() => handleMoveToFolder(item.id, f.id)}
                                     className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-slate-50"
-                                    style={{ color: item.folderId === f.id ? 'var(--cur8-teal)' : 'var(--foreground)' }}
+                                    style={{ color: item.folderId === f.id ? '#0d3d3a' : '#1a2e2b' }}
                                   >
                                     <Folder size={11} /> <span className="truncate">{f.name}</span>
                                     {item.folderId === f.id && <Check size={10} className="ml-auto shrink-0" />}
@@ -431,7 +431,7 @@ export default function Cur8Category({ category }: Props) {
                                 <button
                                   onClick={() => setMoveItemId(null)}
                                   className="mt-1 w-full rounded-lg px-2 py-1 text-xs font-medium hover:bg-slate-50"
-                                  style={{ color: 'var(--muted-foreground)' }}
+                                  style={{ color: '#6b8884' }}
                                 >
                                   Cancel
                                 </button>
@@ -441,25 +441,25 @@ export default function Cur8Category({ category }: Props) {
                                 <a
                                   href={item.url} target="_blank" rel="noopener noreferrer"
                                   className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium hover:bg-slate-50"
-                                  style={{ color: 'var(--foreground)' }}
+                                  style={{ color: '#1a2e2b' }}
                                 >
                                   <ExternalLink size={12} /> Open link
                                 </a>
                                 <button
                                   onClick={() => setMoveItemId(item.id)}
                                   className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium hover:bg-slate-50"
-                                  style={{ color: 'var(--foreground)' }}
+                                  style={{ color: '#1a2e2b' }}
                                 >
                                   <FolderInput size={12} /> Move to folder
                                 </button>
                                 <button
                                   onClick={() => handleDuplicate(item.id)}
                                   className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium hover:bg-slate-50"
-                                  style={{ color: 'var(--foreground)' }}
+                                  style={{ color: '#1a2e2b' }}
                                 >
                                   <Copy size={12} /> Duplicate
                                 </button>
-                                <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+                                <div className="border-t" style={{ borderColor: 'rgba(13,61,58,0.10)' }} />
                                 <button
                                   onClick={() => { handleDelete(item.id); setMenuItemId(null) }}
                                   className="flex w-full items-center gap-2 px-4 py-2.5 text-xs font-medium text-red-500 hover:bg-red-50"
@@ -512,14 +512,14 @@ export default function Cur8Category({ category }: Props) {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleFetch() }}
                   placeholder="Paste a link..."
                   className="min-w-0 flex-1 rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
-                  style={{ borderColor: 'var(--border)' }}
+                  style={{ borderColor: 'rgba(13,61,58,0.12)' }}
                   autoFocus
                 />
                 <button
                   onClick={handleFetch}
                   disabled={fetching || !url.trim()}
                   className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                  style={{ backgroundColor: 'var(--primary)' }}
+                  style={{ backgroundColor: '#0d3d3a' }}
                 >
                   {fetching ? <Loader2 size={14} className="animate-spin" /> : 'Fetch'}
                 </button>
@@ -530,7 +530,7 @@ export default function Cur8Category({ category }: Props) {
               {/* Folder picker */}
               {folders.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-1.5 text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>
+                  <p className="mb-1.5 text-xs font-semibold" style={{ color: '#6b8884' }}>
                     Save to folder (optional)
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -538,8 +538,8 @@ export default function Cur8Category({ category }: Props) {
                       onClick={() => setSelectedFolderForItem(undefined)}
                       className={`rounded-lg px-3 py-1 text-xs font-medium transition ${selectedFolderForItem === undefined ? 'text-white' : 'hover:opacity-80'}`}
                       style={selectedFolderForItem === undefined
-                        ? { backgroundColor: 'var(--primary)' }
-                        : { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}
+                        ? { backgroundColor: '#0d3d3a' }
+                        : { backgroundColor: '#eef2ee', color: '#6b8884' }}
                     >
                       No folder
                     </button>
@@ -549,8 +549,8 @@ export default function Cur8Category({ category }: Props) {
                         onClick={() => setSelectedFolderForItem(f.id)}
                         className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium transition ${selectedFolderForItem === f.id ? 'text-white' : 'hover:opacity-80'}`}
                         style={selectedFolderForItem === f.id
-                          ? { backgroundColor: 'var(--cur8-sage)' }
-                          : { backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}
+                          ? { backgroundColor: '#5a9e84' }
+                          : { backgroundColor: '#eef2ee', color: '#6b8884' }}
                       >
                         <Folder size={10} /> {f.name}
                       </button>
@@ -565,22 +565,22 @@ export default function Cur8Category({ category }: Props) {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-4 overflow-hidden rounded-xl border"
-                  style={{ borderColor: 'var(--border)' }}
+                  style={{ borderColor: 'rgba(13,61,58,0.10)' }}
                 >
                   {preview.thumbnail && (
                     <img src={preview.thumbnail} alt="" className="h-32 w-full object-cover" />
                   )}
-                  <div className="p-3" style={{ backgroundColor: 'var(--muted)' }}>
+                  <div className="p-3" style={{ backgroundColor: '#eef2ee' }}>
                     <input
                       className="w-full bg-transparent text-sm font-semibold outline-none"
-                      style={{ color: 'var(--foreground)' }}
+                      style={{ color: '#1a2e2b' }}
                       value={preview.title || ''}
                       onChange={(e) => setPreview({ ...preview, title: e.target.value })}
                       placeholder="Title"
                     />
                     <input
                       className="mt-1 w-full bg-transparent text-xs outline-none"
-                      style={{ color: 'var(--muted-foreground)' }}
+                      style={{ color: '#6b8884' }}
                       value={preview.description || ''}
                       onChange={(e) => setPreview({ ...preview, description: e.target.value })}
                       placeholder="Description (optional)"
@@ -593,7 +593,7 @@ export default function Cur8Category({ category }: Props) {
                 <button
                   onClick={handleSave}
                   className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                  style={{ backgroundColor: 'var(--primary)' }}
+                  style={{ backgroundColor: '#0d3d3a' }}
                 >
                   Save to {category}{selectedFolderForItem ? ` · ${folders.find((f) => f.id === selectedFolderForItem)?.name}` : ''}
                 </button>
