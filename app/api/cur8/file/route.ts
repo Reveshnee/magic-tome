@@ -1,4 +1,4 @@
-import { head } from '@vercel/blob'
+import { get } from '@vercel/blob'
 import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -16,42 +16,36 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get the blob metadata (includes the direct URL with a short-lived token)
-    const blob = await head(pathname)
-    if (!blob) {
+    const ifNoneMatch = request.headers.get('if-none-match') ?? undefined
+
+    // get() streams the private blob directly — no external signed-URL fetch needed
+    const result = await get(pathname, {
+      access: 'private',
+      ...(ifNoneMatch ? { ifNoneMatch } : {}),
+    })
+
+    if (!result) {
       return new NextResponse('Not found', { status: 404 })
     }
 
-    // Fetch the actual file from the signed Blob URL (server-to-server, token is in the URL)
-    const upstream = await fetch(blob.downloadUrl, {
-      headers: {
-        'If-None-Match': request.headers.get('if-none-match') ?? '',
-      },
-    })
-
-    if (upstream.status === 304) {
+    // 304 — blob unchanged, client can use its cache
+    if (result.statusCode === 304) {
       return new NextResponse(null, {
         status: 304,
         headers: {
-          ETag: upstream.headers.get('etag') ?? '',
+          ETag: result.blob.etag,
           'Cache-Control': 'private, no-cache',
         },
       })
     }
 
-    if (!upstream.ok) {
-      return new NextResponse('Failed to fetch file', { status: 502 })
-    }
-
-    const contentType = upstream.headers.get('content-type') ?? 'application/octet-stream'
-    const etag = upstream.headers.get('etag') ?? ''
     const filename = pathname.split('/').pop() ?? 'file'
 
-    return new NextResponse(upstream.body, {
+    return new NextResponse(result.stream, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
-        ...(etag ? { ETag: etag } : {}),
+        'Content-Type': result.blob.contentType,
+        ETag: result.blob.etag,
         'Cache-Control': 'private, no-cache',
         'Content-Disposition': `inline; filename="${filename}"`,
       },
