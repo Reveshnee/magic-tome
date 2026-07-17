@@ -73,6 +73,21 @@ function getThumbnailFromUrl(url: string, stored: string | undefined): string {
 
 // Determine how to render a URL in the preview panel
 function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'audio' | 'iframe' {
+  // Private-blob proxy URLs — detect by extension in the pathname query param
+  if (url.startsWith('/api/cur8/file')) {
+    try {
+      const params = new URLSearchParams(url.split('?')[1] ?? '')
+      const p = (params.get('pathname') ?? '').toLowerCase()
+      if (p.match(/\.(jpg|jpeg|png|gif|webp|avif)$/)) return 'image'
+      if (p.match(/\.(mp4|webm|mov)$/)) return 'video'
+      if (p.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
+      // PDFs and all Office docs render via native iframe since the file is
+      // served from our own origin — no CORS / X-Frame-Options issue
+      if (p.match(/\.pdf$/)) return 'pdf'
+      if (p.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf'
+    } catch {}
+    return 'pdf' // default for unknown uploaded file types
+  }
   try {
     const u = new URL(url)
     if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') return 'youtube'
@@ -81,14 +96,7 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
     if (path.match(/\.(mp4|webm|mov|avi|mkv)$/)) return 'video'
     if (path.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
     if (path.match(/\.pdf$/) || u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) return 'pdf'
-    // Office / text docs — including those uploaded to Vercel Blob — route through Google Viewer
     if (path.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf'
-    // Vercel Blob public store URLs always contain "public.blob.vercel-storage.com"
-    // Any non-image blob file (identified above already) falls back to Google Viewer
-    if (u.hostname.includes('blob.vercel-storage.com')) {
-      // Images already matched above; anything else treat as a document
-      return 'pdf'
-    }
   } catch {}
   return 'iframe'
 }
@@ -449,16 +457,21 @@ export default function Cur8Category({ category }: Props) {
     }
 
     if (type === 'pdf') {
-      // Build a proper embed URL depending on source
       let embedUrl = item.url
-      if (item.url.includes('drive.google.com/file/d/')) {
+
+      if (item.url.startsWith('/api/cur8/file')) {
+        // Private blob served from our own origin — iframe it directly, no viewer needed
+        embedUrl = item.url
+      } else if (item.url.includes('drive.google.com/file/d/')) {
         const id = item.url.match(/\/d\/([^/]+)/)?.[1]
         if (id) embedUrl = `https://drive.google.com/file/d/${id}/preview`
       } else if (item.url.includes('docs.google.com')) {
         embedUrl = item.url.replace('/edit', '/preview').replace('/pub', '/preview')
-      } else if (item.url.toLowerCase().endsWith('.pdf')) {
-        // Use Google Docs viewer for plain PDF URLs so they render inline
-        embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(item.url)}&embedded=true`
+      } else {
+        // External PDF or Office doc — route through Google Docs viewer
+        // Build an absolute URL so Google can fetch it
+        const abs = item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`
+        embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
       }
       return (
         <iframe
@@ -640,9 +653,13 @@ export default function Cur8Category({ category }: Props) {
                   const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                   const isActive = selectedItem?.id === item.id
                   return (
-                    <button key={item.id} onClick={() => setSelectedItem(isActive ? null : item)}
+                    <div key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedItem(isActive ? null : item)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedItem(isActive ? null : item) }}
                       title={item.title}
-                      style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', border: 'none', padding: 0, outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
+                      style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
                       {thumb ? (
                         <img src={thumb} alt={item.title} style={{ width: '100%', height: isMobile ? 88 : 72, objectFit: 'cover', display: 'block' }} />
                       ) : (
@@ -652,7 +669,7 @@ export default function Cur8Category({ category }: Props) {
                       )}
                       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.75) 0%, transparent 55%)' }} />
                       <p style={{ position: 'absolute', bottom: 4, left: 4, right: 4, fontSize: 8, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
-                    </button>
+                    </div>
                   )
                 })}
               </div>
