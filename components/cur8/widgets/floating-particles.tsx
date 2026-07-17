@@ -23,10 +23,11 @@ function randBetween(a: number, b: number) {
   return a + Math.random() * (b - a)
 }
 
-export default function FloatingParticles() {
+export default function FloatingParticles({ disabled = false }: { disabled?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
+    if (disabled) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -154,7 +155,9 @@ export default function FloatingParticles() {
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', resize)
     }
-  }, [])
+  }, [disabled])
+
+  if (disabled) return null
 
   return (
     <canvas

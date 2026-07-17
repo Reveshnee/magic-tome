@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
-  Search, LogOut, Plus, Clock, Leaf, Sparkles,
+  Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind,
 } from 'lucide-react'
+import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 import { getCur8Data } from '@/app/actions/cur8'
 import { authClient } from '@/lib/auth-client'
@@ -71,6 +72,14 @@ export default function Cur8Home() {
   const [greeting, setGreeting] = useState('Good morning')
   const [quote, setQuote] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [calm, setCalm] = useCalmMode()
+
+  // Surprise me — open a random saved item (reduces decision paralysis)
+  function surpriseMe() {
+    if (items.length === 0) return
+    const pick = items[Math.floor(Math.random() * items.length)]
+    window.open(pick.url, '_blank', 'noopener,noreferrer')
+  }
 
   useEffect(() => {
     const h = new Date().getHours()
@@ -125,7 +134,7 @@ export default function Cur8Home() {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,36,32,0.25) 0%, rgba(13,36,32,0.15) 40%, rgba(13,36,32,0.75) 80%, rgba(13,36,32,0.95) 100%)' }} />
 
         {/* Floating leaves + water drop particles */}
-        <FloatingParticles />
+        <FloatingParticles disabled={calm} />
 
         {/* Top bar — logo + sign out */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '20px 32px', zIndex: 10 }}>
@@ -141,6 +150,14 @@ export default function Cur8Home() {
               style={{ background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(245,240,232,0.2)', borderRadius: 50, padding: '7px 14px', color: 'var(--c-cream)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(10px)' }}
             >
               <Search size={12} /> Search
+            </button>
+            <button
+              onClick={() => setCalm(!calm)}
+              aria-pressed={calm}
+              title={calm ? 'Calm mode on — animations reduced' : 'Turn on calm mode'}
+              style={{ background: calm ? 'var(--c-sage)' : 'rgba(245,240,232,0.12)', border: `1px solid ${calm ? 'var(--c-sage)' : 'rgba(245,240,232,0.2)'}`, borderRadius: 50, padding: '7px 12px', color: 'var(--c-cream)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(10px)' }}
+            >
+              <Wind size={12} /> {!isMobile && (calm ? 'Calm on' : 'Calm')}
             </button>
             <button
               onClick={handleSignOut}
@@ -212,6 +229,20 @@ export default function Cur8Home() {
               <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c-sage)', fontFamily: 'var(--font-playfair), Georgia, serif' }}>8</span>
               <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', marginLeft: 6 }}>gardens</span>
             </div>
+            {items.length > 0 && (
+              <>
+                <div style={{ width: 1, height: 28, backgroundColor: 'rgba(245,240,232,0.15)' }} />
+                <motion.button
+                  onClick={surpriseMe}
+                  whileHover={calm ? undefined : { scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title="Open a random saved item"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 50, border: '1px solid var(--c-gold)', backgroundColor: 'rgba(201,168,76,0.15)', color: 'var(--c-gold)', fontSize: 12, fontWeight: 700, cursor: 'pointer', backdropFilter: 'blur(10px)' }}
+                >
+                  <Shuffle size={13} /> Surprise me
+                </motion.button>
+              </>
+            )}
           </div>
         </div>
 

@@ -13,6 +13,8 @@ import {
   CATEGORIES,
   type Cur8Item, type Cur8Folder, type Category,
 } from '@/lib/cur8-store'
+import { useViewport } from '@/hooks/use-viewport'
+import { LayoutGrid, Eye, List } from 'lucide-react'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -113,6 +115,13 @@ export default function Cur8Category({ category }: Props) {
   const [uploadError, setUploadError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
+  const { isMobile } = useViewport()
+  const [mobileTab, setMobileTab] = useState<'browse' | 'preview' | 'links'>('browse')
+
+  // On mobile, jump to the preview tab whenever an item is opened
+  useEffect(() => {
+    if (isMobile && selectedItem) setMobileTab('preview')
+  }, [selectedItem, isMobile])
 
   function refresh() {
     return getCur8Data().then((data) => {
@@ -442,11 +451,34 @@ export default function Cur8Category({ category }: Props) {
         </div>
       </div>
 
-      {/* ── Three-panel body ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      {/* ── Mobile tab switcher ── */}
+      {isMobile && (
+        <div style={{ display: 'flex', flexShrink: 0, backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
+          {([
+            { id: 'browse' as const, label: 'Browse', icon: LayoutGrid },
+            { id: 'preview' as const, label: 'Preview', icon: Eye },
+            { id: 'links' as const, label: 'Links', icon: List },
+          ]).map((t) => {
+            const TIcon = t.icon
+            const on = mobileTab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setMobileTab(t.id)}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 4px', border: 'none', borderBottom: `2px solid ${on ? tileStyle.accent : 'transparent'}`, backgroundColor: 'transparent', cursor: 'pointer', color: on ? '#f5f0e8' : 'rgba(245,240,232,0.45)', fontSize: 12, fontWeight: 600 }}
+              >
+                <TIcon size={14} color={on ? tileStyle.accent : 'rgba(245,240,232,0.45)'} /> {t.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Three-panel body (stacks on mobile) ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', minHeight: 0 }}>
 
         {/* ── Panel 1: Thumbnail grid (8 visible, scrollable) ── */}
-        <div style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
+        <div style={{ width: isMobile ? '100%' : 240, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
           {/* Folders strip */}
           <div style={{ padding: '10px 10px 6px', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -499,7 +531,7 @@ export default function Cur8Category({ category }: Props) {
                 <button onClick={() => setShowAdd(true)} style={{ backgroundColor: tileStyle.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Save link</button>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 1fr' : '1fr 1fr', gap: 6 }}>
                 {visibleItems.map((item) => {
                   const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                   const isActive = selectedItem?.id === item.id
@@ -508,9 +540,9 @@ export default function Cur8Category({ category }: Props) {
                       title={item.title}
                       style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', border: 'none', padding: 0, outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
                       {thumb ? (
-                        <img src={thumb} alt={item.title} style={{ width: '100%', height: 72, objectFit: 'cover', display: 'block' }} />
+                        <img src={thumb} alt={item.title} style={{ width: '100%', height: isMobile ? 88 : 72, objectFit: 'cover', display: 'block' }} />
                       ) : (
-                        <div style={{ width: '100%', height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: tileStyle.accentLight }}>
+                        <div style={{ width: '100%', height: isMobile ? 88 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: tileStyle.accentLight }}>
                           {Icon && <Icon size={20} style={{ color: tileStyle.accent }} />}
                         </div>
                       )}
@@ -528,7 +560,7 @@ export default function Cur8Category({ category }: Props) {
         </div>
 
         {/* ── Panel 2: Centre preview ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#0d2420', minWidth: 0 }}>
+        <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#0d2420', minWidth: 0 }}>
           {selectedItem ? (
             <>
               {/* Preview area — fills as much as possible */}
@@ -559,13 +591,13 @@ export default function Cur8Category({ category }: Props) {
                 {Icon && <Icon size={28} style={{ color: tileStyle.accent }} />}
               </div>
               <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 600, color: '#f5f0e8' }}>Select something to preview</p>
-              <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', maxWidth: 240 }}>Tap a thumbnail on the left or any saved item on the right to load it here</p>
+              <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', maxWidth: 240 }}>{isMobile ? 'Tap any item in Browse or Links to preview it here' : 'Tap a thumbnail on the left or any saved item on the right to load it here'}</p>
             </div>
           )}
         </div>
 
         {/* ── Panel 3: Right — full links list ── */}
-        <div style={{ width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
+        <div style={{ width: isMobile ? '100%' : 260, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
           <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>Saved links</span>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)' }}>{visibleItems.length}</span>
