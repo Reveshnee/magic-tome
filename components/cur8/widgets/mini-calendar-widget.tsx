@@ -7,19 +7,23 @@ const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 export default function MiniCalendarWidget() {
-  const [now, setNow] = useState(new Date())
-  const [viewing, setViewing] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() })
+  // Start null so server and client render identically on first pass (avoids timezone mismatch)
+  const [now, setNow] = useState<Date | null>(null)
+  const [viewing, setViewing] = useState<{ year: number; month: number } | null>(null)
 
   useEffect(() => {
+    const initial = new Date()
+    setNow(initial)
+    setViewing({ year: initial.getFullYear(), month: initial.getMonth() })
     const t = setInterval(() => setNow(new Date()), 60000)
     return () => clearInterval(t)
   }, [])
 
-  const today = now.getDate()
-  const todayMonth = now.getMonth()
-  const todayYear = now.getFullYear()
+  const today = now?.getDate() ?? new Date().getDate()
+  const todayMonth = now?.getMonth() ?? new Date().getMonth()
+  const todayYear = now?.getFullYear() ?? new Date().getFullYear()
 
-  const { year, month } = viewing
+  const { year, month } = viewing ?? { year: todayYear, month: todayMonth }
 
   function prevMonth() {
     setViewing({ year: month === 0 ? year - 1 : year, month: month === 0 ? 11 : month - 1 })
@@ -39,9 +43,9 @@ export default function MiniCalendarWidget() {
   const isToday = (d: number | null) => d !== null && d === today && month === todayMonth && year === todayYear
   const isCurrentMonth = month === todayMonth && year === todayYear
 
-  // Time string
-  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  const dayStr = now.toLocaleDateString([], { weekday: 'long' })
+  // Render as empty strings until mounted so server and client output match
+  const timeStr = now ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+  const dayStr = now ? now.toLocaleDateString([], { weekday: 'long' }) : ''
 
   return (
     <div style={{ backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(16px)', borderRadius: 20, padding: '18px 20px', border: '1px solid rgba(245,240,232,0.10)', width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
