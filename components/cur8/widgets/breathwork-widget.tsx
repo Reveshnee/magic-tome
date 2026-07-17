@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Volume2, VolumeX } from 'lucide-react'
 
 type Phase = 'idle' | 'inhale' | 'hold1' | 'exhale' | 'hold2'
 
@@ -25,7 +26,9 @@ export default function BreathworkWidget() {
   const [count, setCount] = useState(0)
   const [cycles, setCycles] = useState(0)
   const [patternIdx, setPatternIdx] = useState(0)
+  const [soundOn, setSoundOn] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const audioRef = useRef<AudioContext | null>(null)
 
   const pattern = PATTERNS[patternIdx]
 
@@ -33,9 +36,68 @@ export default function BreathworkWidget() {
     if (intervalRef.current) clearTimeout(intervalRef.current)
   }
 
+  // Lazily create a single shared AudioContext (browsers require a user gesture first)
+  function getCtx(): AudioContext | null {
+    if (typeof window === 'undefined') return null
+    if (!audioRef.current) {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      if (!AC) return null
+      audioRef.current = new AC()
+    }
+    return audioRef.current
+  }
+
+  // Play a soft sine tone that glides between two frequencies over `duration` seconds.
+  // Inhale rises (grounding lift), exhale falls (letting go). Gentle fade in/out avoids clicks.
+  function playGlide(fromHz: number, toHz: number, duration: number) {
+    if (!soundOn) return
+    const ctx = getCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume()
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(fromHz, now)
+    osc.frequency.linearRampToValueAtTime(toHz, now + duration)
+    // Soft volume envelope, peaks around 0.12 so it stays calming
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.linearRampToValueAtTime(0.12, now + Math.min(0.6, duration / 3))
+    gain.gain.linearRampToValueAtTime(0.0001, now + duration)
+    osc.connect(gain).connect(ctx.destination)
+    osc.start(now)
+    osc.stop(now + duration + 0.05)
+  }
+
+  // A single soft low chime to mark a hold
+  function playHoldTone(duration: number) {
+    if (!soundOn) return
+    const ctx = getCtx()
+    if (!ctx) return
+    if (ctx.state === 'suspended') ctx.resume()
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(196, now) // low G, restful
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.linearRampToValueAtTime(0.05, now + 0.4)
+    gain.gain.linearRampToValueAtTime(0.0001, now + Math.max(0.8, duration - 0.2))
+    osc.connect(gain).connect(ctx.destination)
+    osc.start(now)
+    osc.stop(now + duration)
+  }
+
+  function playPhaseSound(p: Phase, duration: number) {
+    if (p === 'inhale') playGlide(220, 330, duration)      // A3 → E4, rising
+    else if (p === 'exhale') playGlide(330, 196, duration)  // E4 → G3, falling
+    else playHoldTone(duration)                             // holds
+  }
+
   function runPhase(p: Phase, duration: number, next: () => void) {
     setPhase(p)
     setCount(duration)
+    playPhaseSound(p, duration)
     let remaining = duration
     const tick = () => {
       remaining--
@@ -83,7 +145,10 @@ export default function BreathworkWidget() {
     }
   }
 
-  useEffect(() => () => clearTimer(), [])
+  useEffect(() => () => {
+    clearTimer()
+    if (audioRef.current) audioRef.current.close().catch(() => {})
+  }, [])
 
   // Circle scale & colour per phase
   const circleScale = phase === 'inhale' ? 1.28 : phase === 'exhale' ? 0.78 : 1.05
@@ -98,9 +163,19 @@ export default function BreathworkWidget() {
           <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', margin: 0 }}>Nervous system</p>
           <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 14, fontWeight: 600, color: '#f5f0e8', margin: 0 }}>Breathwork</p>
         </div>
-        {cycles > 0 && active && (
-          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 50, backgroundColor: 'rgba(90,158,132,0.2)', color: '#8ec8b4' }}>{cycles} cycles</span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {cycles > 0 && active && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 50, backgroundColor: 'rgba(90,158,132,0.2)', color: '#8ec8b4' }}>{cycles} cycles</span>
+          )}
+          <button
+            onClick={() => setSoundOn((s) => !s)}
+            aria-label={soundOn ? 'Mute breathing sounds' : 'Unmute breathing sounds'}
+            title={soundOn ? 'Sound on' : 'Sound off'}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: soundOn ? '#8ec8b4' : 'rgba(245,240,232,0.35)', display: 'flex', alignItems: 'center', padding: 2 }}
+          >
+            {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          </button>
+        </div>
       </div>
 
       {/* Pattern selector */}

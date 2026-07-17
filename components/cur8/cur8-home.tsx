@@ -17,6 +17,7 @@ import BreathworkWidget from '@/components/cur8/widgets/breathwork-widget'
 import FocusTimerWidget from '@/components/cur8/widgets/focus-timer-widget'
 import MiniCalendarWidget from '@/components/cur8/widgets/mini-calendar-widget'
 import IntentionWidget from '@/components/cur8/widgets/intention-widget'
+import { useViewport } from '@/hooks/use-viewport'
 
 const KOI: React.CSSProperties = {
   '--c-bg':       '#0d2420',
@@ -57,6 +58,12 @@ const MOTIVATIONAL = [
 
 export default function Cur8Home() {
   const router = useRouter()
+  const { isMobile, isTablet } = useViewport()
+  // Responsive helpers
+  const pad = isMobile ? 20 : 40
+  const widgetCols = isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'
+  const bentoCols = isMobile ? '1fr' : '1fr 1fr'
+  const smallCols = isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'
   const [items, setItems] = useState<Cur8Item[]>([])
   const [folders, setFolders] = useState<Cur8Folder[]>([])
   const [search, setSearch] = useState('')
@@ -121,7 +128,7 @@ export default function Cur8Home() {
         <FloatingParticles />
 
         {/* Top bar — logo + sign out */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px', zIndex: 10 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '20px 32px', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--c-coral)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Leaf size={12} color="#fff" />
@@ -182,7 +189,7 @@ export default function Cur8Home() {
         </AnimatePresence>
 
         {/* Hero text — bottom of viewport */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 40px 36px' }}>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '0 20px 28px' : '0 40px 36px' }}>
           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-gold)', marginBottom: 10 }}>{greeting}, Reveshnee</p>
           <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(44px, 6vw, 80px)', fontWeight: 700, color: 'var(--c-cream)', lineHeight: 1.0, margin: 0, marginBottom: 12, letterSpacing: '-0.01em' }}>
             {"Reveshnee's"}<br />
@@ -190,7 +197,7 @@ export default function Cur8Home() {
           </h1>
           <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.65)', marginBottom: 20, maxWidth: 400, lineHeight: 1.6 }}>&ldquo;{quote}&rdquo;</p>
           {/* Stats row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 16 : 24, flexWrap: 'wrap' }}>
             <div>
               <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c-cream)', fontFamily: 'var(--font-playfair), Georgia, serif' }}>{items.length}</span>
               <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', marginLeft: 6 }}>saved</span>
@@ -212,7 +219,7 @@ export default function Cur8Home() {
         <motion.div
           animate={{ y: [0, 7, 0] }}
           transition={{ repeat: Infinity, duration: 2.2 }}
-          style={{ position: 'absolute', bottom: 12, right: 40, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase' }}
+          style={{ position: 'absolute', bottom: 12, right: isMobile ? 20 : 40, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase' }}
         >
           scroll
         </motion.div>
@@ -245,7 +252,7 @@ export default function Cur8Home() {
       </div>
 
       {/* ── WELLNESS WIDGET ROW ── */}
-      <div style={{ backgroundColor: '#0d2420', padding: '32px 40px 0', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      <div style={{ backgroundColor: '#0d2420', padding: isMobile ? '24px 20px 0' : '32px 40px 0', display: 'grid', gridTemplateColumns: widgetCols, gap: isMobile ? 10 : 14 }}>
         <IntentionWidget />
         <BreathworkWidget />
         <FocusTimerWidget />
@@ -253,7 +260,7 @@ export default function Cur8Home() {
       </div>
 
       {/* ── CONTENT BELOW ── */}
-      <div style={{ backgroundColor: '#0d2420', padding: '48px 40px 80px' }}>
+      <div style={{ backgroundColor: '#0d2420', padding: isMobile ? '36px 20px 64px' : '48px 40px 80px' }}>
 
         {/* Recently tended */}
         {recent.length > 0 && (
@@ -303,7 +310,7 @@ export default function Cur8Home() {
           </div>
 
           {/* Bento: 2 large + 6 small */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: bentoCols, gap: 14, marginBottom: 14 }}>
             {CATEGORIES.slice(0, 2).map((cat, i) => {
               const Icon = ICON_MAP[cat.lucideIcon]
               const count = items.filter((item) => item.category === cat.name).length
@@ -332,7 +339,7 @@ export default function Cur8Home() {
             })}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: smallCols, gap: 10 }}>
             {CATEGORIES.slice(2).map((cat) => {
               const Icon = ICON_MAP[cat.lucideIcon]
               const count = items.filter((item) => item.category === cat.name).length
