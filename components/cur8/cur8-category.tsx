@@ -81,7 +81,14 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
     if (path.match(/\.(mp4|webm|mov|avi|mkv)$/)) return 'video'
     if (path.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
     if (path.match(/\.pdf$/) || u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) return 'pdf'
-    if (path.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf' // route through Google Viewer
+    // Office / text docs — including those uploaded to Vercel Blob — route through Google Viewer
+    if (path.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf'
+    // Vercel Blob public store URLs always contain "public.blob.vercel-storage.com"
+    // Any non-image blob file (identified above already) falls back to Google Viewer
+    if (u.hostname.includes('blob.vercel-storage.com')) {
+      // Images already matched above; anything else treat as a document
+      return 'pdf'
+    }
   } catch {}
   return 'iframe'
 }
@@ -222,6 +229,8 @@ export default function Cur8Category({ category }: Props) {
   const handleFileDrop = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
     if (fileArray.length === 0) return
+    // Close the modal immediately so the user sees the upload toast while it works
+    closeModal()
     setUploading(true)
     setUploadError('')
     try {
@@ -230,7 +239,10 @@ export default function Cur8Category({ category }: Props) {
           const fd = new FormData()
           fd.append('file', file)
           const res = await fetch('/api/cur8/upload', { method: 'POST', body: fd })
-          if (!res.ok) throw new Error(`Upload failed for ${file.name}`)
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}))
+            throw new Error(body.error || `Upload failed for ${file.name}`)
+          }
           const { url } = await res.json()
           // Derive a friendly title from the filename
           const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
@@ -252,23 +264,37 @@ export default function Cur8Category({ category }: Props) {
     }
   }, [category, selectedFolderForItem])
 
-  function onDragEnter(e: React.DragEvent) {
-    e.preventDefault()
-    dragCounter.current++
-    if (e.dataTransfer.types.includes('Files')) setIsDragging(true)
-  }
-  function onDragLeave(e: React.DragEvent) {
-    e.preventDefault()
-    dragCounter.current--
-    if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false) }
-  }
-  function onDragOver(e: React.DragEvent) { e.preventDefault() }
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    dragCounter.current = 0
-    setIsDragging(false)
-    if (e.dataTransfer.files.length > 0) handleFileDrop(e.dataTransfer.files)
-  }
+  // Attach drag events to document so they work anywhere on the page,
+  // including over fixed-position overlays (brain dump, focus timer, etc.)
+  useEffect(() => {
+    function onDragEnter(e: DragEvent) {
+      e.preventDefault()
+      dragCounter.current++
+      if (e.dataTransfer?.types.includes('Files')) setIsDragging(true)
+    }
+    function onDragLeave(e: DragEvent) {
+      e.preventDefault()
+      dragCounter.current--
+      if (dragCounter.current <= 0) { dragCounter.current = 0; setIsDragging(false) }
+    }
+    function onDragOver(e: DragEvent) { e.preventDefault() }
+    function onDrop(e: DragEvent) {
+      e.preventDefault()
+      dragCounter.current = 0
+      setIsDragging(false)
+      if (e.dataTransfer?.files.length) handleFileDrop(e.dataTransfer.files)
+    }
+    document.addEventListener('dragenter', onDragEnter)
+    document.addEventListener('dragleave', onDragLeave)
+    document.addEventListener('dragover', onDragOver)
+    document.addEventListener('drop', onDrop)
+    return () => {
+      document.removeEventListener('dragenter', onDragEnter)
+      document.removeEventListener('dragleave', onDragLeave)
+      document.removeEventListener('dragover', onDragOver)
+      document.removeEventListener('drop', onDrop)
+    }
+  }, [handleFileDrop])
 
   function normaliseUrl(raw: string) {
     return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
@@ -467,10 +493,6 @@ export default function Cur8Category({ category }: Props) {
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0d2420', color: '#f5f0e8', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
-      onDragEnter={onDragEnter}
-      onDragLeave={onDragLeave}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
     >
 
       {/* ── Drag-and-drop overlay ── */}
@@ -699,11 +721,15 @@ export default function Cur8Category({ category }: Props) {
               const isActive = selectedItem?.id === item.id
               return (
                 <div key={item.id} style={{ position: 'relative' }}>
-                  <button
+                  {/* Use div+role instead of <button> so the inner three-dot <button> is valid HTML */}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedItem(isActive ? null : item)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedItem(isActive ? null : item) }}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 8px', borderRadius: 12, cursor: 'pointer', border: isActive ? `1px solid ${tileStyle.accent}44` : '1px solid transparent', textAlign: 'left', backgroundColor: isActive ? 'rgba(245,240,232,0.07)' : 'transparent', marginBottom: 2, transition: 'background 0.12s' }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.05)' }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
+                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(245,240,232,0.05)' }}
+                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent' }}
                   >
                     {thumb ? (
                       <img src={thumb} alt="" style={{ width: 48, height: 34, borderRadius: 7, objectFit: 'cover', flexShrink: 0 }} />
@@ -725,7 +751,7 @@ export default function Cur8Category({ category }: Props) {
                     >
                       <MoreVertical size={13} />
                     </button>
-                  </button>
+                  </div>
 
                   {/* Context menu */}
                   <AnimatePresence>
@@ -836,7 +862,6 @@ export default function Cur8Category({ category }: Props) {
                 onChange={(e) => {
                   if (e.target.files?.length) {
                     handleFileDrop(e.target.files)
-                    closeModal()
                   }
                 }}
               />
