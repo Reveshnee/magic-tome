@@ -848,6 +848,7 @@ export default function Cur8Category({ category }: Props) {
                         initial={{ opacity: 0, scale: 0.95, y: -4 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                        onClick={(e) => e.stopPropagation()}
                         style={{ position: 'absolute', right: 4, top: 44, zIndex: 30, width: 176, borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}
                       >
                         {moveItemId === item.id ? (
