@@ -16,7 +16,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
@@ -269,6 +269,20 @@ export default function Cur8Category({ category }: Props) {
 
   useEffect(() => { refresh().catch(() => {}) }, [category])
 
+  // If we arrived here from a native "Share to Cur8" (PWA share target) or a
+  // ?share= link, open the save dialog with the link pre-filled and fetched.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const shared = params.get('share') || params.get('url') || params.get('text')
+    if (shared && extractUrls(shared).length > 0) {
+      setShowAdd(true)
+      setUrl(shared)
+      handleFetch(shared)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     getReflections(category).then(setReflections).catch(() => {})
   }, [category])
@@ -444,9 +458,24 @@ export default function Cur8Category({ category }: Props) {
     )
   }
 
-  async function handleFetch() {
-    if (!url.trim()) return
-    const urls = extractUrls(url)
+  // Read the clipboard and, if it holds a link, fill + fetch it in one tap.
+  // This is the low-friction path: copy a link in YouTube/TikTok, come back,
+  // tap "Paste link" and it fetches immediately.
+  async function pasteFromClipboard() {
+    try {
+      const text = (await navigator.clipboard.readText())?.trim()
+      if (!text) { setFetchError('Clipboard is empty — copy a link first.'); return }
+      setUrl(text)
+      if (extractUrls(text).length > 0) handleFetch(text)
+    } catch {
+      setFetchError('Could not read the clipboard. Paste the link into the box instead.')
+    }
+  }
+
+  async function handleFetch(override?: string) {
+    const source = (override ?? url).trim()
+    if (!source) return
+    const urls = extractUrls(source)
     if (urls.length === 0) return
     setFetching(true)
     setFetchError('')
@@ -916,11 +945,13 @@ export default function Cur8Category({ category }: Props) {
           style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
           All <span style={{ opacity: 0.6 }}>{catItems.length}</span>
         </button>
-        {folders.map((f) => (
+        {folders.map((f) => {
+          const folderCount = catItems.filter((i) => i.folderId === f.id).length
+          return (
           <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <button onClick={() => setActiveFolder(f.id)}
               style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-              {f.name}
+              {f.name} <span style={{ opacity: 0.6 }}>{folderCount}</span>
             </button>
             <button onClick={(e) => {
                 const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
@@ -931,7 +962,8 @@ export default function Cur8Category({ category }: Props) {
               <MoreVertical size={12} />
             </button>
           </div>
-        ))}
+          )
+        })}
         {showNewFolder ? (
           <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
             <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
@@ -1199,12 +1231,18 @@ export default function Cur8Category({ category }: Props) {
                   rows={3}
                   style={{ flex: 1, resize: 'none', borderRadius: 12, border: '1.5px solid rgba(245,240,232,0.12)', padding: '10px 14px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#f5f0e8', lineHeight: 1.5, backgroundColor: 'rgba(245,240,232,0.07)' }}
                   autoFocus />
-                <button onClick={handleFetch} disabled={fetching || !url.trim()}
+                <button onClick={() => handleFetch()} disabled={fetching || !url.trim()}
                   style={{ flexShrink: 0, alignSelf: 'stretch', borderRadius: 12, padding: '0 16px', fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', opacity: (fetching || !url.trim()) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 5 }}>
                   {fetching ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Fetch'}
                 </button>
               </div>
-              <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', marginTop: 5 }}>Works with YouTube, TikTok, Instagram, articles, Google Docs, images, and any webpage</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <button onClick={pasteFromClipboard}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.1)', border: 'none', cursor: 'pointer' }}>
+                  <ClipboardPaste size={13} /> Paste link from clipboard
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', marginTop: 6 }}>Copy a link in YouTube, TikTok, Instagram or any app, then tap Paste — it fetches automatically. Works with articles, Google Docs, images, and any webpage too.</p>
 
               {/* File upload divider */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
@@ -1245,7 +1283,7 @@ export default function Cur8Category({ category }: Props) {
                     {folders.map((f) => (
                       <button key={f.id} onClick={() => setSelectedFolderForItem(f.id)}
                         style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', backgroundColor: selectedFolderForItem === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-                        {f.name}
+                        {f.name} <span style={{ opacity: 0.6 }}>{catItems.filter((i) => i.folderId === f.id).length}</span>
                       </button>
                     ))}
                   </div>
