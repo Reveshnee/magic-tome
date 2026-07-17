@@ -975,16 +975,25 @@ export default function Cur8Category({ category }: Props) {
                   {imageItems.map((item) => {
                     const thumb = getThumbnailFromUrl(item.url, item.thumbnail) || item.url
                     return (
-                      <div key={item.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => { setSelectedItem(item); setMiddleView('preview') }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview') } }}
-                        title={item.title}
-                        style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '1 / 1' }}>
-                        <img src={thumb} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} crossOrigin="anonymous" />
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.7) 0%, transparent 50%)' }} />
-                        <p style={{ position: 'absolute', bottom: 5, left: 6, right: 6, fontSize: 9, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                      <div key={item.id} style={{ position: 'relative' }}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { setSelectedItem(item); setMiddleView('preview') }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview') } }}
+                          title={item.title}
+                          style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '1 / 1' }}>
+                          <img src={thumb} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} crossOrigin="anonymous" />
+                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.7) 0%, transparent 50%)' }} />
+                          <p style={{ position: 'absolute', bottom: 5, left: 6, right: 6, fontSize: 9, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id) }}
+                          title="Options"
+                          style={{ position: 'absolute', top: 5, right: 5, zIndex: 10, background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 6, color: '#fff', display: 'flex', alignItems: 'center' }}>
+                          <MoreVertical size={12} />
+                        </button>
+                        {renderItemMenu(item, 'right')}
                       </div>
                     )
                   })}
