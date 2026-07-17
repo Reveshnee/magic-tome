@@ -18,6 +18,7 @@ import { useReadAloud } from '@/hooks/use-speech'
 import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
+import { upload } from '@vercel/blob/client'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -151,6 +152,7 @@ export default function Cur8Category({ category }: Props) {
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [uploadProgress, setUploadProgress] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
   const { isMobile } = useViewport()
@@ -255,34 +257,45 @@ export default function Cur8Category({ category }: Props) {
     closeModal()
     setUploading(true)
     setUploadError('')
+    setUploadProgress('')
     try {
-      const saved = await Promise.all(
-        fileArray.map(async (file) => {
-          const fd = new FormData()
-          fd.append('file', file)
-          const res = await fetch('/api/cur8/upload', { method: 'POST', body: fd })
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({}))
-            throw new Error(body.error || `Upload failed for ${file.name}`)
-          }
-          const { url } = await res.json()
-          // Derive a friendly title from the filename
-          const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
-          return createItemAction({
-            category,
-            folderId: selectedFolderForItem,
-            url,
-            title,
-            description: `${file.type || 'file'} · ${(file.size / 1024).toFixed(0)} KB`,
-            thumbnail: file.type.startsWith('image/') ? url : undefined,
-          })
+      const saved: Awaited<ReturnType<typeof createItemAction>>[] = []
+      // Upload one at a time so progress is clear and large files stay reliable
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i]
+        const label = fileArray.length > 1 ? `(${i + 1}/${fileArray.length}) ` : ''
+        setUploadProgress(`${label}Starting ${file.name}…`)
+
+        // Client-side direct upload — streams straight to Blob storage.
+        // multipart:true splits big files into parallel parts (handles large videos).
+        const blob = await upload(`cur8/${file.name}`, file, {
+          access: 'private',
+          handleUploadUrl: '/api/cur8/upload',
+          multipart: true,
+          contentType: file.type || undefined,
+          onUploadProgress: ({ percentage }) => {
+            setUploadProgress(`${label}Uploading ${file.name} — ${Math.round(percentage)}%`)
+          },
         })
-      )
+
+        const url = `/api/cur8/file?pathname=${encodeURIComponent(blob.pathname)}`
+        const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+        const item = await createItemAction({
+          category,
+          folderId: selectedFolderForItem,
+          url,
+          title,
+          description: `${file.type || 'file'} · ${(file.size / 1024).toFixed(0)} KB`,
+          thumbnail: file.type.startsWith('image/') ? url : undefined,
+        })
+        saved.push(item)
+      }
       setAllItems((prev) => [...(saved.filter(Boolean) as Cur8Item[]), ...prev])
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
+      setUploadProgress('')
     }
   }, [category, selectedFolderForItem])
 
@@ -560,7 +573,7 @@ export default function Cur8Category({ category }: Props) {
       {/* ── Upload in-progress toast ── */}
       {(uploading || uploadError) && (
         <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 90, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', borderRadius: 50, backgroundColor: uploadError ? '#3a1212' : '#0a2e28', border: `1px solid ${uploadError ? '#c85a40' : tileStyle.accent}44`, boxShadow: '0 4px 20px rgba(0,0,0,0.4)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-          {uploading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading files…</> : <><X size={14} color="#c85a40" /> {uploadError} <button onClick={() => setUploadError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', marginLeft: 4, padding: 0 }}><X size={11} /></button></>}
+            {uploading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> {uploadProgress || 'Uploading files…'}</> : <><X size={14} color="#c85a40" /> {uploadError} <button onClick={() => setUploadError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', marginLeft: 4, padding: 0 }}><X size={11} /></button></>}
         </div>
       )}
 
