@@ -16,9 +16,9 @@ const C = {
   /* hero */
   deepTeal:    '#0d3d3a',
   midTeal:     '#1a5c56',
-  /* body — light, airy, koi-pond-edge cream */
-  bodyBg:      '#f0ede8',
-  cardBg:      '#faf8f5',
+  /* body — very light warm sage, soft and natural, not white */
+  bodyBg:      '#eef2ee',
+  cardBg:      '#f7f9f7',
   /* text on light bg */
   ink:         '#1a2e2b',
   inkMid:      '#3d5552',
@@ -242,7 +242,7 @@ export default function Cur8Preview() {
         <Image src="/cur8/koi-pond.jpg" alt="Phoenix's garden" fill className="object-cover object-center" priority />
         <div
           className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, rgba(13,61,58,0.25) 0%, rgba(240,237,232,0.0) 55%, rgba(240,237,232,1) 100%)' }}
+          style={{ background: 'linear-gradient(to bottom, rgba(13,61,58,0.25) 0%, rgba(238,242,238,0.0) 55%, rgba(238,242,238,1) 100%)' }}
         />
 
         {/* Nav */}
