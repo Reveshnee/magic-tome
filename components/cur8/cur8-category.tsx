@@ -28,6 +28,28 @@ const ICON_MAP: Record<string, React.ElementType> = {
   newspaper: Newspaper, 'image-icon': ImageIcon, 'file-text': FileText, globe: Globe,
 }
 
+// Derive a thumbnail from the URL when none is stored
+function getThumbnailFromUrl(url: string, stored: string | undefined): string {
+  if (stored) return stored
+  try {
+    const u = new URL(url)
+    // YouTube
+    if (u.hostname.includes('youtube.com')) {
+      const v = u.searchParams.get('v')
+      if (v) return `https://img.youtube.com/vi/${v}/hqdefault.jpg`
+    }
+    if (u.hostname === 'youtu.be') {
+      const v = u.pathname.slice(1).split('?')[0]
+      if (v) return `https://img.youtube.com/vi/${v}/hqdefault.jpg`
+    }
+    if (u.hostname.includes('youtube.com') && u.pathname.includes('/shorts/')) {
+      const v = u.pathname.split('/shorts/')[1]?.split('?')[0]
+      if (v) return `https://img.youtube.com/vi/${v}/hqdefault.jpg`
+    }
+  } catch {}
+  return ''
+}
+
 const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
   YouTube:   { accent: '#d4614a', accentLight: '#faecea', image: '/cur8/tile-ember.png' },
   TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
@@ -351,15 +373,18 @@ export default function Cur8Category({ category }: Props) {
                     className="group relative overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-0.5 hover:shadow-md"
                     style={{ borderColor: 'rgba(13,61,58,0.10)' }}
                   >
-                    {/* Thumbnail */}
-                    {item.thumbnail ? (
-                      <img src={item.thumbnail} alt={item.title}
-                        className="h-36 w-full object-cover" />
-                    ) : (
-                      <div className={`flex h-36 w-full items-center justify-center bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
-                        {Icon && <Icon size={32} className={cat.accent} />}
-                      </div>
-                    )}
+                    {/* Thumbnail — falls back to derived YouTube thumb if stored one is missing */}
+                    {(() => {
+                      const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+                      return thumb ? (
+                        <img src={thumb} alt={item.title}
+                          className="h-36 w-full object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display', 'flex') }} />
+                      ) : null
+                    })()}
+                    <div className={`${getThumbnailFromUrl(item.url, item.thumbnail) ? 'hidden' : 'flex'} h-36 w-full items-center justify-center bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
+                      {Icon && <Icon size={32} className={cat.accent} />}
+                    </div>
 
                     {/* Folder badge */}
                     {item.folderId && (
