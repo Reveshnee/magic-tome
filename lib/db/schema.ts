@@ -77,3 +77,19 @@ export const cur8Item = pgTable('cur8_item', {
   favicon: text('favicon'),
   savedAt: timestamp('savedAt').notNull().defaultNow(),
 })
+
+// Brain dump — quick-capture notes for stray thoughts
+export const cur8Note = pgTable('cur8_note', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  body: text('body').notNull(),
+  pinned: boolean('pinned').notNull().default(false),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
+
+// Per-user settings (e.g. Zapier webhook)
+export const cur8Setting = pgTable('cur8_setting', {
+  userId: text('userId').primaryKey(),
+  zapierWebhookUrl: text('zapierWebhookUrl'),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})

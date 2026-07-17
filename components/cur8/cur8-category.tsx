@@ -14,7 +14,8 @@ import {
   type Cur8Item, type Cur8Folder, type Category,
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
-import { LayoutGrid, Eye, List } from 'lucide-react'
+import { useReadAloud } from '@/hooks/use-speech'
+import { LayoutGrid, Eye, List, Volume2, Square } from 'lucide-react'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -116,12 +117,20 @@ export default function Cur8Category({ category }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
   const { isMobile } = useViewport()
+  const { speak, stop: stopSpeak, speaking, supported: ttsSupported } = useReadAloud()
   const [mobileTab, setMobileTab] = useState<'browse' | 'preview' | 'links'>('browse')
+
+  function readItemAloud(item: Cur8Item) {
+    if (speaking) { stopSpeak(); return }
+    const text = [item.title, item.description].filter(Boolean).join('. ')
+    speak(text, 0.95)
+  }
 
   // On mobile, jump to the preview tab whenever an item is opened
   useEffect(() => {
     if (isMobile && selectedItem) setMobileTab('preview')
-  }, [selectedItem, isMobile])
+    stopSpeak()
+  }, [selectedItem, isMobile, stopSpeak])
 
   function refresh() {
     return getCur8Data().then((data) => {
@@ -575,6 +584,13 @@ export default function Cur8Category({ category }: Props) {
                     {(() => { try { return new URL(selectedItem.url).hostname.replace('www.', '') } catch { return selectedItem.url } })()}
                   </p>
                 </div>
+                {ttsSupported && (
+                  <button onClick={() => readItemAloud(selectedItem)}
+                    title={speaking ? 'Stop reading' : 'Read title & notes aloud'}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: speaking ? '#0d2420' : 'rgba(245,240,232,0.8)', backgroundColor: speaking ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                    {speaking ? <Square size={11} /> : <Volume2 size={11} />} {speaking ? 'Stop' : 'Listen'}
+                  </button>
+                )}
                 <a href={selectedItem.url} target="_blank" rel="noopener noreferrer"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, textDecoration: 'none', flexShrink: 0 }}>
                   <ExternalLink size={11} /> Open
