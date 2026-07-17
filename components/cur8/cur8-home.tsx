@@ -12,6 +12,11 @@ import {
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 import { getCur8Data } from '@/app/actions/cur8'
 import { authClient } from '@/lib/auth-client'
+import FloatingParticles from '@/components/cur8/widgets/floating-particles'
+import BreathworkWidget from '@/components/cur8/widgets/breathwork-widget'
+import FocusTimerWidget from '@/components/cur8/widgets/focus-timer-widget'
+import MiniCalendarWidget from '@/components/cur8/widgets/mini-calendar-widget'
+import IntentionWidget from '@/components/cur8/widgets/intention-widget'
 
 const KOI: React.CSSProperties = {
   '--c-bg':       '#0d2420',
@@ -111,6 +116,9 @@ export default function Cur8Home() {
         />
         {/* Deep dark overlay — bottom half darker so text reads well */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,36,32,0.25) 0%, rgba(13,36,32,0.15) 40%, rgba(13,36,32,0.75) 80%, rgba(13,36,32,0.95) 100%)' }} />
+
+        {/* Floating leaves + water drop particles */}
+        <FloatingParticles />
 
         {/* Top bar — logo + sign out */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px', zIndex: 10 }}>
@@ -234,6 +242,14 @@ export default function Cur8Home() {
             )
           })}
         </div>
+      </div>
+
+      {/* ── WELLNESS WIDGET ROW ── */}
+      <div style={{ backgroundColor: '#0d2420', padding: '32px 40px 0', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+        <IntentionWidget />
+        <BreathworkWidget />
+        <FocusTimerWidget />
+        <MiniCalendarWidget />
       </div>
 
       {/* ── CONTENT BELOW ── */}
