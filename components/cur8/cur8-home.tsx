@@ -357,11 +357,12 @@ export default function Cur8Home() {
                   >
                     <Image src={cat.tileImage} alt={displayName(cat.name)} fill style={{ objectFit: 'cover' }} sizes="600px" />
                     <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(160deg, transparent 20%, rgba(13,36,32,0.88) 100%)` }} />
-                    {/* Category badge */}
-                    <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 50, backgroundColor: accent, backdropFilter: 'blur(4px)' }}>
-                      {Icon && <Icon size={9} color="#fff" />}
-                      <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{count} saved</span>
+                    {/* Icon box */}
+                    <div style={{ position: 'absolute', top: 14, left: 14, width: 38, height: 38, borderRadius: 12, backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {Icon && <Icon size={19} color="#fff" />}
                     </div>
+                    {/* Count badge */}
+                    <div style={{ position: 'absolute', top: 18, right: 14, fontSize: 10, fontWeight: 700, backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(4px)', color: '#f5f0e8', borderRadius: 50, padding: '3px 10px' }}>{count} saved</div>
                     <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, textAlign: 'center' }}>
                       <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 30, fontWeight: 700, color: '#f5f0e8', margin: '0 0 3px', lineHeight: 1.1, textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>{displayName(cat.name)}</h3>
                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, margin: '0 0 6px' }}>{cat.area}</p>

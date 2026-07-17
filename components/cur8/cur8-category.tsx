@@ -550,7 +550,7 @@ export default function Cur8Category({ category }: Props) {
       )}
 
       {/* ── Banner ── */}
-      <div style={{ position: 'relative', height: 100, flexShrink: 0, overflow: 'hidden' }}>
+      <div style={{ position: 'relative', height: 150, flexShrink: 0, overflow: 'hidden' }}>
         <Image src={tileStyle.image} alt={category} fill className="object-cover object-center" priority sizes="100vw" />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,36,32,0.5) 0%, rgba(13,36,32,0.92) 100%)' }} />
         {/* Nav */}
