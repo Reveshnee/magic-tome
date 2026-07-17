@@ -8,6 +8,7 @@ import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
+  Play, ImageIcon, FileText, Send, ArrowRightLeft,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -28,6 +29,9 @@ import {
   deleteItem as deleteItemAction,
   createFolder as createFolderAction,
   deleteFolder as deleteFolderAction,
+  duplicateFolder as duplicateFolderAction,
+  moveItemToGarden as moveItemToGardenAction,
+  copyItemToGarden as copyItemToGardenAction,
   markItemOpened,
   getReflections,
   createReflection,
@@ -117,6 +121,21 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
   return 'iframe'
 }
 
+// Classify an item into one of three lanes so the garden can auto-sort:
+// videos (far left) · images (centre moodboard/gallery) · docs & links (far right)
+type ContentKind = 'video' | 'image' | 'doc'
+function getContentKind(item: { url: string }): ContentKind {
+  const t = getPreviewType(item.url)
+  if (t === 'image') return 'image'
+  if (t === 'youtube' || t === 'video' || t === 'audio') return 'video'
+  // Social platforms preview as generic iframes but are really videos
+  try {
+    const h = new URL(item.url).hostname.toLowerCase()
+    if (/tiktok|instagram|vimeo|fb\.watch|facebook|dailymotion|twitch|youtu/.test(h)) return 'video'
+  } catch {}
+  return 'doc'
+}
+
 const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
   YouTube:   { accent: '#c85a40', accentLight: '#faecea', image: '/cur8/tile-grove.png' },
   TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
@@ -165,6 +184,13 @@ export default function Cur8Category({ category }: Props) {
   const gardenName = displayName(category)
   const [renaming, setRenaming] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
+  // Centre panel: 'preview' (idle = rotating moodboard) or 'gallery' (image grid)
+  const [middleView, setMiddleView] = useState<'preview' | 'gallery'>('preview')
+  const [moodIndex, setMoodIndex] = useState(0)
+  // Cross-garden move/copy submenu + duplicate-folder tracking
+  const [gardenPickItemId, setGardenPickItemId] = useState<string | null>(null)
+  const [gardenPickMode, setGardenPickMode] = useState<'move' | 'copy'>('move')
+  const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -226,14 +252,31 @@ export default function Cur8Category({ category }: Props) {
   }, [category])
 
   useEffect(() => {
-    if (!menuItemId) return
-    function handleOutside() { setMenuItemId(null); setMoveItemId(null) }
+    if (!menuItemId && !menuFolderId) return
+    function handleOutside() { setMenuItemId(null); setMoveItemId(null); setGardenPickItemId(null); setMenuFolderId(null) }
     document.addEventListener('click', handleOutside)
     return () => document.removeEventListener('click', handleOutside)
-  }, [menuItemId])
+  }, [menuItemId, menuFolderId])
 
   const catItems = allItems.filter((i) => i.category === category)
   const visibleItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
+
+  // Auto-sorted lanes
+  const videoItems = visibleItems.filter((i) => getContentKind(i) === 'video')
+  const imageItems = visibleItems.filter((i) => getContentKind(i) === 'image')
+  const docItems = visibleItems.filter((i) => getContentKind(i) === 'doc')
+
+  // Image URLs for the rotating idle moodboard (use stored thumb or the image url itself)
+  const moodImages = imageItems
+    .map((i) => getThumbnailFromUrl(i.url, i.thumbnail) || i.url)
+    .filter(Boolean)
+
+  // Gently rotate the idle moodboard every 5s when nothing is selected
+  useEffect(() => {
+    if (selectedItem || middleView !== 'preview' || moodImages.length <= 1) return
+    const t = setInterval(() => setMoodIndex((n) => (n + 1) % moodImages.length), 5000)
+    return () => clearInterval(t)
+  }, [selectedItem, middleView, moodImages.length])
 
   async function createFolder() {
     if (!newFolderName.trim()) return
@@ -458,6 +501,30 @@ export default function Cur8Category({ category }: Props) {
     await moveItemAction(itemId, folderId)
   }
 
+  async function handleDuplicateFolder(folderId: string) {
+    setMenuFolderId(null)
+    const result = await duplicateFolderAction(folderId).catch(() => null)
+    if (result) {
+      setFolders((prev) => [result.folder as Cur8Folder, ...prev])
+      setAllItems((prev) => [...(result.items as Cur8Item[]), ...prev])
+      setActiveFolder(result.folder.id)
+    }
+  }
+
+  // Move or copy an item into a different garden (category)
+  async function handleSendToGarden(itemId: string, targetCategory: Category, mode: 'move' | 'copy') {
+    setGardenPickItemId(null)
+    setMenuItemId(null)
+    if (mode === 'move') {
+      if (selectedItem?.id === itemId) setSelectedItem(null)
+      setAllItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, category: targetCategory, folderId: undefined } : i)))
+      await moveItemToGardenAction(itemId, targetCategory).catch(() => {})
+    } else {
+      const copy = await copyItemToGardenAction(itemId, targetCategory).catch(() => null)
+      if (copy) setAllItems((prev) => [copy as Cur8Item, ...prev])
+    }
+  }
+
   function closeModal() {
     setShowAdd(false)
     setUrl('')
@@ -571,7 +638,111 @@ export default function Cur8Category({ category }: Props) {
     )
   }
 
-  const THUMB_PAGE_SIZE = 8
+  // Reusable three-dot context menu, shared by every lane (videos, images, docs)
+  function renderItemMenu(item: Cur8Item, align: 'left' | 'right' = 'right') {
+    const otherGardens = CATEGORIES.filter((c) => c.name !== category)
+    return (
+      <AnimatePresence>
+        {menuItemId === item.id && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: 'absolute', ...(align === 'right' ? { right: 4 } : { left: 4 }), top: 40, zIndex: 40, width: 190, borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}
+          >
+            {moveItemId === item.id ? (
+              <div style={{ padding: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,240,232,0.4)', padding: '0 4px 6px' }}>Move to folder</p>
+                <button onClick={() => handleMoveToFolder(item.id, undefined)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 8px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: item.folderId === undefined ? tileStyle.accent : '#f5f0e8', textAlign: 'left' }}>
+                  <FolderOpen size={11} /> No folder {item.folderId === undefined && <Check size={9} style={{ marginLeft: 'auto' }} />}
+                </button>
+                {folders.map((f) => (
+                  <button key={f.id} onClick={() => handleMoveToFolder(item.id, f.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 8px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: item.folderId === f.id ? tileStyle.accent : '#f5f0e8', textAlign: 'left' }}>
+                    <Folder size={11} /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                    {item.folderId === f.id && <Check size={9} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
+                  </button>
+                ))}
+                {folders.length === 0 && <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.4)', padding: '2px 4px', fontStyle: 'italic' }}>No folders yet — create one from the bar above.</p>}
+                <button onClick={() => setMoveItemId(null)}
+                  style={{ width: '100%', padding: '4px 8px', marginTop: 4, borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', border: 'none', backgroundColor: 'transparent' }}>
+                  Cancel
+                </button>
+              </div>
+            ) : gardenPickItemId === item.id ? (
+              <div style={{ padding: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,240,232,0.4)', padding: '0 4px 6px' }}>
+                  {gardenPickMode === 'move' ? 'Move to garden' : 'Copy to garden'}
+                </p>
+                {otherGardens.map((g) => (
+                  <button key={g.name} onClick={() => handleSendToGarden(item.id, g.name as Category, gardenPickMode)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 8px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: '#f5f0e8', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    <Folder size={11} style={{ flexShrink: 0, opacity: 0.7 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(g.name)}</span>
+                  </button>
+                ))}
+                <button onClick={() => setGardenPickItemId(null)}
+                  style={{ width: '100%', padding: '4px 8px', marginTop: 4, borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', border: 'none', backgroundColor: 'transparent' }}>
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={() => { openItem(item); setMenuItemId(null) }}
+                  style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <ExternalLink size={12} /> Open link
+                </button>
+                <button onClick={() => setMoveItemId(item.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <FolderInput size={12} /> Move to folder
+                </button>
+                <button onClick={() => handleDuplicate(item.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <Copy size={12} /> Duplicate
+                </button>
+                <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
+                <button onClick={() => { setGardenPickMode('move'); setGardenPickItemId(item.id) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <ArrowRightLeft size={12} /> Move to garden
+                </button>
+                <button onClick={() => { setGardenPickMode('copy'); setGardenPickItemId(item.id) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <Send size={12} /> Copy to garden
+                </button>
+                <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
+                <button onClick={() => { handleDelete(item.id); setMenuItemId(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#e05050', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(224,80,80,0.1)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <Trash2 size={12} /> Delete
+                </button>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
+
+  function toggleItemMenu(id: string) {
+    setMenuItemId(menuItemId === id ? null : id)
+    setMoveItemId(null)
+    setGardenPickItemId(null)
+  }
 
   return (
     <div
@@ -662,98 +833,165 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
-      {/* ── Three-panel body (stacks on mobile) ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', minHeight: 0 }}>
-
-        {/* ── Panel 1: Thumbnail grid (8 visible, scrollable) ── */}
-        <div style={{ width: isMobile ? '100%' : 240, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
-          {/* Folders strip */}
-          <div style={{ padding: '10px 10px 6px', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>Folders</span>
-              <button onClick={() => setShowNewFolder(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', display: 'flex' }} title="New folder">
-                <FolderPlus size={13} />
-              </button>
-            </div>
+      {/* ── Full-width folder filter bar (filters all three lanes) ── */}
+      <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', flexShrink: 0 }}>Folders</span>
+        <button onClick={() => setActiveFolder(null)}
+          style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
+          All <span style={{ opacity: 0.6 }}>{catItems.length}</span>
+        </button>
+        {folders.map((f) => (
+          <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <button onClick={() => setActiveFolder(f.id)}
+              style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
+              {f.name}
+            </button>
+            <button onClick={() => setMenuFolderId(menuFolderId === f.id ? null : f.id)} title="Folder options"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.4)', display: 'flex', padding: '0 2px' }}>
+              <MoreVertical size={12} />
+            </button>
             <AnimatePresence>
-              {showNewFolder && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) createFolder(); if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName('') } }}
-                      placeholder="Folder name" autoFocus
-                      style={{ flex: 1, border: '1px solid rgba(245,240,232,0.15)', borderRadius: 8, padding: '4px 8px', fontSize: 11, outline: 'none', minWidth: 0, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
-                    <button onClick={createFolder} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '4px 7px', cursor: 'pointer', color: '#fff', display: 'flex' }}>
-                      <Check size={11} />
-                    </button>
-                  </div>
+              {menuFolderId === f.id && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ position: 'absolute', left: 0, top: 30, zIndex: 40, width: 170, borderRadius: 12, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+                  <button onClick={() => handleDuplicateFolder(f.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    <Copy size={12} /> Duplicate folder
+                  </button>
+                  <button onClick={() => { deleteFolder(f.id); setMenuFolderId(null) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#e05050', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(224,80,80,0.1)')}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    <Trash2 size={12} /> Delete folder
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
-            {/* Folder chips */}
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-              <button onClick={() => setActiveFolder(null)}
-                style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-                All <span style={{ opacity: 0.6 }}>{catItems.length}</span>
-              </button>
-              {folders.map((f) => (
-                <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <button onClick={() => setActiveFolder(f.id)}
-                    style={{ fontSize: 10, fontWeight: 600, padding: '3px 9px 3px 9px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-                    {f.name}
-                  </button>
-                  <button onClick={() => deleteFolder(f.id)} style={{ position: 'absolute', right: -4, top: -4, background: '#0a1e1b', border: '1px solid rgba(245,240,232,0.15)', borderRadius: '50%', width: 14, height: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-                    <X size={8} color="rgba(245,240,232,0.5)" />
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
+        ))}
+        {showNewFolder ? (
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) createFolder(); if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName('') } }}
+              placeholder="Folder name" autoFocus
+              style={{ border: '1px solid rgba(245,240,232,0.15)', borderRadius: 8, padding: '3px 8px', fontSize: 11, outline: 'none', width: 110, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
+            <button onClick={createFolder} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '3px 7px', cursor: 'pointer', color: '#fff', display: 'flex' }}>
+              <Check size={11} />
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setShowNewFolder(true)} title="New folder"
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: '1px dashed rgba(245,240,232,0.2)', borderRadius: 50, padding: '3px 10px', cursor: 'pointer', color: 'rgba(245,240,232,0.55)', fontSize: 10, fontWeight: 600 }}>
+            <FolderPlus size={11} /> New
+          </button>
+        )}
+      </div>
 
-          {/* Thumbnail grid — 2 columns, 4 rows = 8 visible */}
+      {/* ── Three-panel body (stacks on mobile) ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', minHeight: 0 }}>
+
+        {/* ── Panel 1: Videos lane ── */}
+        <div style={{ width: isMobile ? '100%' : 240, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Clapperboard size={13} color={tileStyle.accent} />
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Videos</span>
+            <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{videoItems.length}</span>
+          </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-            {visibleItems.length === 0 ? (
+            {videoItems.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: 16 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#f5f0e8', marginBottom: 4 }}>Nothing here yet</p>
-                <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', marginBottom: 10 }}>Save a link to get started</p>
-                <button onClick={() => setShowAdd(true)} style={{ backgroundColor: tileStyle.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '7px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Save link</button>
+                <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', lineHeight: 1.5 }}>No videos here yet. YouTube, TikTok, Instagram and uploaded clips land here.</p>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 1fr' : '1fr 1fr', gap: 6 }}>
-                {visibleItems.map((item) => {
+                {videoItems.map((item) => {
                   const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                   const isActive = selectedItem?.id === item.id
                   return (
-                    <div key={item.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedItem(isActive ? null : item)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedItem(isActive ? null : item) }}
-                      title={item.title}
-                      style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
-                      {thumb ? (
-                        <img src={thumb} alt={item.title} style={{ width: '100%', height: isMobile ? 88 : 72, objectFit: 'cover', display: 'block' }} />
-                      ) : (
-                        <div style={{ width: '100%', height: isMobile ? 88 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: tileStyle.accentLight }}>
-                          {Icon && <Icon size={20} style={{ color: tileStyle.accent }} />}
+                    <div key={item.id} style={{ position: 'relative' }}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview') } }}
+                        title={item.title}
+                        style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
+                        {thumb ? (
+                          <img src={thumb} alt={item.title} style={{ width: '100%', height: isMobile ? 88 : 72, objectFit: 'cover', display: 'block' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: isMobile ? 88 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: tileStyle.accentLight }}>
+                            <Clapperboard size={20} style={{ color: tileStyle.accent }} />
+                          </div>
+                        )}
+                        {/* Play glyph so videos read as videos */}
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 26, height: 26, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Play size={12} color="#fff" style={{ marginLeft: 1 }} />
                         </div>
-                      )}
-                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.75) 0%, transparent 55%)' }} />
-                      <p style={{ position: 'absolute', bottom: 4, left: 4, right: 4, fontSize: 8, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.75) 0%, transparent 55%)' }} />
+                        <p style={{ position: 'absolute', bottom: 4, left: 4, right: 4, fontSize: 8, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id) }}
+                        title="Options"
+                        style={{ position: 'absolute', top: 3, right: 3, zIndex: 10, background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 6, color: '#fff', display: 'flex', alignItems: 'center' }}>
+                        <MoreVertical size={12} />
+                      </button>
+                      {renderItemMenu(item, 'right')}
                     </div>
                   )
                 })}
               </div>
             )}
           </div>
-          <div style={{ padding: '8px 10px', borderTop: '1px solid rgba(245,240,232,0.07)', fontSize: 10, color: 'rgba(245,240,232,0.35)', textAlign: 'center' }}>
-            {visibleItems.length} saved · scroll to see all
-          </div>
         </div>
 
-        {/* ── Panel 2: Centre preview ── */}
+        {/* ── Panel 2: Centre — preview / rotating moodboard / image gallery ── */}
         <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#0d2420', minWidth: 0 }}>
-          {selectedItem ? (
+          {/* Centre tabs */}
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '8px 10px', borderBottom: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b' }}>
+            <button onClick={() => setMiddleView('preview')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none', backgroundColor: middleView === 'preview' ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: middleView === 'preview' ? '#fff' : 'rgba(245,240,232,0.7)' }}>
+              <Eye size={12} /> Preview
+            </button>
+            <button onClick={() => { setMiddleView('gallery'); setSelectedItem(null) }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none', backgroundColor: middleView === 'gallery' ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: middleView === 'gallery' ? '#fff' : 'rgba(245,240,232,0.7)' }}>
+              <ImageIcon size={12} /> Images <span style={{ opacity: 0.6 }}>{imageItems.length}</span>
+            </button>
+          </div>
+
+          {middleView === 'gallery' ? (
+            /* ── Dedicated image gallery ── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+              {imageItems.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8, textAlign: 'center' }}>
+                  <ImageIcon size={30} color={`${tileStyle.accent}`} />
+                  <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.45)', maxWidth: 240 }}>No images saved here yet. Uploaded pictures and image links will fill this gallery.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                  {imageItems.map((item) => {
+                    const thumb = getThumbnailFromUrl(item.url, item.thumbnail) || item.url
+                    return (
+                      <div key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => { setSelectedItem(item); setMiddleView('preview') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview') } }}
+                        title={item.title}
+                        style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '1 / 1' }}>
+                        <img src={thumb} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} crossOrigin="anonymous" />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.7) 0%, transparent 50%)' }} />
+                        <p style={{ position: 'absolute', bottom: 5, left: 6, right: 6, fontSize: 9, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ) : selectedItem ? (
             <>
               {/* Preview area — fills as much as possible */}
               <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden', position: 'relative' }}>
@@ -784,27 +1022,54 @@ export default function Cur8Category({ category }: Props) {
                 </button>
               </div>
             </>
+          ) : moodImages.length > 0 ? (
+            /* ── Idle: rotating moodboard of saved images ── */
+            <button
+              onClick={() => setMiddleView('gallery')}
+              style={{ flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: '#000', border: 'none', cursor: 'pointer', padding: 0, width: '100%' }}
+              title="Open the image gallery"
+            >
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={moodIndex}
+                  src={moodImages[moodIndex % moodImages.length]}
+                  alt="Saved moodboard image"
+                  crossOrigin="anonymous"
+                  initial={{ opacity: 0, scale: 1.06 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.2, ease: 'easeInOut' }}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </AnimatePresence>
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,36,32,0.85) 0%, transparent 45%)' }} />
+              <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, textAlign: 'left' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: tileStyle.accent, marginBottom: 3 }}>Your moodboard</p>
+                <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 16, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>{imageItems.length} saved images · tap to open the gallery</p>
+              </div>
+            </button>
           ) : (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, textAlign: 'center', padding: 32 }}>
               <div style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {Icon && <Icon size={28} style={{ color: tileStyle.accent }} />}
               </div>
               <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 600, color: '#f5f0e8' }}>Select something to preview</p>
-              <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', maxWidth: 240 }}>{isMobile ? 'Tap any item in Browse or Links to preview it here' : 'Tap a thumbnail on the left or any saved item on the right to load it here'}</p>
+              <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', maxWidth: 240 }}>{isMobile ? 'Tap a video, image or doc to preview it here' : 'Tap a video on the left or a doc on the right to load it here. Saved images appear as a moodboard.'}</p>
             </div>
           )}
         </div>
 
-        {/* ── Panel 3: Right — full links list ── */}
+        {/* ── Panel 3: Right — docs & links ── */}
         <div style={{ width: isMobile ? '100%' : 260, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>Saved links</span>
-            <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)' }}>{visibleItems.length}</span>
+          <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <FileText size={13} color={tileStyle.accent} />
+            <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Docs &amp; Links</span>
+            <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{docItems.length}</span>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
-            {visibleItems.length === 0 ? (
-              <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.35)', textAlign: 'center', marginTop: 24, fontStyle: 'italic' }}>Nothing saved yet</p>
-            ) : visibleItems.map((item) => {
+            {docItems.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.35)', textAlign: 'center', marginTop: 24, fontStyle: 'italic', lineHeight: 1.5 }}>No docs or links here yet. Articles, PDFs, Google Docs and web links land here.</p>
+            ) : docItems.map((item) => {
               const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
               const isActive = selectedItem?.id === item.id
               return (
@@ -813,8 +1078,8 @@ export default function Cur8Category({ category }: Props) {
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelectedItem(isActive ? null : item)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedItem(isActive ? null : item) }}
+                    onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview') } }}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 8px', borderRadius: 12, cursor: 'pointer', border: isActive ? `1px solid ${tileStyle.accent}44` : '1px solid transparent', textAlign: 'left', backgroundColor: isActive ? 'rgba(245,240,232,0.07)' : 'transparent', marginBottom: 2, transition: 'background 0.12s' }}
                     onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(245,240,232,0.05)' }}
                     onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent' }}
@@ -823,7 +1088,7 @@ export default function Cur8Category({ category }: Props) {
                       <img src={thumb} alt="" style={{ width: 48, height: 34, borderRadius: 7, objectFit: 'cover', flexShrink: 0 }} />
                     ) : (
                       <div style={{ width: 48, height: 34, borderRadius: 7, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {Icon && <Icon size={14} style={{ color: tileStyle.accent }} />}
+                        <FileText size={14} style={{ color: tileStyle.accent }} />
                       </div>
                     )}
                     <div style={{ minWidth: 0, flex: 1 }}>
@@ -834,74 +1099,13 @@ export default function Cur8Category({ category }: Props) {
                     </div>
                     {/* Three-dot menu */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); setMenuItemId(menuItemId === item.id ? null : item.id); setMoveItemId(null) }}
+                      onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id) }}
                       style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 2, borderRadius: 6, color: 'rgba(245,240,232,0.35)', display: 'flex', alignItems: 'center' }}
                     >
                       <MoreVertical size={13} />
                     </button>
                   </div>
-
-                  {/* Context menu */}
-                  <AnimatePresence>
-                    {menuItemId === item.id && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ position: 'absolute', right: 4, top: 44, zIndex: 30, width: 176, borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}
-                      >
-                        {moveItemId === item.id ? (
-                          <div style={{ padding: 8 }}>
-                            <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,240,232,0.4)', padding: '0 4px 6px' }}>Move to folder</p>
-                            <button onClick={() => handleMoveToFolder(item.id, undefined)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 8px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: item.folderId === undefined ? tileStyle.accent : '#f5f0e8', textAlign: 'left' }}>
-                              <FolderOpen size={11} /> No folder {item.folderId === undefined && <Check size={9} style={{ marginLeft: 'auto' }} />}
-                            </button>
-                            {folders.map((f) => (
-                              <button key={f.id} onClick={() => handleMoveToFolder(item.id, f.id)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 8px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: item.folderId === f.id ? tileStyle.accent : '#f5f0e8', textAlign: 'left' }}>
-                                <Folder size={11} /> <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-                                {item.folderId === f.id && <Check size={9} style={{ marginLeft: 'auto', flexShrink: 0 }} />}
-                              </button>
-                            ))}
-                            <button onClick={() => setMoveItemId(null)}
-                              style={{ width: '100%', padding: '4px 8px', marginTop: 4, borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', border: 'none', backgroundColor: 'transparent' }}>
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <button onClick={() => { openItem(item); setMenuItemId(null) }}
-                              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
-                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                              <ExternalLink size={12} /> Open link
-                            </button>
-                            <button onClick={() => setMoveItemId(item.id)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
-                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                              <FolderInput size={12} /> Move to folder
-                            </button>
-                            <button onClick={() => handleDuplicate(item.id)}
-                              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
-                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                              <Copy size={12} /> Duplicate
-                            </button>
-                            <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
-                            <button onClick={() => { handleDelete(item.id); setMenuItemId(null) }}
-                              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#e05050', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
-                              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(224,80,80,0.1)')}
-                              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                              <Trash2 size={12} /> Delete
-                            </button>
-                          </>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {renderItemMenu(item, 'right')}
                 </div>
               )
             })}

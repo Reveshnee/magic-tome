@@ -157,6 +157,54 @@ export async function deleteItem(itemId: string) {
   await db.delete(cur8Item).where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
 }
 
+// Move an item into a different garden (category). Clears the folder since
+// folders belong to a specific garden.
+export async function moveItemToGarden(itemId: string, targetCategory: string) {
+  const userId = await getUserId()
+  await db
+    .update(cur8Item)
+    .set({ category: targetCategory, folderId: null })
+    .where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
+}
+
+// Copy an item into a different garden, leaving the original untouched.
+export async function copyItemToGarden(itemId: string, targetCategory: string): Promise<Cur8ItemDTO | null> {
+  const userId = await getUserId()
+  const [original] = await db
+    .select()
+    .from(cur8Item)
+    .where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
+
+  if (!original) return null
+
+  const id = randomUUID()
+  const savedAt = new Date()
+  await db.insert(cur8Item).values({
+    id,
+    userId,
+    category: targetCategory,
+    folderId: null,
+    url: original.url,
+    title: original.title,
+    description: original.description,
+    thumbnail: original.thumbnail,
+    favicon: original.favicon,
+    savedAt,
+  })
+
+  return {
+    id,
+    category: targetCategory,
+    folderId: undefined,
+    url: original.url,
+    title: original.title,
+    description: original.description ?? undefined,
+    thumbnail: original.thumbnail ?? undefined,
+    favicon: original.favicon ?? undefined,
+    savedAt: savedAt.toISOString(),
+  }
+}
+
 // ─── Folders ───
 export async function createFolder(category: string, name: string): Promise<Cur8FolderDTO> {
   const userId = await getUserId()
@@ -166,6 +214,72 @@ export async function createFolder(category: string, name: string): Promise<Cur8
   await db.insert(cur8Folder).values({ id, userId, category, name, createdAt })
 
   return { id, category, name, createdAt: createdAt.toISOString() }
+}
+
+// Duplicate a folder and every item inside it into a brand-new folder
+// in the same garden. Returns the new folder plus its copied items.
+export async function duplicateFolder(
+  folderId: string,
+): Promise<{ folder: Cur8FolderDTO; items: Cur8ItemDTO[] } | null> {
+  const userId = await getUserId()
+
+  const [original] = await db
+    .select()
+    .from(cur8Folder)
+    .where(and(eq(cur8Folder.id, folderId), eq(cur8Folder.userId, userId)))
+  if (!original) return null
+
+  // Create the new folder
+  const newFolderId = randomUUID()
+  const createdAt = new Date()
+  const newName = `${original.name} (copy)`.slice(0, 60)
+  await db.insert(cur8Folder).values({
+    id: newFolderId,
+    userId,
+    category: original.category,
+    name: newName,
+    createdAt,
+  })
+
+  // Copy every item that lived in the original folder
+  const sourceItems = await db
+    .select()
+    .from(cur8Item)
+    .where(and(eq(cur8Item.folderId, folderId), eq(cur8Item.userId, userId)))
+
+  const copied: Cur8ItemDTO[] = []
+  for (const src of sourceItems) {
+    const id = randomUUID()
+    const savedAt = new Date()
+    await db.insert(cur8Item).values({
+      id,
+      userId,
+      category: src.category,
+      folderId: newFolderId,
+      url: src.url,
+      title: src.title,
+      description: src.description,
+      thumbnail: src.thumbnail,
+      favicon: src.favicon,
+      savedAt,
+    })
+    copied.push({
+      id,
+      category: src.category,
+      folderId: newFolderId,
+      url: src.url,
+      title: src.title,
+      description: src.description ?? undefined,
+      thumbnail: src.thumbnail ?? undefined,
+      favicon: src.favicon ?? undefined,
+      savedAt: savedAt.toISOString(),
+    })
+  }
+
+  return {
+    folder: { id: newFolderId, category: original.category, name: newName, createdAt: createdAt.toISOString() },
+    items: copied,
+  }
 }
 
 export async function deleteFolder(folderId: string) {
