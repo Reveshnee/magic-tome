@@ -19,9 +19,13 @@ export default function MiniCalendarWidget() {
     return () => clearInterval(t)
   }, [])
 
-  const today = now?.getDate() ?? new Date().getDate()
-  const todayMonth = now?.getMonth() ?? new Date().getMonth()
-  const todayYear = now?.getFullYear() ?? new Date().getFullYear()
+  // Everything below is only safe to compute after mount (timezone-sensitive).
+  // Return a stable skeleton on the server and first render to avoid hydration mismatches.
+  const mounted = now !== null
+
+  const today = mounted ? now!.getDate() : 1
+  const todayMonth = mounted ? now!.getMonth() : 0
+  const todayYear = mounted ? now!.getFullYear() : 2000
 
   const { year, month } = viewing ?? { year: todayYear, month: todayMonth }
 
@@ -40,12 +44,11 @@ export default function MiniCalendarWidget() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const isToday = (d: number | null) => d !== null && d === today && month === todayMonth && year === todayYear
-  const isCurrentMonth = month === todayMonth && year === todayYear
+  const isToday = (d: number | null) => mounted && d !== null && d === today && month === todayMonth && year === todayYear
+  const isCurrentMonth = mounted && month === todayMonth && year === todayYear
 
-  // Render as empty strings until mounted so server and client output match
-  const timeStr = now ? now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
-  const dayStr = now ? now.toLocaleDateString([], { weekday: 'long' }) : ''
+  const timeStr = mounted ? now!.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+  const dayStr = mounted ? now!.toLocaleDateString([], { weekday: 'long' }) : ''
 
   return (
     <div style={{ backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(16px)', borderRadius: 20, padding: '18px 20px', border: '1px solid rgba(245,240,232,0.10)', width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -1,4 +1,4 @@
-import { get } from '@vercel/blob'
+import { head } from '@vercel/blob'
 import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -16,32 +16,44 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await get(pathname, {
-      access: 'private',
-      ifNoneMatch: request.headers.get('if-none-match') ?? undefined,
-    })
-
-    if (!result) {
+    // Get the blob metadata (includes the direct URL with a short-lived token)
+    const blob = await head(pathname)
+    if (!blob) {
       return new NextResponse('Not found', { status: 404 })
     }
 
-    // Not-modified — tell the browser to use its cached copy
-    if (result.statusCode === 304) {
+    // Fetch the actual file from the signed Blob URL (server-to-server, token is in the URL)
+    const upstream = await fetch(blob.downloadUrl, {
+      headers: {
+        'If-None-Match': request.headers.get('if-none-match') ?? '',
+      },
+    })
+
+    if (upstream.status === 304) {
       return new NextResponse(null, {
         status: 304,
         headers: {
-          ETag: result.blob.etag,
+          ETag: upstream.headers.get('etag') ?? '',
           'Cache-Control': 'private, no-cache',
         },
       })
     }
 
-    return new NextResponse(result.stream, {
+    if (!upstream.ok) {
+      return new NextResponse('Failed to fetch file', { status: 502 })
+    }
+
+    const contentType = upstream.headers.get('content-type') ?? 'application/octet-stream'
+    const etag = upstream.headers.get('etag') ?? ''
+    const filename = pathname.split('/').pop() ?? 'file'
+
+    return new NextResponse(upstream.body, {
+      status: 200,
       headers: {
-        'Content-Type': result.blob.contentType,
-        ETag: result.blob.etag,
+        'Content-Type': contentType,
+        ...(etag ? { ETag: etag } : {}),
         'Cache-Control': 'private, no-cache',
-        'Content-Disposition': `inline; filename="${pathname.split('/').pop()}"`,
+        'Content-Disposition': `inline; filename="${filename}"`,
       },
     })
   } catch (error) {
