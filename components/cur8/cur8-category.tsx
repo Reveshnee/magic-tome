@@ -17,6 +17,7 @@ import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
 import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
+import DocumentViewer from '@/components/cur8/document-viewer'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -71,8 +72,22 @@ function getThumbnailFromUrl(url: string, stored: string | undefined): string {
   return ''
 }
 
+// Extract the original filename from a proxy URL (or fall back to a title)
+function filenameFromUrl(url: string, fallback: string): string {
+  if (url.startsWith('/api/cur8/file')) {
+    try {
+      const params = new URLSearchParams(url.split('?')[1] ?? '')
+      const p = params.get('pathname') ?? ''
+      const base = p.split('/').pop() ?? ''
+      // Stored as "cur8/<timestamp>-<original name>"; strip the timestamp prefix
+      return base.replace(/^\d+-/, '') || fallback
+    } catch {}
+  }
+  return fallback
+}
+
 // Determine how to render a URL in the preview panel
-function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'audio' | 'iframe' {
+function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
   // Private-blob proxy URLs — detect by extension in the pathname query param
   if (url.startsWith('/api/cur8/file')) {
     try {
@@ -81,12 +96,11 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
       if (p.match(/\.(jpg|jpeg|png|gif|webp|avif)$/)) return 'image'
       if (p.match(/\.(mp4|webm|mov)$/)) return 'video'
       if (p.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
-      // PDFs and all Office docs render via native iframe since the file is
-      // served from our own origin — no CORS / X-Frame-Options issue
-      if (p.match(/\.pdf$/)) return 'pdf'
-      if (p.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf'
+      if (p.match(/\.pdf$/)) return 'pdf' // native browser PDF viewer (same-origin iframe)
+      // Office / text docs must be rendered client-side (can't iframe a .docx)
+      if (p.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv|md)$/)) return 'document'
     } catch {}
-    return 'pdf' // default for unknown uploaded file types
+    return 'document' // unknown uploaded file → let the viewer offer a download
   }
   try {
     const u = new URL(url)
@@ -453,6 +467,17 @@ export default function Cur8Category({ category }: Props) {
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio src={item.url} controls style={{ width: '100%', maxWidth: 380 }} />
         </div>
+      )
+    }
+
+    if (type === 'document') {
+      // Uploaded Office / text docs — rendered client-side (mammoth / xlsx)
+      return (
+        <DocumentViewer
+          url={item.url}
+          filename={filenameFromUrl(item.url, item.title)}
+          accent={tileStyle.accent}
+        />
       )
     }
 
