@@ -19,6 +19,7 @@ import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw 
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
+import { generateVideoThumbnail } from '@/lib/video-thumbnail'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -280,13 +281,29 @@ export default function Cur8Category({ category }: Props) {
 
         const url = `/api/cur8/file?pathname=${encodeURIComponent(blob.pathname)}`
         const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+
+        // Work out a thumbnail: images use themselves; videos get a captured frame
+        let thumbnail: string | undefined = file.type.startsWith('image/') ? url : undefined
+        if (file.type.startsWith('video/')) {
+          setUploadProgress(`${label}Making thumbnail for ${file.name}…`)
+          const thumbBlob = await generateVideoThumbnail(file)
+          if (thumbBlob) {
+            const thumbUpload = await upload(`cur8/thumbs/${Date.now()}-${file.name}.jpg`, thumbBlob, {
+              access: 'private',
+              handleUploadUrl: '/api/cur8/upload',
+              contentType: 'image/jpeg',
+            })
+            thumbnail = `/api/cur8/file?pathname=${encodeURIComponent(thumbUpload.pathname)}`
+          }
+        }
+
         const item = await createItemAction({
           category,
           folderId: selectedFolderForItem,
           url,
           title,
           description: `${file.type || 'file'} · ${(file.size / 1024).toFixed(0)} KB`,
-          thumbnail: file.type.startsWith('image/') ? url : undefined,
+          thumbnail,
         })
         saved.push(item)
       }
