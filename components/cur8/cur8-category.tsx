@@ -24,7 +24,14 @@ import {
   deleteItem as deleteItemAction,
   createFolder as createFolderAction,
   deleteFolder as deleteFolderAction,
+  markItemOpened,
+  getReflections,
+  createReflection,
+  deleteReflection,
+  type ReflectionDTO,
 } from '@/app/actions/cur8'
+import CategoryStatsBar from '@/components/cur8/category-stats-bar'
+import CategoryReflections from '@/components/cur8/category-reflections'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   play: Play, music: Music, camera: Camera, users: Users,
@@ -79,14 +86,14 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
 }
 
 const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
-  YouTube:   { accent: '#c85a40', accentLight: '#faecea', image: '/cur8/tile-ember.png' },
+  YouTube:   { accent: '#c85a40', accentLight: '#faecea', image: '/cur8/tile-grove.png' },
   TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
-  Instagram: { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
-  Facebook:  { accent: '#4a6d78', accentLight: '#e8f0f4', image: '/cur8/tile-tide.png' },
+  Instagram: { accent: '#b06a9c', accentLight: '#f4ecf1', image: '/cur8/tile-greenhouse.png' },
+  Facebook:  { accent: '#4a6d78', accentLight: '#e8f0f4', image: '/cur8/tile-current.png' },
   Articles:  { accent: '#b8892a', accentLight: '#f5ede0', image: '/cur8/tile-archive.png' },
   Images:    { accent: '#5a9e84', accentLight: '#e8f4ef', image: '/cur8/tile-sanctuary.png' },
-  Documents: { accent: '#2e6b4f', accentLight: '#e8f4ee', image: '/cur8/tile-grove.png' },
-  Web:       { accent: '#1a5c56', accentLight: '#e4f0ee', image: '/cur8/tile-greenhouse.png' },
+  Documents: { accent: '#3a6b8c', accentLight: '#e8f0f6', image: '/cur8/tile-tide.png' },
+  Web:       { accent: '#c9843c', accentLight: '#f5ede0', image: '/cur8/tile-ember.png' },
 }
 
 interface Props { category: Category }

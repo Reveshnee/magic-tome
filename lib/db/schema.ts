@@ -76,6 +76,16 @@ export const cur8Item = pgTable('cur8_item', {
   thumbnail: text('thumbnail'),
   favicon: text('favicon'),
   savedAt: timestamp('savedAt').notNull().defaultNow(),
+  openedAt: timestamp('openedAt'),
+})
+
+// Category-tied reflection notes (distinct from the global brain dump)
+export const cur8Reflection = pgTable('cur8_reflection', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  category: text('category').notNull(),
+  body: text('body').notNull(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
 // Brain dump — quick-capture notes for stray thoughts

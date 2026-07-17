@@ -25,6 +25,7 @@ export interface Cur8Item {
   thumbnail?: string
   savedAt: string
   favicon?: string
+  openedAt?: string
 }
 
 export const CATEGORIES: {
@@ -37,6 +38,8 @@ export const CATEGORIES: {
   border: string
   pill: string
   description: string
+  tileImage: string    // hero image whose theme matches the garden name
+  hexAccent: string    // solid accent used across tiles & category pages
 }[] = [
   {
     name: 'YouTube',
@@ -48,6 +51,8 @@ export const CATEGORIES: {
     border: 'border-rose-100',
     pill: 'bg-rose-100 text-rose-500',
     description: 'Videos & channels',
+    tileImage: '/cur8/tile-grove.png',
+    hexAccent: '#c85a40',
   },
   {
     name: 'TikTok',
@@ -59,6 +64,8 @@ export const CATEGORIES: {
     border: 'border-purple-100',
     pill: 'bg-purple-100 text-purple-500',
     description: 'Short-form videos',
+    tileImage: '/cur8/tile-bloom.png',
+    hexAccent: '#c97a7a',
   },
   {
     name: 'Instagram',
@@ -70,6 +77,8 @@ export const CATEGORIES: {
     border: 'border-pink-100',
     pill: 'bg-pink-100 text-pink-500',
     description: 'Posts & reels',
+    tileImage: '/cur8/tile-greenhouse.png',
+    hexAccent: '#b06a9c',
   },
   {
     name: 'Facebook',
@@ -81,6 +90,8 @@ export const CATEGORIES: {
     border: 'border-sky-100',
     pill: 'bg-sky-100 text-sky-500',
     description: 'Posts & groups',
+    tileImage: '/cur8/tile-current.png',
+    hexAccent: '#4a6d78',
   },
   {
     name: 'Articles',
@@ -92,6 +103,8 @@ export const CATEGORIES: {
     border: 'border-violet-100',
     pill: 'bg-violet-100 text-violet-500',
     description: 'Reads & research',
+    tileImage: '/cur8/tile-archive.png',
+    hexAccent: '#b8892a',
   },
   {
     name: 'Images',
@@ -103,6 +116,8 @@ export const CATEGORIES: {
     border: 'border-teal-100',
     pill: 'bg-teal-100 text-teal-500',
     description: 'Inspiration & visuals',
+    tileImage: '/cur8/tile-sanctuary.png',
+    hexAccent: '#5a9e84',
   },
   {
     name: 'Documents',
@@ -114,6 +129,8 @@ export const CATEGORIES: {
     border: 'border-indigo-100',
     pill: 'bg-indigo-100 text-indigo-500',
     description: 'Files & PDFs',
+    tileImage: '/cur8/tile-tide.png',
+    hexAccent: '#3a6b8c',
   },
   {
     name: 'Web',
@@ -125,6 +142,8 @@ export const CATEGORIES: {
     border: 'border-fuchsia-100',
     pill: 'bg-fuchsia-100 text-fuchsia-500',
     description: 'Tools & websites',
+    tileImage: '/cur8/tile-ember.png',
+    hexAccent: '#c9843c',
   },
 ]
 

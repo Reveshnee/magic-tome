@@ -44,6 +44,56 @@ export function useReadAloud() {
   return { speak, stop, speaking, supported }
 }
 
+// ── Breathing voice cues ──
+// A lightweight speaker tuned for short, calm guidance ("Breathe in", "Hold",
+// "Breathe out"). Voices load asynchronously in most browsers, so we cache the
+// chosen voice once they are ready. Volume is set to max so cues are clearly
+// audible over the ambient animation.
+export function useBreathVoice() {
+  const [supported, setSupported] = useState(false)
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    setSupported(true)
+
+    const pickVoice = () => {
+      const voices = window.speechSynthesis.getVoices()
+      if (!voices.length) return
+      // Prefer a warm, natural English voice; fall back to any English voice
+      voiceRef.current =
+        voices.find((v) => /en(-|_)?(GB|US|ZA|AU)/i.test(v.lang) && /female|samantha|karen|natural|google|zira|aria/i.test(v.name)) ||
+        voices.find((v) => /^en/i.test(v.lang)) ||
+        voices[0]
+    }
+    pickVoice()
+    window.speechSynthesis.onvoiceschanged = pickVoice
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null
+      window.speechSynthesis.cancel()
+    }
+  }, [])
+
+  const cue = useCallback((text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.rate = 0.82   // slow and soothing
+    u.pitch = 1
+    u.volume = 1    // full volume — the old tones were nearly inaudible
+    if (voiceRef.current) u.voice = voiceRef.current
+    window.speechSynthesis.speak(u)
+  }, [])
+
+  const silence = useCallback(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    window.speechSynthesis.cancel()
+  }, [])
+
+  return { cue, silence, supported }
+}
+
 // ── Speech-to-text (dictation) ──
 export function useDictation(onResult: (text: string) => void) {
   const [listening, setListening] = useState(false)

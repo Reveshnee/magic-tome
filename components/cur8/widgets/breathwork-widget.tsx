@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Volume2, VolumeX } from 'lucide-react'
+import { useBreathVoice } from '@/hooks/use-speech'
 
 type Phase = 'idle' | 'inhale' | 'hold1' | 'exhale' | 'hold2'
 
@@ -28,7 +29,7 @@ export default function BreathworkWidget() {
   const [patternIdx, setPatternIdx] = useState(0)
   const [soundOn, setSoundOn] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const audioRef = useRef<AudioContext | null>(null)
+  const { cue, silence, supported: voiceSupported } = useBreathVoice()
 
   const pattern = PATTERNS[patternIdx]
 
@@ -36,68 +37,25 @@ export default function BreathworkWidget() {
     if (intervalRef.current) clearTimeout(intervalRef.current)
   }
 
-  // Lazily create a single shared AudioContext (browsers require a user gesture first)
-  function getCtx(): AudioContext | null {
-    if (typeof window === 'undefined') return null
-    if (!audioRef.current) {
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      if (!AC) return null
-      audioRef.current = new AC()
-    }
-    return audioRef.current
+  // Spoken guidance for each phase
+  const PHASE_CUES: Record<Phase, string> = {
+    idle: '',
+    inhale: 'Breathe in',
+    hold1: 'Hold',
+    exhale: 'Breathe out',
+    hold2: 'Hold',
   }
 
-  // Play a soft sine tone that glides between two frequencies over `duration` seconds.
-  // Inhale rises (grounding lift), exhale falls (letting go). Gentle fade in/out avoids clicks.
-  function playGlide(fromHz: number, toHz: number, duration: number) {
-    if (!soundOn) return
-    const ctx = getCtx()
-    if (!ctx) return
-    if (ctx.state === 'suspended') ctx.resume()
-    const now = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(fromHz, now)
-    osc.frequency.linearRampToValueAtTime(toHz, now + duration)
-    // Soft volume envelope, peaks around 0.12 so it stays calming
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(0.12, now + Math.min(0.6, duration / 3))
-    gain.gain.linearRampToValueAtTime(0.0001, now + duration)
-    osc.connect(gain).connect(ctx.destination)
-    osc.start(now)
-    osc.stop(now + duration + 0.05)
-  }
-
-  // A single soft low chime to mark a hold
-  function playHoldTone(duration: number) {
-    if (!soundOn) return
-    const ctx = getCtx()
-    if (!ctx) return
-    if (ctx.state === 'suspended') ctx.resume()
-    const now = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(196, now) // low G, restful
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(0.05, now + 0.4)
-    gain.gain.linearRampToValueAtTime(0.0001, now + Math.max(0.8, duration - 0.2))
-    osc.connect(gain).connect(ctx.destination)
-    osc.start(now)
-    osc.stop(now + duration)
-  }
-
-  function playPhaseSound(p: Phase, duration: number) {
-    if (p === 'inhale') playGlide(220, 330, duration)      // A3 → E4, rising
-    else if (p === 'exhale') playGlide(330, 196, duration)  // E4 → G3, falling
-    else playHoldTone(duration)                             // holds
+  function speakPhase(p: Phase) {
+    if (!soundOn || !voiceSupported) return
+    const text = PHASE_CUES[p]
+    if (text) cue(text)
   }
 
   function runPhase(p: Phase, duration: number, next: () => void) {
     setPhase(p)
     setCount(duration)
-    playPhaseSound(p, duration)
+    speakPhase(p)
     let remaining = duration
     const tick = () => {
       remaining--
@@ -136,6 +94,7 @@ export default function BreathworkWidget() {
   function toggle() {
     if (active) {
       clearTimer()
+      silence()
       setActive(false)
       setPhase('idle')
       setCount(0)
@@ -145,10 +104,15 @@ export default function BreathworkWidget() {
     }
   }
 
+  // Silence any spoken cue immediately when the user mutes mid-session
+  useEffect(() => {
+    if (!soundOn) silence()
+  }, [soundOn, silence])
+
   useEffect(() => () => {
     clearTimer()
-    if (audioRef.current) audioRef.current.close().catch(() => {})
-  }, [])
+    silence()
+  }, [silence])
 
   // Circle scale & colour per phase
   const circleScale = phase === 'inhale' ? 1.28 : phase === 'exhale' ? 0.78 : 1.05

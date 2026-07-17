@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { cur8Item, cur8Folder } from '@/lib/db/schema'
+import { cur8Item, cur8Folder, cur8Reflection } from '@/lib/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
@@ -23,6 +23,7 @@ export interface Cur8ItemDTO {
   thumbnail?: string
   favicon?: string
   savedAt: string
+  openedAt?: string
 }
 
 export interface Cur8FolderDTO {
@@ -55,6 +56,7 @@ export async function getCur8Data(): Promise<{
       thumbnail: i.thumbnail ?? undefined,
       favicon: i.favicon ?? undefined,
       savedAt: i.savedAt.toISOString(),
+      openedAt: i.openedAt ? i.openedAt.toISOString() : undefined,
     })),
     folders: folders.map((f) => ({
       id: f.id,
@@ -174,4 +176,51 @@ export async function deleteFolder(folderId: string) {
     .set({ folderId: null })
     .where(and(eq(cur8Item.folderId, folderId), eq(cur8Item.userId, userId)))
   await db.delete(cur8Folder).where(and(eq(cur8Folder.id, folderId), eq(cur8Folder.userId, userId)))
+}
+
+// ─── Track access (for "not yet opened" stats) ───
+export async function markItemOpened(itemId: string) {
+  const userId = await getUserId()
+  await db
+    .update(cur8Item)
+    .set({ openedAt: new Date() })
+    .where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
+}
+
+// ─── Reflections (category-tied) ───
+export interface ReflectionDTO {
+  id: string
+  category: string
+  body: string
+  createdAt: string
+}
+
+export async function getReflections(category: string): Promise<ReflectionDTO[]> {
+  const userId = await getUserId()
+  const rows = await db
+    .select()
+    .from(cur8Reflection)
+    .where(and(eq(cur8Reflection.userId, userId), eq(cur8Reflection.category, category)))
+    .orderBy(desc(cur8Reflection.createdAt))
+  return rows.map((r) => ({
+    id: r.id,
+    category: r.category,
+    body: r.body,
+    createdAt: r.createdAt.toISOString(),
+  }))
+}
+
+export async function createReflection(category: string, body: string): Promise<ReflectionDTO | null> {
+  const userId = await getUserId()
+  const trimmed = body.trim()
+  if (!trimmed) return null
+  const id = randomUUID()
+  const createdAt = new Date()
+  await db.insert(cur8Reflection).values({ id, userId, category, body: trimmed, createdAt })
+  return { id, category, body: trimmed, createdAt: createdAt.toISOString() }
+}
+
+export async function deleteReflection(id: string) {
+  const userId = await getUserId()
+  await db.delete(cur8Reflection).where(and(eq(cur8Reflection.id, id), eq(cur8Reflection.userId, userId)))
 }

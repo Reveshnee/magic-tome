@@ -41,9 +41,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
 }
 
 const TILE_ACCENT: Record<string, string> = {
-  YouTube: '#c85a40', TikTok: '#c97a7a', Instagram: '#c97a7a',
-  Facebook: '#4a6d78', Articles: '#c9a84c', Images: '#5a9e84',
-  Documents: '#2e6b4f', Web: '#1a5c56',
+  YouTube: '#c85a40', TikTok: '#c97a7a', Instagram: '#b06a9c',
+  Facebook: '#4a6d78', Articles: '#b8892a', Images: '#5a9e84',
+  Documents: '#3a6b8c', Web: '#c9843c',
 }
 
 const MOTIVATIONAL = [
@@ -342,7 +342,7 @@ export default function Cur8Home() {
 
           {/* Bento: 2 large + 6 small */}
           <div style={{ display: 'grid', gridTemplateColumns: bentoCols, gap: 14, marginBottom: 14 }}>
-            {CATEGORIES.slice(0, 2).map((cat, i) => {
+            {CATEGORIES.slice(0, 2).map((cat) => {
               const Icon = ICON_MAP[cat.lucideIcon]
               const count = items.filter((item) => item.category === cat.name).length
               const accent = TILE_ACCENT[cat.name]
@@ -353,7 +353,7 @@ export default function Cur8Home() {
                     transition={{ type: 'spring', stiffness: 280 }}
                     style={{ position: 'relative', height: 220, borderRadius: 20, overflow: 'hidden', cursor: 'pointer', border: '1px solid rgba(245,240,232,0.08)' }}
                   >
-                    <Image src={`/cur8/tile-${i === 0 ? 'ember' : 'bloom'}.png`} alt={cat.name} fill style={{ objectFit: 'cover' }} sizes="600px" />
+                    <Image src={cat.tileImage} alt={cat.displayName} fill style={{ objectFit: 'cover' }} sizes="600px" />
                     <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(160deg, transparent 20%, rgba(13,36,32,0.88) 100%)` }} />
                     {/* Category badge */}
                     <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 50, backgroundColor: accent, backdropFilter: 'blur(4px)' }}>
@@ -380,19 +380,23 @@ export default function Cur8Home() {
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     transition={{ type: 'spring', stiffness: 280 }}
-                    style={{ position: 'relative', height: 110, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', border: '1px solid rgba(245,240,232,0.08)', backgroundColor: 'var(--c-surface)' }}
+                    style={{ position: 'relative', height: 132, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', border: '1px solid rgba(245,240,232,0.08)', backgroundColor: 'var(--c-surface)' }}
                   >
-                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, rgba(13,36,32,0) 0%, rgba(13,36,32,0.85) 100%)` }} />
+                    <Image src={cat.tileImage} alt={cat.displayName} fill style={{ objectFit: 'cover' }} sizes="240px" />
+                    <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(160deg, rgba(13,36,32,0.15) 0%, rgba(13,36,32,0.92) 100%)` }} />
                     {/* Left accent bar */}
                     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: accent }} />
-                    <div style={{ position: 'absolute', top: 14, left: 14 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {Icon && <Icon size={13} color={accent} />}
+                    <div style={{ position: 'absolute', top: 12, left: 12 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 9, backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {Icon && <Icon size={13} color="#fff" />}
                       </div>
                     </div>
+                    {count > 0 && (
+                      <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 9, fontWeight: 700, backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(4px)', color: '#f5f0e8', borderRadius: 50, padding: '2px 8px' }}>{count}</div>
+                    )}
                     <div style={{ position: 'absolute', bottom: 12, left: 14, right: 10 }}>
-                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 14, fontWeight: 700, color: 'var(--c-cream)', margin: 0, marginBottom: 2, lineHeight: 1.2 }}>{cat.displayName}</h3>
-                      <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.45)' }}>{count} saved</p>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 700, color: 'var(--c-cream)', margin: 0, marginBottom: 2, lineHeight: 1.2 }}>{cat.displayName}</h3>
+                      <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>{cat.description}</p>
                     </div>
                   </motion.div>
                 </Link>
