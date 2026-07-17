@@ -323,7 +323,22 @@ export default function Cur8Category({ category }: Props) {
   }
 
   function extractUrls(text: string): string[] {
-    return text.split(/[\n]+/).map((s) => s.trim()).filter((s) => s.length > 4).map(normaliseUrl)
+    // 1) Grab every explicit http(s) URL, however they're separated (spaces, newlines, commas)
+    const explicit = text.match(/https?:\/\/[^\s,]+/gi) ?? []
+    if (explicit.length > 0) {
+      // De-duplicate while preserving order
+      return Array.from(new Set(explicit.map((s) => s.trim())))
+    }
+    // 2) No protocols present — split on whitespace/newlines/commas and normalise domain-like tokens
+    return Array.from(
+      new Set(
+        text
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 4 && s.includes('.'))
+          .map(normaliseUrl),
+      ),
+    )
   }
 
   async function handleFetch() {
