@@ -137,7 +137,8 @@ export default function Cur8Category({ category }: Props) {
       if (!res.ok) throw new Error('fetch failed')
       const data = await res.json()
       setPreview({ url: url.trim(), ...data })
-    } catch {
+    } catch (err) {
+      console.log('[v0] fetch-meta error:', err)
       setFetchError('Could not auto-fetch — you can still save manually.')
       setPreview({ url: url.trim(), title: url.trim(), description: '', thumbnail: '' })
     } finally {

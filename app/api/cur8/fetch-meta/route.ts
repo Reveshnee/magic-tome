@@ -20,24 +20,33 @@ export async function GET(req: NextRequest) {
     const hostname = parsedUrl.hostname
     const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${hostname}`
 
-    // --- YouTube: extract thumbnail directly from video ID ---
+    // --- YouTube: extract thumbnail directly from video ID — never fails ---
     const ytId = extractYouTubeId(url)
     if (ytId) {
-      // Try maxresdefault first, fall back to hqdefault
-      const thumbnail = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`
-      // Fetch oEmbed for the title (YouTube allows this without auth)
+      const thumbnail = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
       let title = ''
+      let authorName = ''
+      // oEmbed is best-effort — if it fails we still return the thumbnail
       try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 4000)
         const oEmbed = await fetch(
-          `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
-          { signal: AbortSignal.timeout(5000) }
+          `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`,
+          { signal: controller.signal }
         )
+        clearTimeout(timer)
         if (oEmbed.ok) {
           const data = await oEmbed.json()
           title = data.title ?? ''
+          authorName = data.author_name ?? ''
         }
-      } catch { /* oEmbed failed, leave title blank */ }
-      return NextResponse.json({ title, description: '', thumbnail, favicon })
+      } catch { /* oEmbed failed — title will stay blank, thumbnail is still valid */ }
+      return NextResponse.json({
+        title: title || `YouTube – ${ytId}`,
+        description: authorName ? `by ${authorName}` : '',
+        thumbnail,
+        favicon,
+      })
     }
 
     // --- TikTok / Instagram: no reliable server-side thumbnail, return favicon only ---
