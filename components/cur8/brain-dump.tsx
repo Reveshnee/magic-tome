@@ -5,11 +5,11 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain, X, Mic, MicOff, Send, Volume2, Square, Pin, PinOff,
-  Copy, Trash2, Loader2, Zap, Check, ChevronDown,
+  Copy, Trash2, Loader2, Mail, Check, ChevronDown,
 } from 'lucide-react'
 import {
   getNotes, createNote, deleteNote, togglePinNote,
-  getZapierWebhook, setZapierWebhook, type NoteDTO,
+  getSettings, saveSettings, type NoteDTO, type Cur8Settings,
 } from '@/app/actions/notes'
 import { useReadAloud, useDictation } from '@/hooks/use-speech'
 
@@ -26,8 +26,8 @@ export default function BrainDump() {
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
-  const [webhook, setWebhook] = useState('')
-  const [webhookSaved, setWebhookSaved] = useState(false)
+  const [settings, setSettings] = useState<Cur8Settings>({ emailTo: '', memEmail: 'save@mem.ai', autoEmail: false })
+  const [settingsSaved, setSettingsSaved] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const baseDraftRef = useRef('')
 
@@ -42,8 +42,8 @@ export default function BrainDump() {
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    Promise.all([getNotes(), getZapierWebhook()])
-      .then(([n, w]) => { setNotes(n); setWebhook(w ?? '') })
+    Promise.all([getNotes(), getSettings()])
+      .then(([n, s]) => { setNotes(n); setSettings(s) })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [open])
@@ -73,6 +73,8 @@ export default function BrainDump() {
       setNotes((prev) => [note, ...prev])
       setDraft('')
       baseDraftRef.current = ''
+      // If auto-send is on, open the user's email pre-filled to mem.ai
+      if (settings.autoEmail) emailNote(body)
     } catch {
       // keep the draft so nothing is lost
     } finally {
@@ -113,10 +115,29 @@ export default function BrainDump() {
     } catch { /* noop */ }
   }
 
-  async function saveWebhook() {
-    await setZapierWebhook(webhook).catch(() => {})
-    setWebhookSaved(true)
-    setTimeout(() => setWebhookSaved(false), 1800)
+  // Build a mailto that opens the user's own email app, pre-addressed to mem.ai
+  // (and cc'd to their own inbox) with the thought as the body. Sending from the
+  // user's own address is what lets mem.ai recognise and file it.
+  function buildMailto(body: string) {
+    const to = settings.memEmail.trim() || 'save@mem.ai'
+    const cc = settings.emailTo.trim()
+    const firstLine = body.split('\n')[0].slice(0, 60)
+    const params = new URLSearchParams()
+    params.set('subject', firstLine || 'Cur8 thought')
+    params.set('body', body)
+    if (cc) params.set('cc', cc)
+    return `mailto:${encodeURIComponent(to)}?${params.toString()}`
+  }
+
+  function emailNote(body: string) {
+    window.location.href = buildMailto(body)
+  }
+
+  async function persistSettings(next: Cur8Settings) {
+    setSettings(next)
+    await saveSettings(next).catch(() => {})
+    setSettingsSaved(true)
+    setTimeout(() => setSettingsSaved(false), 1600)
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -268,6 +289,9 @@ export default function BrainDump() {
                                 {speakingId === note.id && speaking ? <Square size={14} /> : <Volume2 size={14} />}
                               </IconBtn>
                             )}
+                            <IconBtn onClick={() => emailNote(note.body)} title="Send to mem.ai by email">
+                              <Mail size={14} />
+                            </IconBtn>
                             <IconBtn onClick={() => copyNote(note)} title="Copy">
                               {copiedId === note.id ? <Check size={14} color={SAGE} /> : <Copy size={14} />}
                             </IconBtn>
@@ -285,13 +309,13 @@ export default function BrainDump() {
                 )}
               </div>
 
-              {/* Zapier settings */}
+              {/* Email-out to mem.ai settings */}
               <div style={{ borderTop: '1px solid rgba(245,240,232,0.08)' }}>
                 <button
                   onClick={() => setShowSettings((s) => !s)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.7)', fontSize: 12.5, fontWeight: 600 }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Zap size={14} color={ACCENT} /> Send thoughts to Zapier</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mail size={14} color={ACCENT} /> Send thoughts to mem.ai {settingsSaved && <Check size={13} color={SAGE} />}</span>
                   <ChevronDown size={16} style={{ transform: showSettings ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                 </button>
                 <AnimatePresence>
@@ -300,24 +324,45 @@ export default function BrainDump() {
                       initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                       style={{ overflow: 'hidden' }}
                     >
-                      <div style={{ padding: '0 20px 16px' }}>
-                        <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: '0 0 8px', lineHeight: 1.5 }}>
-                          Paste your Zapier &ldquo;Catch Hook&rdquo; URL. Every thought you save will be sent there automatically — so it can flow into mem.ai like your daily list.
+                      <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0, lineHeight: 1.5 }}>
+                          Tapping the mail icon opens your own email app with the thought ready to send to mem.ai. Because it comes from your address, mem files it automatically.
                         </p>
-                        <div style={{ display: 'flex', gap: 8 }}>
+
+                        <label style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)' }}>
+                          mem.ai save address
                           <input
-                            value={webhook}
-                            onChange={(e) => setWebhook(e.target.value)}
-                            placeholder="https://hooks.zapier.com/…"
-                            style={{ flex: 1, padding: '9px 12px', borderRadius: 10, backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 12.5, outline: 'none' }}
+                            value={settings.memEmail}
+                            onChange={(e) => setSettings((s) => ({ ...s, memEmail: e.target.value }))}
+                            onBlur={() => persistSettings(settings)}
+                            placeholder="save@mem.ai"
+                            style={{ width: '100%', marginTop: 5, padding: '9px 12px', borderRadius: 10, backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 12.5, outline: 'none' }}
                           />
+                        </label>
+
+                        <label style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)' }}>
+                          Also copy to my email (optional)
+                          <input
+                            value={settings.emailTo}
+                            onChange={(e) => setSettings((s) => ({ ...s, emailTo: e.target.value }))}
+                            onBlur={() => persistSettings(settings)}
+                            placeholder="you@example.com"
+                            style={{ width: '100%', marginTop: 5, padding: '9px 12px', borderRadius: 10, backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 12.5, outline: 'none' }}
+                          />
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 12, color: 'rgba(245,240,232,0.85)' }}>
                           <button
-                            onClick={saveWebhook}
-                            style={{ padding: '9px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, backgroundColor: webhookSaved ? SAGE : ACCENT, color: '#0d2420', whiteSpace: 'nowrap' }}
+                            type="button"
+                            role="switch"
+                            aria-checked={settings.autoEmail}
+                            onClick={() => persistSettings({ ...settings, autoEmail: !settings.autoEmail })}
+                            style={{ position: 'relative', width: 40, height: 22, borderRadius: 50, border: 'none', cursor: 'pointer', flexShrink: 0, backgroundColor: settings.autoEmail ? SAGE : 'rgba(245,240,232,0.2)', transition: 'background-color 0.2s' }}
                           >
-                            {webhookSaved ? 'Saved' : 'Save'}
+                            <span style={{ position: 'absolute', top: 2, left: settings.autoEmail ? 20 : 2, width: 18, height: 18, borderRadius: '50%', backgroundColor: '#0d2420', transition: 'left 0.2s' }} />
                           </button>
-                        </div>
+                          Open email automatically each time I save
+                        </label>
                       </div>
                     </motion.div>
                   )}

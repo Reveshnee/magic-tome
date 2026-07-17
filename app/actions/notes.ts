@@ -42,24 +42,6 @@ export async function createNote(body: string): Promise<NoteDTO> {
   const id = randomUUID()
   const createdAt = new Date()
   await db.insert(cur8Note).values({ id, userId, body: trimmed, pinned: false, createdAt })
-
-  // Fire-and-forget forward to Zapier if the user has configured a webhook
-  try {
-    const [setting] = await db
-      .select()
-      .from(cur8Setting)
-      .where(eq(cur8Setting.userId, userId))
-    if (setting?.zapierWebhookUrl) {
-      await fetch(setting.zapierWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: trimmed, source: 'Cur8 Brain Dump', createdAt: createdAt.toISOString() }),
-      }).catch(() => {})
-    }
-  } catch {
-    // Never let a Zapier failure block saving the note
-  }
-
   return { id, body: trimmed, pinned: false, createdAt: createdAt.toISOString() }
 }
 
@@ -77,24 +59,38 @@ export async function deleteNote(id: string) {
 }
 
 // ─── Settings ───
-export async function getZapierWebhook(): Promise<string | null> {
+export interface Cur8Settings {
+  emailTo: string
+  memEmail: string
+  autoEmail: boolean
+}
+
+export async function getSettings(): Promise<Cur8Settings> {
   const userId = await getUserId()
   const [setting] = await db
     .select()
     .from(cur8Setting)
     .where(eq(cur8Setting.userId, userId))
-  return setting?.zapierWebhookUrl ?? null
+  return {
+    emailTo: setting?.emailTo ?? '',
+    memEmail: setting?.memEmail ?? 'save@mem.ai',
+    autoEmail: setting?.autoEmail ?? false,
+  }
 }
 
-export async function setZapierWebhook(url: string) {
+export async function saveSettings(s: Cur8Settings) {
   const userId = await getUserId()
-  const clean = url.trim() || null
   const updatedAt = new Date()
+  const values = {
+    emailTo: s.emailTo.trim() || null,
+    memEmail: s.memEmail.trim() || 'save@mem.ai',
+    autoEmail: s.autoEmail,
+  }
   await db
     .insert(cur8Setting)
-    .values({ userId, zapierWebhookUrl: clean, updatedAt })
+    .values({ userId, ...values, updatedAt })
     .onConflictDoUpdate({
       target: cur8Setting.userId,
-      set: { zapierWebhookUrl: clean, updatedAt },
+      set: { ...values, updatedAt },
     })
 }

@@ -87,9 +87,12 @@ export const cur8Note = pgTable('cur8_note', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
-// Per-user settings (e.g. Zapier webhook)
+// Per-user settings (webhook + email-out to mem.ai)
 export const cur8Setting = pgTable('cur8_setting', {
   userId: text('userId').primaryKey(),
   zapierWebhookUrl: text('zapierWebhookUrl'),
+  emailTo: text('emailTo'),
+  memEmail: text('memEmail').default('save@mem.ai'),
+  autoEmail: boolean('autoEmail').notNull().default(false),
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })
