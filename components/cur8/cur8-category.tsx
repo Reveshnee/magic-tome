@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Play, Music, Camera, Users, Newspaper, ImageIcon, FileText, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
-  Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput,
+  Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Leaf,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -27,11 +28,23 @@ const ICON_MAP: Record<string, React.ElementType> = {
   newspaper: Newspaper, 'image-icon': ImageIcon, 'file-text': FileText, globe: Globe,
 }
 
+const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
+  YouTube:   { accent: '#d4614a', accentLight: '#faecea', image: '/cur8/tile-ember.png' },
+  TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
+  Instagram: { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
+  Facebook:  { accent: '#4a6d78', accentLight: '#e8f0f4', image: '/cur8/tile-tide.png' },
+  Articles:  { accent: '#c4922a', accentLight: '#f5ede0', image: '/cur8/tile-archive.png' },
+  Images:    { accent: '#5a9e84', accentLight: '#e8f4ef', image: '/cur8/tile-sanctuary.png' },
+  Documents: { accent: '#2e6b4f', accentLight: '#e8f4ee', image: '/cur8/tile-grove.png' },
+  Web:       { accent: '#1a5c56', accentLight: '#e4f0ee', image: '/cur8/tile-greenhouse.png' },
+}
+
 interface Props { category: Category }
 
 export default function Cur8Category({ category }: Props) {
   const cat = CATEGORIES.find((c) => c.name === category)!
   const Icon = ICON_MAP[cat.lucideIcon]
+  const tileStyle = TILE_STYLES[category] ?? { accent: '#5a9e84', accentLight: '#e8f4ef', image: '/cur8/tile-grove.png' }
 
   const [allItems, setAllItems] = useState<Cur8Item[]>([])
   const [folders, setFolders] = useState<Cur8Folder[]>([])
@@ -157,50 +170,57 @@ export default function Cur8Category({ category }: Props) {
   }
 
   return (
-    <div className="cur8 relative min-h-screen overflow-x-hidden" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+    <div className="cur8 relative min-h-screen overflow-x-hidden" style={{ backgroundColor: 'var(--cur8-body)', color: 'var(--foreground)' }}>
 
-      {/* Ambient orbs */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
-          style={{ background: 'radial-gradient(circle, #c4a0e8, transparent 70%)' }} />
-        <div className="absolute -right-16 bottom-1/4 h-64 w-64 rounded-full opacity-15 blur-3xl"
-          style={{ background: 'radial-gradient(circle, #f0a0bf, transparent 70%)' }} />
-      </div>
+      {/* ── Category banner ── */}
+      <div className="relative overflow-hidden" style={{ height: '160px' }}>
+        <Image
+          src={tileStyle.image}
+          alt={category}
+          fill
+          className="object-cover object-center"
+          priority
+          sizes="100vw"
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(to bottom, rgba(13,61,58,0.15) 0%, rgba(238,242,238,0) 40%, rgba(238,242,238,1) 100%)' }}
+        />
 
-      {/* ── Header ── */}
-      <header className="relative border-b px-5 py-4 sm:px-8"
-        style={{ borderColor: 'var(--border)', backgroundColor: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(12px)' }}>
-        <div className="mx-auto max-w-5xl">
-          <Link href="/cur8"
-            className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium transition hover:opacity-70"
-            style={{ color: 'var(--muted-foreground)' }}>
-            <ArrowLeft size={12} /> Back to Cur8
+        {/* Nav inside banner */}
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 pt-4">
+          <Link
+            href="/cur8"
+            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition hover:opacity-80"
+            style={{ backgroundColor: 'rgba(13,61,58,0.45)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.22)', color: '#f5f0e8' }}
+          >
+            <ArrowLeft size={11} /> Garden
           </Link>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
-                {Icon && <Icon size={22} className={cat.accent} />}
-              </div>
-              <div>
-                <h1 className="font-serif text-2xl font-bold">{category}</h1>
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                  {cat.description} · {catItems.length} saved
-                </p>
-              </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: 'rgba(13,61,58,0.45)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.22)' }}>
+              <Leaf size={12} color="#f5f0e8" />
             </div>
-              <button
-                onClick={() => setShowAdd(true)}
-                className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95"
-                style={{ background: 'linear-gradient(135deg, var(--cur8-lilac), var(--cur8-rose))' }}
-              >
-                <Plus size={15} /> Save link
-              </button>
           </div>
         </div>
-      </header>
+
+        {/* Title over banner */}
+        <div className="absolute bottom-4 left-5 flex items-end justify-between right-5">
+          <div>
+            <h1 className="font-serif text-2xl font-bold" style={{ color: '#1a2e2b' }}>{category}</h1>
+            <p className="text-xs" style={{ color: '#3d5552' }}>{cat.description} · {catItems.length} saved</p>
+          </div>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 active:scale-95"
+            style={{ backgroundColor: tileStyle.accent, boxShadow: '0 2px 10px rgba(0,0,0,0.15)' }}
+          >
+            <Plus size={13} /> Save link
+          </button>
+        </div>
+      </div>
 
       {/* ── Body: sidebar + content ── */}
-      <div className="mx-auto flex max-w-5xl gap-6 px-5 py-7 sm:px-8">
+      <div className="mx-auto flex max-w-5xl gap-6 px-5 py-5 sm:px-8">
 
         {/* Folders sidebar */}
         <aside className="w-48 shrink-0">

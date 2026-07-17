@@ -161,29 +161,35 @@
   }
 }
 
-/* Cur8 — Pisces / Libra feminine palette */
+/* Cur8 — Koi Garden palette */
 .cur8 {
   color-scheme: light;
-  --background: #fdf8ff;
-  --foreground: #2a1a35;
-  --card: #ffffff;
-  --card-foreground: #2a1a35;
-  --muted: #f5eeff;
-  --muted-foreground: #7a6585;
-  --border: #e8d8f5;
-  --primary: #9b72cf;
-  --primary-foreground: #ffffff;
-  --accent: #e879a0;
-  --accent-foreground: #ffffff;
-  --ring: #c4a0e8;
-  /* brand tokens */
-  --cur8-rose:    #f0a0bf;
-  --cur8-lilac:   #c4a0e8;
-  --cur8-sky:     #a0c8f0;
-  --cur8-pearl:   #faf5ff;
-  --cur8-gold:    #e8c87a;
-  --cur8-sage:    #a0d4c8;
-  --cur8-surface: #fef9ff;
+  --background:         #eef2ee;
+  --foreground:         #1a2e2b;
+  --card:               #f7f9f7;
+  --card-foreground:    #1a2e2b;
+  --muted:              #e4edea;
+  --muted-foreground:   #7a9490;
+  --border:             rgba(13,61,58,0.12);
+  --primary:            #0d3d3a;
+  --primary-foreground: #f5f0e8;
+  --accent:             #d4614a;
+  --accent-foreground:  #ffffff;
+  --ring:               #5a9e84;
+  /* koi palette tokens */
+  --cur8-teal:        #0d3d3a;
+  --cur8-midteal:     #1a5c56;
+  --cur8-sage:        #5a9e84;
+  --cur8-seafoam:     #8ec8b4;
+  --cur8-coral:       #d4614a;
+  --cur8-blush:       #eba08c;
+  --cur8-gold:        #c4922a;
+  --cur8-forest:      #2e6b4f;
+  --cur8-dustyrose:   #c97a7a;
+  --cur8-slate:       #4a6d78;
+  --cur8-cream:       #f5f0e8;
+  --cur8-body:        #eef2ee;
+  --cur8-card:        #f7f9f7;
 }
 
 @layer base {
