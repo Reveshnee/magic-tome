@@ -129,18 +129,21 @@ export default function Cur8Category({ category }: Props) {
   // ── Link fetch & save ──
   async function handleFetch() {
     if (!url.trim()) return
+    // Ensure the URL has a protocol before sending
+    const normalised = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`
+    setUrl(normalised)
     setFetching(true)
     setFetchError('')
     setPreview(null)
     try {
-      const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(url.trim())}`)
+      const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(normalised)}`)
       if (!res.ok) throw new Error('fetch failed')
       const data = await res.json()
-      setPreview({ url: url.trim(), ...data })
+      setPreview({ url: normalised, ...data })
     } catch (err) {
       console.log('[v0] fetch-meta error:', err)
       setFetchError('Could not auto-fetch — you can still save manually.')
-      setPreview({ url: url.trim(), title: url.trim(), description: '', thumbnail: '' })
+      setPreview({ url: normalised, title: normalised, description: '', thumbnail: '' })
     } finally {
       setFetching(false)
     }

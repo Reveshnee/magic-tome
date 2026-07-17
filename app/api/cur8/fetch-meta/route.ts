@@ -12,8 +12,11 @@ function extractYouTubeId(url: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  const url = req.nextUrl.searchParams.get('url')
-  if (!url) return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+  const raw = req.nextUrl.searchParams.get('url')
+  if (!raw) return NextResponse.json({ error: 'No URL provided' }, { status: 400 })
+
+  // Normalise — add https:// if no protocol present so new URL() doesn't throw
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
 
   try {
     const parsedUrl = new URL(url)
