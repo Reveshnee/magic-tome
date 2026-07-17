@@ -28,6 +28,18 @@ const ICON_MAP: Record<string, React.ElementType> = {
   newspaper: Newspaper, 'image-icon': ImageIcon, 'file-text': FileText, globe: Globe,
 }
 
+function extractYouTubeId(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.includes('/shorts/')) return u.pathname.split('/shorts/')[1]?.split('?')[0] ?? null
+      return u.searchParams.get('v')
+    }
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0]
+  } catch {}
+  return null
+}
+
 // Derive a thumbnail from the URL when none is stored
 function getThumbnailFromUrl(url: string, stored: string | undefined): string {
   if (stored) return stored
@@ -84,6 +96,8 @@ export default function Cur8Category({ category }: Props) {
   const [url, setUrl] = useState('')
   const [fetching, setFetching] = useState(false)
   const [preview, setPreview] = useState<Partial<Cur8Item> | null>(null)
+  const [multiPreviews, setMultiPreviews] = useState<(Partial<Cur8Item> & { selected: boolean })[]>([])
+  const [selectedItem, setSelectedItem] = useState<Cur8Item | null>(null)
   const [fetchError, setFetchError] = useState('')
 
   function refresh() {
@@ -126,30 +140,87 @@ export default function Cur8Category({ category }: Props) {
     await refresh()
   }
 
-  // ── Link fetch & save ──
+  // ── Multi-link fetch & save ──
+  function normaliseUrl(raw: string) {
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  }
+
+  // Extract all URLs from a pasted block of text (one per line, or space-separated)
+  function extractUrls(text: string): string[] {
+    return text
+      .split(/[\n\s]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map(normaliseUrl)
+  }
+
   async function handleFetch() {
     if (!url.trim()) return
-    // Ensure the URL has a protocol before sending
-    const normalised = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`
-    setUrl(normalised)
+    const urls = extractUrls(url)
+    if (urls.length === 0) return
+
     setFetching(true)
     setFetchError('')
+    setMultiPreviews([])
     setPreview(null)
-    try {
-      const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(normalised)}`)
-      if (!res.ok) throw new Error('fetch failed')
-      const data = await res.json()
-      setPreview({ url: normalised, ...data })
-    } catch (err) {
-      console.log('[v0] fetch-meta error:', err)
-      setFetchError('Could not auto-fetch — you can still save manually.')
-      setPreview({ url: normalised, title: normalised, description: '', thumbnail: '' })
-    } finally {
+
+    if (urls.length === 1) {
+      // Single URL — existing behaviour
+      const normalised = urls[0]
+      setUrl(normalised)
+      try {
+        const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(normalised)}`)
+        if (!res.ok) throw new Error('fetch failed')
+        const data = await res.json()
+        setPreview({ url: normalised, ...data })
+      } catch {
+        setFetchError('Could not auto-fetch — you can still save manually.')
+        setPreview({ url: normalised, title: normalised, description: '', thumbnail: '' })
+      } finally {
+        setFetching(false)
+      }
+    } else {
+      // Multiple URLs — fetch all in parallel
+      setUrl(`${urls.length} links detected`)
+      const results = await Promise.all(
+        urls.map(async (u) => {
+          try {
+            const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(u)}`)
+            if (!res.ok) throw new Error('fetch failed')
+            const data = await res.json()
+            return { url: u, ...data, selected: true }
+          } catch {
+            return { url: u, title: u, description: '', thumbnail: '', favicon: '', selected: true }
+          }
+        })
+      )
+      setMultiPreviews(results)
       setFetching(false)
     }
   }
 
   async function handleSave() {
+    // Multi-link save
+    if (multiPreviews.length > 0) {
+      const toSave = multiPreviews.filter((p) => p.selected)
+      const created = await Promise.all(
+        toSave.map((p) =>
+          createItemAction({
+            category,
+            folderId: selectedFolderForItem,
+            url: p.url ?? '',
+            title: p.title || p.url || '',
+            description: p.description || undefined,
+            thumbnail: p.thumbnail || undefined,
+            favicon: p.favicon || undefined,
+          })
+        )
+      )
+      setAllItems((prev) => [...(created.filter(Boolean) as Cur8Item[]), ...prev])
+      closeModal()
+      return
+    }
+    // Single-link save
     if (!preview) return
     const created = await createItemAction({
       category,
@@ -161,10 +232,7 @@ export default function Cur8Category({ category }: Props) {
       favicon: preview.favicon || undefined,
     })
     setAllItems((prev) => [created as Cur8Item, ...prev])
-    setShowAdd(false)
-    setUrl('')
-    setPreview(null)
-    setSelectedFolderForItem(undefined)
+    closeModal()
   }
 
   async function handleDelete(id: string) {
@@ -191,6 +259,7 @@ export default function Cur8Category({ category }: Props) {
     setShowAdd(false)
     setUrl('')
     setPreview(null)
+    setMultiPreviews([])
     setFetchError('')
     setSelectedFolderForItem(undefined)
   }
@@ -245,12 +314,14 @@ export default function Cur8Category({ category }: Props) {
         </div>
       </div>
 
-      {/* ── Body: sidebar + content ── */}
-      <div className="mx-auto flex max-w-5xl gap-6 px-5 py-5 sm:px-8">
+      {/* ── Three-panel body ── */}
+      <div className="flex h-[calc(100vh-160px)] overflow-hidden">
 
-        {/* Folders sidebar */}
-        <aside className="w-48 shrink-0">
-          <div className="sticky top-6">
+        {/* Panel 1: Folders + saved items list */}
+        <div className="flex w-64 shrink-0 flex-col border-r overflow-hidden" style={{ borderColor: 'rgba(13,61,58,0.08)', backgroundColor: '#f7faf7' }}>
+
+        {/* Folders header */}
+        <div className="px-3 pt-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6b8884' }}>
                 Folders
@@ -340,82 +411,176 @@ export default function Cur8Category({ category }: Props) {
                 </p>
               )}
             </nav>
-          </div>
-        </aside>
+        </div>{/* end folders header */}
 
-        {/* ── Content grid ── */}
-        <section className="flex-1 min-w-0">
+        {/* Scrollable items list inside panel 1 */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {visibleItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
-                {Icon && <Icon size={26} className={cat.accent} />}
-              </div>
-              <p className="mt-4 font-serif text-lg font-semibold">Nothing here yet</p>
-              <p className="mt-1 text-sm" style={{ color: '#6b8884' }}>
-                {activeFolder
-                  ? 'No items in this folder. Save a link and assign it here.'
-                  : 'Paste a link and hit Save — the preview fetches automatically.'}
-              </p>
-              <button
-                onClick={() => setShowAdd(true)}
-                className="mt-5 rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
-                style={{ backgroundColor: '#0d3d3a' }}
-              >
-                Save your first {category} link
+            <div className="flex flex-col items-center justify-center py-10 text-center px-2">
+              <p className="font-serif text-sm font-semibold">Nothing here yet</p>
+              <p className="mt-1 text-xs" style={{ color: '#6b8884' }}>Save a link to get started</p>
+              <button onClick={() => setShowAdd(true)} className="mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white" style={{ backgroundColor: '#0d3d3a' }}>
+                Save link
               </button>
             </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <AnimatePresence>
-                {visibleItems.map((item, i) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ delay: i * 0.04 }}
-                    className="group relative overflow-hidden rounded-2xl border bg-white transition hover:-translate-y-0.5 hover:shadow-md"
-                    style={{ borderColor: 'rgba(13,61,58,0.10)' }}
-                  >
-                    {/* Thumbnail — falls back to derived YouTube thumb if stored one is missing */}
-                    {(() => {
-                      const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
-                      return thumb ? (
-                        <img src={thumb} alt={item.title}
-                          className="h-36 w-full object-cover"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display', 'flex') }} />
-                      ) : null
-                    })()}
-                    <div className={`${getThumbnailFromUrl(item.url, item.thumbnail) ? 'hidden' : 'flex'} h-36 w-full items-center justify-center bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
-                      {Icon && <Icon size={32} className={cat.accent} />}
-                    </div>
+          ) : visibleItems.map((item) => {
+            const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+            const isActive = selectedItem?.id === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelectedItem(isActive ? null : item)}
+                className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-white"
+                style={{ backgroundColor: isActive ? 'white' : 'transparent', boxShadow: isActive ? '0 1px 6px rgba(13,61,58,0.08)' : 'none' }}
+              >
+                {thumb ? (
+                  <img src={thumb} alt="" className="h-9 w-14 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <div className={`flex h-9 w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
+                    {Icon && <Icon size={14} className={cat.accent} />}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-1 text-xs font-semibold" style={{ color: '#1a2e2b' }}>{item.title}</p>
+                  <p className="truncate text-xs" style={{ color: '#6b8884' }}>
+                    {(() => { try { return new URL(item.url).hostname.replace('www.', '') } catch { return item.url } })()}
+                  </p>
+                </div>
+              </button>
+            )
+          })}
+        </div>
 
-                    {/* Folder badge */}
-                    {item.folderId && (
-                      <div className="absolute left-2 top-2">
-                        <span className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-semibold text-white backdrop-blur-sm"
-                          style={{ backgroundColor: 'rgba(13,148,136,0.85)' }}>
-                          <Folder size={10} />
-                          {folders.find((f) => f.id === item.folderId)?.name}
-                        </span>
+        </div>{/* end panel 1 */}
+
+        {/* Panel 2: Centre — media preview */}
+        <div className="flex flex-1 flex-col overflow-hidden" style={{ backgroundColor: '#f2f5f2' }}>
+          {selectedItem ? (
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Embed or thumbnail */}
+              <div className="relative w-full" style={{ paddingTop: '56.25%', backgroundColor: '#0d3d3a' }}>
+                {(() => {
+                  const ytId = extractYouTubeId(selectedItem.url)
+                  if (ytId) {
+                    return (
+                      <iframe
+                        className="absolute inset-0 h-full w-full"
+                        src={`https://www.youtube.com/embed/${ytId}?autoplay=0`}
+                        title={selectedItem.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    )
+                  }
+                  const thumb = getThumbnailFromUrl(selectedItem.url, selectedItem.thumbnail)
+                  return thumb ? (
+                    <img src={thumb} alt={selectedItem.title} className="absolute inset-0 h-full w-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {Icon && <Icon size={40} className={cat.accent} />}
+                    </div>
+                  )
+                })()}
+              </div>
+              {/* Item details */}
+              <div className="flex-1 overflow-y-auto p-5">
+                <h2 className="font-serif text-xl font-bold leading-snug" style={{ color: '#1a2e2b' }}>{selectedItem.title}</h2>
+                {selectedItem.description && (
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: '#6b8884' }}>{selectedItem.description}</p>
+                )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <a
+                    href={selectedItem.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white"
+                    style={{ backgroundColor: tileStyle.accent }}
+                  >
+                    <ExternalLink size={12} /> Open original
+                  </a>
+                  <button
+                    onClick={() => { setMenuItemId(selectedItem.id); setSelectedItem(null) }}
+                    className="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold"
+                    style={{ backgroundColor: '#eef2ee', color: '#1a2e2b' }}
+                  >
+                    <MoreVertical size={12} /> More
+                  </button>
+                </div>
+                <p className="mt-3 text-xs" style={{ color: '#6b8884' }}>
+                  {(() => { try { return new URL(selectedItem.url).hostname.replace('www.', '') } catch { return selectedItem.url } })()}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center px-8">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
+                {Icon && <Icon size={28} className={cat.accent} />}
+              </div>
+              <p className="font-serif text-lg font-semibold" style={{ color: '#1a2e2b' }}>Select something to preview</p>
+              <p className="text-sm" style={{ color: '#6b8884' }}>Tap any saved item on the left to play or read it here</p>
+            </div>
+          )}
+        </div>{/* end panel 2 */}
+
+        {/* Panel 3: Right — thumbnail grid */}
+        <div className="w-56 shrink-0 overflow-y-auto border-l p-3" style={{ borderColor: 'rgba(13,61,58,0.08)', backgroundColor: '#f7faf7' }}>
+          <p className="mb-2 px-1 text-xs font-bold uppercase tracking-widest" style={{ color: '#6b8884' }}>All saved</p>
+          {visibleItems.length === 0 ? (
+            <p className="px-1 text-xs italic" style={{ color: '#6b8884' }}>Nothing yet</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5">
+              {visibleItems.map((item) => {
+                const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+                const isActive = selectedItem?.id === item.id
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedItem(isActive ? null : item)}
+                    className="group relative overflow-hidden rounded-xl transition"
+                    style={{ outline: isActive ? `2px solid ${tileStyle.accent}` : 'none', outlineOffset: 2 }}
+                    title={item.title}
+                  >
+                    {thumb ? (
+                      <img src={thumb} alt={item.title} className="h-16 w-full object-cover" />
+                    ) : (
+                      <div className={`flex h-16 w-full items-center justify-center bg-gradient-to-br ${cat.tileFrom} ${cat.tileTo}`}>
+                        {Icon && <Icon size={18} className={cat.accent} />}
                       </div>
                     )}
-
-                    <div className="p-4">
-                      <p className="line-clamp-2 text-sm font-semibold leading-snug"
-                        style={{ color: '#1a2e2b' }}>
-                        {item.title}
-                      </p>
-                      {item.description && (
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed"
-                          style={{ color: '#6b8884' }}>
-                          {item.description}
-                        </p>
-                      )}
-                      <p className="mt-2 truncate text-xs" style={{ color: '#6b8884' }}>
-                        {(() => { try { return new URL(item.url).hostname.replace('www.', '') } catch { return item.url } })()}
-                      </p>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent p-1.5">
+                      <p className="line-clamp-1 text-xs font-semibold text-white">{item.title}</p>
                     </div>
+                    {/* Three-dot menu trigger */}
+                    <div className="absolute right-1 top-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuItemId(menuItemId === item.id ? null : item.id); setMoveItemId(null) }}
+                        className="flex h-5 w-5 items-center justify-center rounded-md bg-white/80"
+                      >
+                        <MoreVertical size={10} className="text-slate-600" />
+                      </button>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>{/* end panel 3 */}
+
+      </div>{/* end three-panel body */}
+
+      {/* ── Hidden: keep context menus working ── */}
+      <div className="hidden">
+        {visibleItems.map((item, i) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ delay: i * 0.04 }}
+            className="group relative overflow-hidden rounded-2xl border bg-white"
+            style={{ borderColor: 'rgba(13,61,58,0.10)' }}
+          >
+            <div className="p-4">
+              <p className="line-clamp-2 text-sm font-semibold" style={{ color: '#1a2e2b' }}>{item.title}</p>
+            </div>
 
                     {/* Three-dot context menu */}
                     <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
@@ -501,12 +666,8 @@ export default function Cur8Category({ category }: Props) {
                         )}
                       </AnimatePresence>
                     </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          )}
-        </section>
+          </motion.div>
+        ))}
       </div>
 
       {/* ── Add link modal ── */}
@@ -534,25 +695,26 @@ export default function Cur8Category({ category }: Props) {
 
               {/* URL input + fetch */}
               <div className="flex gap-2">
-                <input
-                  type="url"
+                <textarea
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleFetch() }}
-                  placeholder="Paste a link..."
-                  className="min-w-0 flex-1 rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) { e.preventDefault(); handleFetch() } }}
+                  placeholder={`Paste one link, or multiple links — one per line`}
+                  rows={2}
+                  className="min-w-0 flex-1 resize-none rounded-xl border px-4 py-3 text-sm outline-none focus:ring-2"
                   style={{ borderColor: 'rgba(13,61,58,0.12)' }}
                   autoFocus
                 />
                 <button
                   onClick={handleFetch}
                   disabled={fetching || !url.trim()}
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                  className="flex shrink-0 items-center gap-1.5 self-stretch rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-50"
                   style={{ backgroundColor: '#0d3d3a' }}
                 >
                   {fetching ? <Loader2 size={14} className="animate-spin" /> : 'Fetch'}
                 </button>
               </div>
+              <p className="mt-1 text-xs" style={{ color: '#6b8884' }}>Tip: paste multiple links on separate lines to save them all at once</p>
 
               {fetchError && <p className="mt-2 text-xs text-amber-600">{fetchError}</p>}
 
@@ -588,7 +750,52 @@ export default function Cur8Category({ category }: Props) {
                 </div>
               )}
 
-              {/* Preview card */}
+              {/* Multi-link preview list */}
+              {multiPreviews.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-semibold" style={{ color: '#6b8884' }}>
+                    {multiPreviews.filter(p => p.selected).length} of {multiPreviews.length} links selected — tap to deselect
+                  </p>
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                    {multiPreviews.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setMultiPreviews(prev => prev.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))}
+                        className="flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition"
+                        style={{
+                          borderColor: p.selected ? '#5a9e84' : 'rgba(13,61,58,0.10)',
+                          backgroundColor: p.selected ? '#f0f7f4' : '#fafafa',
+                          opacity: p.selected ? 1 : 0.5,
+                        }}
+                      >
+                        {p.thumbnail ? (
+                          <img src={p.thumbnail} alt="" className="h-10 w-16 shrink-0 rounded-lg object-cover" />
+                        ) : (
+                          <div className="flex h-10 w-16 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: '#eef2ee' }}>
+                            <Globe size={14} color="#5a9e84" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold" style={{ color: '#1a2e2b' }}>{p.title || p.url}</p>
+                          <p className="truncate text-xs" style={{ color: '#6b8884' }}>{String(p.url ?? '').replace(/^https?:\/\//, '')}</p>
+                        </div>
+                        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: p.selected ? '#5a9e84' : '#e0e0e0' }}>
+                          <Check size={11} color="white" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleSave}
+                    className="mt-2 w-full rounded-xl py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                    style={{ backgroundColor: '#0d3d3a' }}
+                  >
+                    Save {multiPreviews.filter(p => p.selected).length} links to {cat.displayName}
+                  </button>
+                </div>
+              )}
+
+              {/* Single preview card */}
               {preview && (
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
