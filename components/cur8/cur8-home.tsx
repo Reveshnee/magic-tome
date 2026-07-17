@@ -362,9 +362,10 @@ export default function Cur8Home() {
                       {Icon && <Icon size={9} color="#fff" />}
                       <span style={{ fontSize: 9, fontWeight: 700, color: '#fff' }}>{count} saved</span>
                     </div>
-                    <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
-                      <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>{cat.description}</p>
-                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 26, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>{displayName(cat.name)}</h3>
+                    <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, textAlign: 'center' }}>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 30, fontWeight: 700, color: '#f5f0e8', margin: '0 0 3px', lineHeight: 1.1, textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>{displayName(cat.name)}</h3>
+                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, margin: '0 0 6px' }}>{cat.area}</p>
+                      <p style={{ fontSize: 9.5, color: 'rgba(245,240,232,0.55)', margin: 0, letterSpacing: '0.02em' }}>{cat.description}</p>
                     </div>
                   </motion.div>
                 </Link>
@@ -396,9 +397,10 @@ export default function Cur8Home() {
                     {count > 0 && (
                       <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 9, fontWeight: 700, backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(4px)', color: '#f5f0e8', borderRadius: 50, padding: '2px 8px' }}>{count}</div>
                     )}
-                    <div style={{ position: 'absolute', bottom: 12, left: 14, right: 10 }}>
-                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 700, color: 'var(--c-cream)', margin: 0, marginBottom: 2, lineHeight: 1.2 }}>{displayName(cat.name)}</h3>
-                      <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>{cat.description}</p>
+                    <div style={{ position: 'absolute', bottom: 10, left: 14, right: 10 }}>
+                      <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 14, fontWeight: 700, color: 'var(--c-cream)', margin: '0 0 1px', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{displayName(cat.name)}</h3>
+                      <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: accent, margin: '0 0 3px' }}>{cat.area}</p>
+                      <p style={{ fontSize: 8.5, color: 'rgba(245,240,232,0.5)', margin: 0, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.description}</p>
                     </div>
                   </motion.div>
                 </Link>

@@ -574,19 +574,20 @@ export default function Cur8Category({ category }: Props) {
           </div>
         </div>
         {/* Title */}
-        <div style={{ position: 'absolute', bottom: 10, left: 16, right: 16, display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>{gardenName}</h1>
+        <div style={{ position: 'absolute', bottom: 12, left: 16, right: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+            <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 28, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{gardenName}</h1>
             <button
               onClick={openRename}
               aria-label="Rename this garden"
               title="Rename this garden"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 8, background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--c-cream)', cursor: 'pointer', backdropFilter: 'blur(8px)' }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 8, background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--c-cream)', cursor: 'pointer', backdropFilter: 'blur(8px)', flexShrink: 0 }}
             >
-              <Pencil size={12} />
+              <Pencil size={11} />
             </button>
           </div>
-          <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0 }}>{cat.description} · {catItems.length} saved</p>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tileStyle.accent, margin: '0 0 5px' }}>{cat.area}</p>
+          <p style={{ fontSize: 9.5, color: 'rgba(245,240,232,0.5)', margin: 0 }}>{cat.description} · {catItems.length} saved</p>
         </div>
       </div>
 
