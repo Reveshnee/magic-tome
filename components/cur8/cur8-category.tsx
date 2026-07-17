@@ -121,6 +121,26 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
   return 'iframe'
 }
 
+// Files from Google Drive / Android often arrive with an empty or generic MIME
+// type. Infer a real one from the filename extension so uploads are accepted,
+// videos get thumbnails, and items classify into the right lane.
+const EXT_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', heic: 'image/heic', heif: 'image/heif',
+  mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', avi: 'video/x-msvideo', mkv: 'video/x-matroska', m4v: 'video/mp4', '3gp': 'video/3gpp',
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac',
+  pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  txt: 'text/plain', csv: 'text/csv', md: 'text/markdown',
+}
+function resolveMime(file: File): string {
+  const t = (file.type || '').toLowerCase()
+  // Trust real, specific types; ignore empty and generic octet-stream
+  if (t && t !== 'application/octet-stream' && t !== 'binary/octet-stream') return t
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return EXT_MIME[ext] ?? 'application/octet-stream'
+}
+
 // Classify an item into one of three lanes so the garden can auto-sort:
 // videos (far left) · images (centre moodboard/gallery) · docs & links (far right)
 type ContentKind = 'video' | 'image' | 'doc'
@@ -191,6 +211,8 @@ export default function Cur8Category({ category }: Props) {
   const [gardenPickItemId, setGardenPickItemId] = useState<string | null>(null)
   const [gardenPickMode, setGardenPickMode] = useState<'move' | 'copy'>('move')
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | null>(null)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -310,13 +332,23 @@ export default function Cur8Category({ category }: Props) {
         const label = fileArray.length > 1 ? `(${i + 1}/${fileArray.length}) ` : ''
         setUploadProgress(`${label}Starting ${file.name}…`)
 
+        // Resolve a real MIME type (Drive/Android files often have none)
+        const mime = resolveMime(file)
+        // Ensure the stored filename has a usable extension so previews & lane
+        // classification work even when the original name lacks one.
+        let safeName = file.name
+        if (!/\.[a-z0-9]{2,5}$/i.test(safeName)) {
+          const guessedExt = Object.entries(EXT_MIME).find(([, v]) => v === mime)?.[0]
+          if (guessedExt) safeName = `${safeName}.${guessedExt}`
+        }
+
         // Client-side direct upload — streams straight to Blob storage.
         // multipart:true splits big files into parallel parts (handles large videos).
-        const blob = await upload(`cur8/${file.name}`, file, {
+        const blob = await upload(`cur8/${safeName}`, file, {
           access: 'private',
           handleUploadUrl: '/api/cur8/upload',
           multipart: true,
-          contentType: file.type || undefined,
+          contentType: mime,
           onUploadProgress: ({ percentage }) => {
             setUploadProgress(`${label}Uploading ${file.name} — ${Math.round(percentage)}%`)
           },
@@ -326,12 +358,12 @@ export default function Cur8Category({ category }: Props) {
         const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
 
         // Work out a thumbnail: images use themselves; videos get a captured frame
-        let thumbnail: string | undefined = file.type.startsWith('image/') ? url : undefined
-        if (file.type.startsWith('video/')) {
+        let thumbnail: string | undefined = mime.startsWith('image/') ? url : undefined
+        if (mime.startsWith('video/')) {
           setUploadProgress(`${label}Making thumbnail for ${file.name}…`)
-          const thumbBlob = await generateVideoThumbnail(file)
+          const thumbBlob = await generateVideoThumbnail(file).catch(() => null)
           if (thumbBlob) {
-            const thumbUpload = await upload(`cur8/thumbs/${Date.now()}-${file.name}.jpg`, thumbBlob, {
+            const thumbUpload = await upload(`cur8/thumbs/${Date.now()}-${safeName}.jpg`, thumbBlob, {
               access: 'private',
               handleUploadUrl: '/api/cur8/upload',
               contentType: 'image/jpeg',
@@ -345,7 +377,7 @@ export default function Cur8Category({ category }: Props) {
           folderId: selectedFolderForItem,
           url,
           title,
-          description: `${file.type || 'file'} · ${(file.size / 1024).toFixed(0)} KB`,
+          description: `${mime} · ${(file.size / 1024).toFixed(0)} KB`,
           thumbnail,
         })
         saved.push(item)
@@ -638,18 +670,32 @@ export default function Cur8Category({ category }: Props) {
     )
   }
 
-  // Reusable three-dot context menu, shared by every lane (videos, images, docs)
-  function renderItemMenu(item: Cur8Item, align: 'left' | 'right' = 'right') {
+  // Single three-dot context menu rendered as a FIXED overlay so it is never
+  // clipped by the scrolling panels. Positioned at the clicked button's coords.
+  function renderItemMenu() {
+    const item = allItems.find((i) => i.id === menuItemId)
+    if (!item || !menuAnchor) return null
     const otherGardens = CATEGORIES.filter((c) => c.name !== category)
+    const MENU_W = 200
+    const MENU_H = 340
+    // Clamp to viewport; flip up/left near edges
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 768
+    const left = Math.min(Math.max(8, menuAnchor.x - MENU_W), vw - MENU_W - 8)
+    const openUp = menuAnchor.y + MENU_H > vh
+    const top = openUp ? Math.max(8, menuAnchor.y - MENU_H) : menuAnchor.y + 6
     return (
-      <AnimatePresence>
-        {menuItemId === item.id && (
+      <>
+        {/* Click-catcher so the next click anywhere closes the menu */}
+        <div onClick={() => { setMenuItemId(null); setMoveItemId(null); setGardenPickItemId(null) }}
+          style={{ position: 'fixed', inset: 0, zIndex: 200 }} />
+        <AnimatePresence>
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             onClick={(e) => e.stopPropagation()}
-            style={{ position: 'absolute', ...(align === 'right' ? { right: 4 } : { left: 4 }), top: 40, zIndex: 40, width: 190, borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}
+            style={{ position: 'fixed', left, top, zIndex: 201, width: MENU_W, borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden', maxHeight: MENU_H, overflowY: 'auto' }}
           >
             {moveItemId === item.id ? (
               <div style={{ padding: 8 }}>
@@ -733,12 +779,44 @@ export default function Cur8Category({ category }: Props) {
               </>
             )}
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>
+      </>
     )
   }
 
-  function toggleItemMenu(id: string) {
+  // Folder options menu (duplicate / delete), fixed overlay so it isn't clipped
+  function renderFolderMenu() {
+    if (!menuFolderId || !folderMenuAnchor) return null
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024
+    const left = Math.min(folderMenuAnchor.x, vw - 178)
+    const top = folderMenuAnchor.y + 6
+    return (
+      <>
+        <div onClick={() => setMenuFolderId(null)} style={{ position: 'fixed', inset: 0, zIndex: 200 }} />
+        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', left, top, zIndex: 201, width: 170, borderRadius: 12, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+          <button onClick={() => handleDuplicateFolder(menuFolderId!)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+            <Copy size={12} /> Duplicate folder
+          </button>
+          <button onClick={() => { deleteFolder(menuFolderId!); setMenuFolderId(null) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#e05050', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(224,80,80,0.1)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+            <Trash2 size={12} /> Delete folder
+          </button>
+        </motion.div>
+      </>
+    )
+  }
+
+  function toggleItemMenu(id: string, e: React.MouseEvent) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    // Anchor to the right edge of the button, just below it
+    setMenuAnchor({ x: rect.right, y: rect.bottom })
     setMenuItemId(menuItemId === id ? null : id)
     setMoveItemId(null)
     setGardenPickItemId(null)
@@ -846,30 +924,14 @@ export default function Cur8Category({ category }: Props) {
               style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
               {f.name}
             </button>
-            <button onClick={() => setMenuFolderId(menuFolderId === f.id ? null : f.id)} title="Folder options"
+            <button onClick={(e) => {
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                setFolderMenuAnchor({ x: r.left, y: r.bottom })
+                setMenuFolderId(menuFolderId === f.id ? null : f.id)
+              }} title="Folder options"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.4)', display: 'flex', padding: '0 2px' }}>
               <MoreVertical size={12} />
             </button>
-            <AnimatePresence>
-              {menuFolderId === f.id && (
-                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ position: 'absolute', left: 0, top: 30, zIndex: 40, width: 170, borderRadius: 12, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
-                  <button onClick={() => handleDuplicateFolder(f.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                    <Copy size={12} /> Duplicate folder
-                  </button>
-                  <button onClick={() => { deleteFolder(f.id); setMenuFolderId(null) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#e05050', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(224,80,80,0.1)')}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                    <Trash2 size={12} /> Delete folder
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         ))}
         {showNewFolder ? (
@@ -934,12 +996,11 @@ export default function Cur8Category({ category }: Props) {
                         <p style={{ position: 'absolute', bottom: 4, left: 4, right: 4, fontSize: 8, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id) }}
+                        onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
                         title="Options"
                         style={{ position: 'absolute', top: 3, right: 3, zIndex: 10, background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 6, color: '#fff', display: 'flex', alignItems: 'center' }}>
                         <MoreVertical size={12} />
                       </button>
-                      {renderItemMenu(item, 'right')}
                     </div>
                   )
                 })}
@@ -988,12 +1049,11 @@ export default function Cur8Category({ category }: Props) {
                           <p style={{ position: 'absolute', bottom: 5, left: 6, right: 6, fontSize: 9, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
                         </div>
                         <button
-                          onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id) }}
+                          onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
                           title="Options"
                           style={{ position: 'absolute', top: 5, right: 5, zIndex: 10, background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 6, color: '#fff', display: 'flex', alignItems: 'center' }}>
                           <MoreVertical size={12} />
                         </button>
-                        {renderItemMenu(item, 'right')}
                       </div>
                     )
                   })}
@@ -1108,13 +1168,12 @@ export default function Cur8Category({ category }: Props) {
                     </div>
                     {/* Three-dot menu */}
                     <button
-                      onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id) }}
+                      onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
                       style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 2, borderRadius: 6, color: 'rgba(245,240,232,0.35)', display: 'flex', alignItems: 'center' }}
                     >
                       <MoreVertical size={13} />
                     </button>
                   </div>
-                  {renderItemMenu(item, 'right')}
                 </div>
               )
             })}
@@ -1159,7 +1218,7 @@ export default function Cur8Category({ category }: Props) {
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.mp4,.mp3"
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.mov,.webm,.mkv,.avi,.m4v,.3gp"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   if (e.target.files?.length) {
@@ -1251,6 +1310,10 @@ export default function Cur8Category({ category }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Item & folder context menus (fixed overlays, never clipped) ── */}
+      {renderItemMenu()}
+      {renderFolderMenu()}
 
       {/* ── Reflections drawer ── */}
       <CategoryReflections

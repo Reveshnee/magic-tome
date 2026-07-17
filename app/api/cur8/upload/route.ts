@@ -37,6 +37,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           'text/plain',
           'text/csv',
           'text/markdown',
+          // Google Drive / Android downloads often report a generic or empty
+          // MIME type — allow it so those uploads don't get rejected.
+          'application/octet-stream',
+          'application/zip',
+          'binary/octet-stream',
         ],
       }),
       // Fires from Vercel's servers after the upload finishes. Not used for
