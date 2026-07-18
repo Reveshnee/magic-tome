@@ -4,6 +4,7 @@ import {
   ArrowLeft, Home, Layers, PlusCircle, Search, Sparkles, Brain, Leaf,
   Headphones, Wind, Smartphone, FolderOpen, Share2, Pencil, Bookmark,
   ClipboardPaste, Shuffle, Target, Paperclip, CheckSquare, HelpCircle,
+  ShieldCheck, GitBranch, Download, Database, Cloud, Lock,
 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -21,6 +22,16 @@ const HAVENS = [
   { name: 'Ember', area: 'Inspiration', holds: 'Mood, quotes & things that spark' },
   { name: 'Bloom', area: 'Entertainment', holds: 'Music, shows & pure fun' },
   { name: 'The Tide', area: 'Document Hub', holds: 'SOPs, docs & everything else' },
+]
+
+// The services Cur8 is connected to, in plain language.
+const POWERS = [
+  { label: 'Neon database', role: 'Your vault. Holds every saved item, brain-dump note, reflection and folder. This is where your content actually lives.' },
+  { label: 'Vercel Blob', role: 'Safe storage for pictures, thumbnails and any files you upload, so previews keep working over time.' },
+  { label: 'Sign-in (Better Auth)', role: 'Keeps your haven private — only you, signed in, can see your things.' },
+  { label: 'AI helper', role: 'Powers the Summary, Listen and AI insight features that make sense of what you save.' },
+  { label: 'YouTube key', role: 'Lets you import a whole YouTube playlist at once.' },
+  { label: 'Email to your tools', role: 'Brain-dump thoughts can be emailed to yourself or mem.ai from your own email app.' },
 ]
 
 const GOLD = '#c9a04a'
@@ -249,6 +260,54 @@ export default function GuidePage() {
             <Step n={2}>On Android: tap the browser menu and choose <Term>Add to Home screen</Term>. On iPhone: tap Share, then <Term>Add to Home Screen</Term>.</Step>
             <Step n={3}>Now it opens full-screen from your home screen — with the red &amp; gold koi icon — and updates itself automatically.</Step>
             <Tip>Adding it to your home screen is also what unlocks the &ldquo;Share to Cur8&rdquo; option inside other apps.</Tip>
+          </Section>
+
+          {/* Backup & safety */}
+          <Section icon={<ShieldCheck size={19} />} tint={GOLD} kicker="Peace of mind" title="Keeping Cur8 safe">
+            <p style={{ fontSize: 14, lineHeight: 1.6, color: MUTED, margin: 0 }}>
+              Cur8 is really three separate things, and it helps to know each one is safe on its own:
+              the <Term>recipe</Term> (the code that builds the app), the <Term>live site</Term> (what you visit),
+              and your <Term>content</Term> (docs, links, notes — kept in the Neon vault). Here&apos;s how to protect all three.
+            </p>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: CREAM, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 7 }}><GitBranch size={15} style={{ color: GOLD }} /> Back up the recipe to GitHub (best — do once)</p>
+              <Step n={1}>In the v0 editor, open <Term>Settings</Term> (top-right) and go to <Term>Git</Term>.</Step>
+              <Step n={2}>Connect your <Term>GitHub</Term> account and let it create a repository for Cur8.</Step>
+              <Step n={3}>From then on, every change is copied to GitHub automatically — a living backup of the whole recipe.</Step>
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: CREAM, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 7 }}><Download size={15} style={{ color: CORAL }} /> Or keep a copy on your computer</p>
+              <Step n={1}>In the editor, open the <Term>three-dot menu</Term> (top-right of the code view) and choose <Term>Download ZIP</Term>.</Step>
+              <Step n={2}>Save the ZIP somewhere safe, or email it to yourself so it&apos;s in your inbox. This is a snapshot frozen at that moment.</Step>
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: CREAM, margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: 7 }}><Database size={15} style={{ color: SAGE }} /> Your content is separate — and safe</p>
+              <Step n={1}>Everything you save lives in the <Term>Neon</Term> vault, not inside the app itself.</Step>
+              <Step n={2}>You can rebuild or re-publish the app and simply point it back at the same Neon vault — all your items reappear, nothing re-typed.</Step>
+              <Step n={3}>The one thing to never do is delete the Neon database itself. Keep that, and your content stays.</Step>
+            </div>
+            <Tip>Rule of thumb: the app can always be rebuilt from the recipe (GitHub / ZIP). Your actual saved things live in Neon. Protect both and you can&apos;t truly lose Cur8.</Tip>
+          </Section>
+
+          {/* What powers Cur8 */}
+          <Section icon={<Cloud size={19} />} tint={SAGE} kicker="Under the hood" title="What Cur8 is connected to">
+            <p style={{ fontSize: 14, lineHeight: 1.6, color: MUTED, margin: 0 }}>
+              You don&apos;t need to manage any of these day to day — but here&apos;s what&apos;s quietly powering things, in plain words.
+            </p>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {POWERS.map((p) => (
+                <div key={p.label} style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', padding: '10px 12px', backgroundColor: 'rgba(245,240,232,0.04)', border: `1px solid ${BORDER}`, borderRadius: 11 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: CREAM }}>{p.label}</span>
+                  <span style={{ fontSize: 12.5, lineHeight: 1.5, color: MUTED, flexBasis: '100%' }}>{p.role}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', backgroundColor: 'rgba(201,160,74,0.1)', border: `1px solid ${GOLD}33`, borderRadius: 12, padding: '10px 12px' }}>
+              <Lock size={15} style={{ color: GOLD, flexShrink: 0, marginTop: 2 }} />
+              <p style={{ fontSize: 13, lineHeight: 1.55, color: MUTED, margin: 0 }}>
+                Before Cur8 is ever opened up to other people, the sign-in security key should be strengthened — a quick, important step for a paid product.
+              </p>
+            </div>
           </Section>
 
           {/* Keep this guide */}
