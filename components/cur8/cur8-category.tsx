@@ -710,10 +710,25 @@ export default function Cur8Category({ category }: Props) {
 
     if (type === 'youtube') {
       const ytId = extractYouTubeId(item.url)
+      if (!ytId) {
+        // Fallback: no ID could be extracted — show a poster + open button
+        const poster = getThumbnailFromUrl(item.url, item.thumbnail)
+        return (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
+            {poster && <img src={poster} alt={item.title} style={{ maxWidth: 260, maxHeight: '50%', borderRadius: 14, objectFit: 'cover' }} />}
+            <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300 }}>{item.title}</p>
+            <a href={item.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 50, backgroundColor: '#c85a40', color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
+              Open on YouTube
+            </a>
+          </div>
+        )
+      }
+      // Use only the video ID — strip list/index params so YouTube's embed
+      // doesn't throw "An error occurred" for playlist-sourced videos.
       return (
         <iframe
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-          src={`https://www.youtube.com/embed/${ytId}?autoplay=0`}
+          src={`https://www.youtube.com/embed/${ytId}?autoplay=0&rel=0`}
           title={item.title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -1018,6 +1033,27 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
+      {/* ── Persistent back button — only on mobile when the video is fullscreen
+          and the banner is hidden, so the user always has a way to navigate back ── */}
+      {mediaFocus && (
+        <Link
+          href="/cur8"
+          style={{
+            position: 'fixed', top: 12, left: 12, zIndex: 180,
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '7px 14px', borderRadius: 50,
+            fontSize: 12, fontWeight: 700, color: '#f5f0e8',
+            textDecoration: 'none',
+            backgroundColor: 'rgba(10,30,27,0.85)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          }}
+        >
+          <ArrowLeft size={12} /> All havens
+        </Link>
+      )}
+
       {/* ── Banner ── */}
       <div style={{ position: 'relative', height: 150, flexShrink: 0, overflow: 'hidden', display: mediaFocus ? 'none' : 'block' }}>
         <Image src={tileStyle.image} alt={category} fill className="object-cover object-center" priority sizes="100vw" />
@@ -1246,94 +1282,84 @@ export default function Cur8Category({ category }: Props) {
                 {renderPreview(selectedItem)}
               </div>
 
-              {/* ── Summary modal overlay — floats above the video on BOTH mobile and desktop.
-                  The video stays at full size at all times; the summary is a centred modal
-                  with a dark scrim behind it. Tap the scrim or X to dismiss. ── */}
+              {/* ── Summary: slides in from the RIGHT edge as a full-height panel.
+                  The video is never resized — this is a fixed overlay.
+                  On mobile it's full-width. On desktop it's 380 px wide.
+                  Swipe/drag to close is handled by the backdrop click. ── */}
               <AnimatePresence>
                 {summaryOpen && (summaryLoading || summaryError || selectedItem.summary || connections.length > 0 || connectionsLoading) && (
                   <>
-                    {/* Scrim — tap to close */}
+                    {/* Backdrop — tap anywhere to dismiss */}
                     <motion.div
-                      key="summary-scrim"
+                      key="summary-backdrop"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       onClick={() => setSummaryOpen(false)}
-                      style={{
-                        position: 'fixed', inset: 0, zIndex: 290,
-                        backgroundColor: 'rgba(6,18,16,0.55)',
-                        backdropFilter: 'blur(2px)',
-                      }}
+                      style={{ position: 'fixed', inset: 0, zIndex: 290, backgroundColor: 'rgba(6,18,16,0.45)', backdropFilter: 'blur(1px)' }}
                     />
-                    {/* Modal card — use a non-motion wrapper to handle the CSS centering,
-                        so framer-motion only animates opacity/scale without fighting translate */}
-                    <div style={{
-                      position: 'fixed',
-                      top: '50%', left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      zIndex: 291,
-                      width: 'min(480px, 90vw)',
-                      maxHeight: '70vh',
-                      display: 'flex', flexDirection: 'column',
-                    }}>
+                    {/* Slide panel */}
                     <motion.div
-                      key="summary-modal"
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+                      key="summary-panel"
+                      initial={{ x: '100%' }}
+                      animate={{ x: 0 }}
+                      exit={{ x: '100%' }}
+                      transition={{ type: 'spring', stiffness: 340, damping: 36 }}
                       style={{
-                        flex: 1, display: 'flex', flexDirection: 'column',
+                        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 291,
+                        width: isMobile ? '100vw' : 380,
+                        display: 'flex', flexDirection: 'column',
                         backgroundColor: '#0a1e1b',
-                        border: `1px solid ${tileStyle.accent}44`,
-                        borderRadius: 20,
-                        boxShadow: '0 24px 80px rgba(0,0,0,0.75)',
-                        overflow: 'hidden',
-                        maxHeight: '70vh',
+                        borderLeft: `1px solid ${tileStyle.accent}33`,
+                        boxShadow: '-8px 0 48px rgba(0,0,0,0.6)',
                       }}
                     >
-                      {/* Modal header */}
-                      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
-                        <Sparkles size={13} color={tileStyle.accent} />
-                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: tileStyle.accent, flex: 1 }}>A gentle summary</span>
+                      {/* Panel header */}
+                      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '16px 18px', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
+                        <Sparkles size={14} color={tileStyle.accent} />
+                        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: tileStyle.accent, flex: 1 }}>A gentle summary</span>
                         {!summaryLoading && selectedItem.summary && (
-                          <button onClick={() => handleSummarise(selectedItem, true)} title="Refresh summary"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.07)', border: 'none', cursor: 'pointer' }}>
-                            <RotateCcw size={10} /> Refresh
+                          <button onClick={() => handleSummarise(selectedItem, true)} title="Refresh"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.07)', border: 'none', cursor: 'pointer' }}>
+                            <RotateCcw size={11} /> Refresh
                           </button>
                         )}
-                        <button onClick={() => setSummaryOpen(false)} title="Close summary"
-                          style={{ display: 'inline-flex', padding: 5, borderRadius: 50, color: 'rgba(245,240,232,0.55)', backgroundColor: 'rgba(245,240,232,0.07)', border: 'none', cursor: 'pointer' }}>
-                          <X size={14} />
+                        <button onClick={() => setSummaryOpen(false)} title="Close — slide back"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}>
+                          <X size={13} /> Close
                         </button>
                       </div>
 
-                      {/* Scrollable content — flex: 1 1 0 + minHeight: 0 lets it shrink
-                          within the parent's maxHeight constraint so long notes scroll */}
-                      <div style={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', padding: '16px 18px' }}>
+                      {/* Item title inside the panel so you know what you're reading */}
+                      <div style={{ flexShrink: 0, padding: '14px 18px 10px', borderBottom: '1px solid rgba(245,240,232,0.05)' }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{selectedItem.title}</p>
+                      </div>
+
+                      {/* Scrollable summary body */}
+                      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 32px' }}>
                         {summaryLoading ? (
-                          <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(245,240,232,0.6)', margin: 0, fontStyle: 'italic' }}>
-                            <Loader2 size={14} className="animate-spin" style={{ color: tileStyle.accent }} /> Taking a gentle look...
+                          <p style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'rgba(245,240,232,0.6)', margin: 0, fontStyle: 'italic' }}>
+                            <Loader2 size={15} className="animate-spin" style={{ color: tileStyle.accent }} /> Taking a gentle look...
                           </p>
                         ) : summaryError ? (
-                          <p style={{ fontSize: 13, color: '#e8b4a0', margin: 0 }}>{summaryError}</p>
+                          <p style={{ fontSize: 14, color: '#e8b4a0', margin: 0, lineHeight: 1.6 }}>{summaryError}</p>
                         ) : (
-                          <p style={{ fontSize: 13.5, lineHeight: 1.7, color: 'rgba(245,240,232,0.92)', margin: 0 }}>{selectedItem.summary}</p>
+                          <p style={{ fontSize: 15, lineHeight: 1.75, color: 'rgba(245,240,232,0.92)', margin: 0 }}>{selectedItem.summary}</p>
                         )}
 
                         {(connections.length > 0 || connectionsLoading) && (
-                          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(245,240,232,0.08)' }}>
-                            <p style={{ margin: '0 0 10px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#c9a84c', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid rgba(245,240,232,0.08)' }}>
+                            <p style={{ margin: '0 0 12px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#c9a84c', display: 'flex', alignItems: 'center', gap: 5 }}>
                               <Sparkles size={10} /> Also in your havens
                             </p>
                             {connectionsLoading ? (
-                              <p style={{ margin: 0, fontSize: 12, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic' }}>Finding connections...</p>
+                              <p style={{ margin: 0, fontSize: 13, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic' }}>Finding connections...</p>
                             ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {connections.map(({ item: conn, reason }) => (
-                                  <div key={conn.id}>
-                                    <span style={{ fontSize: 12.5, fontWeight: 600, color: '#f5f0e8', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.title}</span>
-                                    <span style={{ fontSize: 11, color: '#c9a84c', opacity: 0.75 }}>{conn.category} · {reason}</span>
+                                  <div key={conn.id} style={{ padding: '10px 12px', borderRadius: 10, backgroundColor: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.07)' }}>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#f5f0e8', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.title}</span>
+                                    <span style={{ fontSize: 11.5, color: '#c9a84c', opacity: 0.8 }}>{conn.category} · {reason}</span>
                                   </div>
                                 ))}
                               </div>
@@ -1342,7 +1368,6 @@ export default function Cur8Category({ category }: Props) {
                         )}
                       </div>
                     </motion.div>
-                    </div>{/* end position wrapper */}
                   </>
                 )}
               </AnimatePresence>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Lightbulb, Mic, MicOff, Send, Trash2, Mail, MessageCircle, X } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
@@ -18,6 +19,10 @@ const PROMPTS = [
 ]
 
 export default function GlobalReflect() {
+  const pathname = usePathname()
+  // Only show the floating Reflect button on the Cur8 hub (/cur8).
+  // On individual haven pages (/cur8/youtube etc.) the banner has its own Reflect button.
+  const isHubPage = pathname === '/cur8'
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
@@ -91,28 +96,29 @@ export default function GlobalReflect() {
 
   return (
     <>
-      {/* Floating Reflect button — sits beside the Brain Dump and Focus Sounds buttons */}
-      <motion.button
-        onClick={() => setOpen(true)}
-        whileTap={{ scale: 0.92 }}
-        aria-label="Reflections"
-        style={{
-          position: 'fixed',
-          // Position it in the bottom-right cluster, between Brain Dump (bottom) and Focus Sounds (above it)
-          bottom: 88,
-          right: 16,
-          zIndex: 110,
-          width: 50, height: 50, borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backgroundColor: `${ACCENT}22`,
-          border: `1px solid ${ACCENT}55`,
-          cursor: 'pointer',
-          backdropFilter: 'blur(12px)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-        }}
-      >
-        <Lightbulb size={20} color={ACCENT} />
-      </motion.button>
+      {/* Floating Reflect button — only shown on the Cur8 hub, not on haven pages */}
+      {isHubPage && (
+        <motion.button
+          onClick={() => setOpen(true)}
+          whileTap={{ scale: 0.92 }}
+          aria-label="Reflections"
+          style={{
+            position: 'fixed',
+            bottom: 88,
+            right: 16,
+            zIndex: 110,
+            width: 50, height: 50, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: `${ACCENT}22`,
+            border: `1px solid ${ACCENT}55`,
+            cursor: 'pointer',
+            backdropFilter: 'blur(12px)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+          }}
+        >
+          <Lightbulb size={20} color={ACCENT} />
+        </motion.button>
+      )}
 
       {/* Slide-in drawer */}
       <AnimatePresence>
