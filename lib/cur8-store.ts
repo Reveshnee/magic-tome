@@ -12,6 +12,8 @@ export interface Cur8Folder {
   id: string
   category: Category
   name: string
+  pinned?: boolean
+  sortOrder?: number
   createdAt: string
 }
 

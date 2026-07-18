@@ -31,6 +31,8 @@ export interface Cur8FolderDTO {
   id: string
   category: string
   name: string
+  pinned: boolean
+  sortOrder: number
   createdAt: string
 }
 
@@ -43,7 +45,7 @@ export async function getCur8Data(): Promise<{
 
   const [items, folders] = await Promise.all([
     db.select().from(cur8Item).where(eq(cur8Item.userId, userId)).orderBy(desc(cur8Item.savedAt)),
-    db.select().from(cur8Folder).where(eq(cur8Folder.userId, userId)).orderBy(desc(cur8Folder.createdAt)),
+    db.select().from(cur8Folder).where(eq(cur8Folder.userId, userId)).orderBy(desc(cur8Folder.pinned), cur8Folder.sortOrder, desc(cur8Folder.createdAt)),
   ])
 
   return {
@@ -64,6 +66,8 @@ export async function getCur8Data(): Promise<{
       id: f.id,
       category: f.category,
       name: f.name,
+      pinned: f.pinned,
+      sortOrder: f.sortOrder,
       createdAt: f.createdAt.toISOString(),
     })),
   }
@@ -254,7 +258,101 @@ export async function createFolder(category: string, name: string): Promise<Cur8
 
   await db.insert(cur8Folder).values({ id, userId, category, name, createdAt })
 
-  return { id, category, name, createdAt: createdAt.toISOString() }
+  return { id, category, name, pinned: false, sortOrder: 0, createdAt: createdAt.toISOString() }
+}
+
+// Rename a folder
+export async function renameFolder(folderId: string, name: string): Promise<boolean> {
+  const userId = await getUserId()
+  const trimmed = name.trim().slice(0, 60)
+  if (!trimmed) return false
+  await db
+    .update(cur8Folder)
+    .set({ name: trimmed })
+    .where(and(eq(cur8Folder.id, folderId), eq(cur8Folder.userId, userId)))
+  return true
+}
+
+// Pin / unpin a folder
+export async function pinFolder(folderId: string, pinned: boolean) {
+  const userId = await getUserId()
+  await db
+    .update(cur8Folder)
+    .set({ pinned })
+    .where(and(eq(cur8Folder.id, folderId), eq(cur8Folder.userId, userId)))
+}
+
+// Persist a new folder order. `orderedIds` is the full list in the desired order.
+export async function reorderFolders(orderedIds: string[]) {
+  const userId = await getUserId()
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db
+      .update(cur8Folder)
+      .set({ sortOrder: i })
+      .where(and(eq(cur8Folder.id, orderedIds[i]), eq(cur8Folder.userId, userId)))
+  }
+}
+
+// Copy a folder and all its items into ANOTHER garden/haven.
+export async function copyFolderToGarden(
+  folderId: string,
+  targetCategory: string,
+): Promise<{ folder: Cur8FolderDTO; items: Cur8ItemDTO[] } | null> {
+  const userId = await getUserId()
+  const [original] = await db
+    .select()
+    .from(cur8Folder)
+    .where(and(eq(cur8Folder.id, folderId), eq(cur8Folder.userId, userId)))
+  if (!original) return null
+
+  const newFolderId = randomUUID()
+  const createdAt = new Date()
+  await db.insert(cur8Folder).values({
+    id: newFolderId,
+    userId,
+    category: targetCategory,
+    name: original.name,
+    createdAt,
+  })
+
+  const sourceItems = await db
+    .select()
+    .from(cur8Item)
+    .where(and(eq(cur8Item.folderId, folderId), eq(cur8Item.userId, userId)))
+
+  const copied: Cur8ItemDTO[] = []
+  for (const src of sourceItems) {
+    const id = randomUUID()
+    const savedAt = new Date()
+    await db.insert(cur8Item).values({
+      id,
+      userId,
+      category: targetCategory,
+      folderId: newFolderId,
+      url: src.url,
+      title: src.title,
+      description: src.description,
+      thumbnail: src.thumbnail,
+      favicon: src.favicon,
+      savedAt,
+    })
+    copied.push({
+      id,
+      category: targetCategory,
+      folderId: newFolderId,
+      url: src.url,
+      title: src.title,
+      description: src.description ?? undefined,
+      thumbnail: src.thumbnail ?? undefined,
+      favicon: src.favicon ?? undefined,
+      savedAt: savedAt.toISOString(),
+    })
+  }
+
+  return {
+    folder: { id: newFolderId, category: targetCategory, name: original.name, pinned: false, sortOrder: 0, createdAt: createdAt.toISOString() },
+    items: copied,
+  }
 }
 
 // Duplicate a folder and every item inside it into a brand-new folder
@@ -318,7 +416,7 @@ export async function duplicateFolder(
   }
 
   return {
-    folder: { id: newFolderId, category: original.category, name: newName, createdAt: createdAt.toISOString() },
+    folder: { id: newFolderId, category: original.category, name: newName, pinned: false, sortOrder: 0, createdAt: createdAt.toISOString() },
     items: copied,
   }
 }

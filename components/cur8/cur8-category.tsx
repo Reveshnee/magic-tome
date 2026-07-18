@@ -8,7 +8,7 @@ import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
-  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight,
+  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, Pin,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -33,6 +33,10 @@ import {
   createFolder as createFolderAction,
   deleteFolder as deleteFolderAction,
   duplicateFolder as duplicateFolderAction,
+  renameFolder as renameFolderAction,
+  pinFolder as pinFolderAction,
+  reorderFolders as reorderFoldersAction,
+  copyFolderToGarden as copyFolderToGardenAction,
   moveItemToGarden as moveItemToGardenAction,
   copyItemToGarden as copyItemToGardenAction,
   markItemOpened,
@@ -246,6 +250,9 @@ export default function Cur8Category({ category }: Props) {
   const [gardenPickItemId, setGardenPickItemId] = useState<string | null>(null)
   const [gardenPickMode, setGardenPickMode] = useState<'move' | 'copy'>('move')
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
+  const [renameFolderId, setRenameFolderId] = useState<string | null>(null)
+  const [renameFolderDraft, setRenameFolderDraft] = useState('')
+  const [folderGardenPickId, setFolderGardenPickId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
   const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | null>(null)
   // Collapsible side panels — desktop only (mobile uses tab switcher instead)
@@ -720,6 +727,50 @@ export default function Cur8Category({ category }: Props) {
     }
   }
 
+  async function handleRenameFolder(folderId: string, name: string) {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setFolders((prev) => prev.map((f) => (f.id === folderId ? { ...f, name: trimmed } : f)))
+    setRenameFolderId(null)
+    await renameFolderAction(folderId, trimmed).catch(() => {})
+  }
+
+  async function handlePinFolder(folderId: string, pinned: boolean) {
+    setMenuFolderId(null)
+    setFolders((prev) => {
+      const next = prev.map((f) => (f.id === folderId ? { ...f, pinned } : f))
+      // Re-sort: pinned first, then existing order
+      return [...next].sort((a, b) => (a.pinned === b.pinned ? 0 : a.pinned ? -1 : 1))
+    })
+    await pinFolderAction(folderId, pinned).catch(() => {})
+  }
+
+  // Move a folder chip left or right within the current haven, then persist order.
+  async function handleReorderFolder(folderId: string, dir: -1 | 1) {
+    setMenuFolderId(null)
+    const list = folders.filter((f) => f.category === category)
+    const idx = list.findIndex((f) => f.id === folderId)
+    const target = idx + dir
+    if (idx < 0 || target < 0 || target >= list.length) return
+    const reordered = [...list]
+    const [moved] = reordered.splice(idx, 1)
+    reordered.splice(target, 0, moved)
+    // Merge back with folders from other havens untouched
+    const others = folders.filter((f) => f.category !== category)
+    setFolders([...reordered, ...others])
+    await reorderFoldersAction(reordered.map((f) => f.id)).catch(() => {})
+  }
+
+  async function handleCopyFolderToGarden(folderId: string, targetCategory: Category) {
+    setMenuFolderId(null)
+    setFolderGardenPickId(null)
+    const result = await copyFolderToGardenAction(folderId, targetCategory).catch(() => null)
+    if (result) {
+      setFolders((prev) => [result.folder as Cur8Folder, ...prev])
+      setAllItems((prev) => [...(result.items as Cur8Item[]), ...prev])
+    }
+  }
+
   // Move or copy an item into a different garden (category)
   async function handleSendToGarden(itemId: string, targetCategory: Category, mode: 'move' | 'copy') {
     setGardenPickItemId(null)
@@ -1072,19 +1123,72 @@ export default function Cur8Category({ category }: Props) {
         <div onClick={() => setMenuFolderId(null)} style={{ position: 'fixed', inset: 0, zIndex: 200 }} />
         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
           onClick={(e) => e.stopPropagation()}
-          style={{ position: 'fixed', left, top, zIndex: 201, width: 170, borderRadius: 12, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+          style={{ position: 'fixed', left, top, zIndex: 201, width: 190, borderRadius: 12, border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', overflow: 'hidden', maxHeight: 360, overflowY: 'auto' }}>
+          {folderGardenPickId === menuFolderId ? (
+            <div style={{ padding: 8 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,240,232,0.4)', padding: '0 4px 6px' }}>Copy folder to haven</p>
+              {CATEGORIES.filter((c) => c.name !== category).map((g) => (
+                <button key={g.name} onClick={() => handleCopyFolderToGarden(menuFolderId!, g.name as Category)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 8px', borderRadius: 8, fontSize: 11, cursor: 'pointer', border: 'none', backgroundColor: 'transparent', color: '#f5f0e8', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <Folder size={11} style={{ flexShrink: 0, opacity: 0.7 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(g.name)}</span>
+                </button>
+              ))}
+              <button onClick={() => setFolderGardenPickId(null)}
+                style={{ width: '100%', padding: '4px 8px', marginTop: 4, borderRadius: 8, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.4)', cursor: 'pointer', border: 'none', backgroundColor: 'transparent' }}>
+                Back
+              </button>
+            </div>
+          ) : (
+            <>
+          {(() => { const f = folders.find((x) => x.id === menuFolderId); const pinned = !!f?.pinned; return (
+            <button onClick={() => handlePinFolder(menuFolderId!, !pinned)}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+              <Pin size={12} /> {pinned ? 'Unpin folder' : 'Pin to top'}
+            </button>
+          ) })()}
+          <button onClick={() => { const f = folders.find((x) => x.id === menuFolderId); setRenameFolderDraft(f?.name ?? ''); setRenameFolderId(menuFolderId); setMenuFolderId(null) }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+            <Pencil size={12} /> Rename
+          </button>
+          <div style={{ display: 'flex', gap: 4, padding: '4px 9px' }}>
+            <button onClick={() => handleReorderFolder(menuFolderId!, -1)} title="Move left"
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '7px', borderRadius: 8, fontSize: 11, color: '#f5f0e8', background: 'rgba(245,240,232,0.06)', border: 'none', cursor: 'pointer' }}>
+              <ChevronLeft size={13} />
+            </button>
+            <button onClick={() => handleReorderFolder(menuFolderId!, 1)} title="Move right"
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '7px', borderRadius: 8, fontSize: 11, color: '#f5f0e8', background: 'rgba(245,240,232,0.06)', border: 'none', cursor: 'pointer' }}>
+              <ChevronRight size={13} />
+            </button>
+          </div>
+          <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
           <button onClick={() => handleDuplicateFolder(menuFolderId!)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-            <Copy size={12} /> Duplicate folder
+            <Copy size={12} /> Duplicate here
           </button>
+          <button onClick={() => setFolderGardenPickId(menuFolderId)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#f5f0e8', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+            <ArrowRightLeft size={12} /> Copy to haven
+          </button>
+          <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
           <button onClick={() => { deleteFolder(menuFolderId!); setMenuFolderId(null) }}
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 13px', fontSize: 12, color: '#e05050', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(224,80,80,0.1)')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
             <Trash2 size={12} /> Delete folder
           </button>
+            </>
+          )}
         </motion.div>
       </>
     )
@@ -1282,10 +1386,24 @@ export default function Cur8Category({ category }: Props) {
         </button>
         {folders.map((f) => {
           const folderCount = catItems.filter((i) => i.folderId === f.id).length
+          if (renameFolderId === f.id) {
+            return (
+              <div key={f.id} style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <input type="text" value={renameFolderDraft} onChange={(e) => setRenameFolderDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleRenameFolder(f.id, renameFolderDraft); if (e.key === 'Escape') setRenameFolderId(null) }}
+                  autoFocus
+                  style={{ border: `1px solid ${tileStyle.accent}`, borderRadius: 8, padding: '3px 8px', fontSize: 11, outline: 'none', width: 110, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
+                <button onClick={() => handleRenameFolder(f.id, renameFolderDraft)} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '3px 7px', cursor: 'pointer', color: '#fff', display: 'flex' }}>
+                  <Check size={11} />
+                </button>
+              </div>
+            )
+          }
           return (
           <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <button onClick={() => setActiveFolder(f.id)}
-              style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
+              {f.pinned && <Pin size={9} style={{ opacity: 0.85 }} />}
               {f.name} <span style={{ opacity: 0.6 }}>{folderCount}</span>
             </button>
             <button onClick={(e) => {
