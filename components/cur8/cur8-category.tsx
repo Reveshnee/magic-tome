@@ -274,8 +274,13 @@ export default function Cur8Category({ category }: Props) {
   // Collapsible side panels — desktop only (mobile uses tab switcher instead).
   // Start collapsed so the centre preview fills as much width as possible by
   // default — no need to manually hit Expand.
+  // Panels open by default on desktop, closed on mobile (mobile uses tab switcher instead).
+  // Start false to avoid SSR mismatch, then set correctly once client viewport is known.
   const [leftOpen, setLeftOpen] = useState(false)
   const [rightOpen, setRightOpen] = useState(false)
+  useEffect(() => {
+    if (!isMobile) { setLeftOpen(true); setRightOpen(true) }
+  }, [isMobile])
   // Desktop "full page" preview — hides both side panels + all chrome so the
   // media fills the whole window (the mobile experience, brought to laptop).
   const [expandedPreview, setExpandedPreview] = useState(false)
