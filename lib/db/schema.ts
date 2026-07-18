@@ -80,6 +80,7 @@ export const cur8Item = pgTable('cur8_item', {
   thumbnail: text('thumbnail'),
   favicon: text('favicon'),
   summary: text('summary'), // AI-generated warm summary, cached after first request
+  whySaved: text('whySaved'), // future-you context: "why I saved this"
   savedAt: timestamp('savedAt').notNull().defaultNow(),
   openedAt: timestamp('openedAt'),
 })
@@ -99,6 +100,22 @@ export const cur8Note = pgTable('cur8_note', {
   userId: text('userId').notNull(),
   body: text('body').notNull(),
   pinned: boolean('pinned').notNull().default(false),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
+
+// Attachments on brain-dump notes and reflections. An attachment can reference
+// an existing Cur8 item, another brain-dump note, or an uploaded device file.
+export const cur8Attachment = pgTable('cur8_attachment', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  parentType: text('parentType').notNull(), // 'note' | 'reflection'
+  parentId: text('parentId').notNull(),
+  kind: text('kind').notNull(), // 'item' | 'note' | 'file'
+  refId: text('refId'), // cur8_item.id or cur8_note.id when kind is 'item'/'note'
+  url: text('url'), // blob proxy url for files, or snapshot url for items
+  title: text('title').notNull(),
+  thumbnail: text('thumbnail'),
+  mimeType: text('mimeType'),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 

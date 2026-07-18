@@ -9,6 +9,7 @@ import {
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
   Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, Pin,
+  Mail, MessageCircle, Download,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -49,6 +50,8 @@ import {
 import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
 import CategoryReflections from '@/components/cur8/category-reflections'
+import ShareMenu from '@/components/cur8/share-menu'
+import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile } from '@/lib/cur8-share'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'graduation-cap': GraduationCap, briefcase: Briefcase, shirt: Shirt, heart: Heart,
@@ -216,9 +219,20 @@ export default function Cur8Category({ category }: Props) {
   const [url, setUrl] = useState('')
   const [fetching, setFetching] = useState(false)
   const [preview, setPreview] = useState<Partial<Cur8Item> | null>(null)
+  const [saveWhy, setSaveWhy] = useState('')
   const [multiPreviews, setMultiPreviews] = useState<(Partial<Cur8Item> & { selected: boolean })[]>([])
   const [selectedItem, setSelectedItem] = useState<Cur8Item | null>(null)
-  const [editItem, setEditItem] = useState<{ id: string; title: string; description: string } | null>(null)
+  const [editItem, setEditItem] = useState<{ id: string; title: string; description: string; whySaved: string } | null>(null)
+  const [toast, setToast] = useState('')
+  function flashToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(''), 1900)
+  }
+  // Resolve a stored (possibly relative proxy) URL to an absolute one for sharing.
+  function absoluteItemUrl(url: string) {
+    if (typeof window === 'undefined') return url
+    return url.startsWith('/') ? `${window.location.origin}${url}` : url
+  }
   const [savingEdit, setSavingEdit] = useState(false)
   // Multi-select
   const [selectMode, setSelectMode] = useState(false)
@@ -347,10 +361,11 @@ export default function Cur8Category({ category }: Props) {
     if (!title) return
     setSavingEdit(true)
     const description = editItem.description.trim()
+    const whySaved = editItem.whySaved.trim()
     // Optimistic update in the list and the open preview
-    setAllItems((prev) => prev.map((it) => (it.id === editItem.id ? { ...it, title, description } : it)))
-    setSelectedItem((prev) => (prev && prev.id === editItem.id ? { ...prev, title, description } : prev))
-    await updateItemAction(editItem.id, { title, description }).catch(() => {})
+    setAllItems((prev) => prev.map((it) => (it.id === editItem.id ? { ...it, title, description, whySaved } : it)))
+    setSelectedItem((prev) => (prev && prev.id === editItem.id ? { ...prev, title, description, whySaved } : prev))
+    await updateItemAction(editItem.id, { title, description, whySaved }).catch(() => {})
     setSavingEdit(false)
     setEditItem(null)
   }
@@ -693,6 +708,7 @@ export default function Cur8Category({ category }: Props) {
       url: preview.url!, title: preview.title || preview.url!,
       description: preview.description || undefined,
       thumbnail: preview.thumbnail || undefined, favicon: preview.favicon || undefined,
+      whySaved: saveWhy.trim() || undefined,
     })
     setAllItems((prev) => [created as Cur8Item, ...prev])
     closeModal()
@@ -832,6 +848,7 @@ export default function Cur8Category({ category }: Props) {
     setShowAdd(false)
     setUrl('')
     setPreview(null)
+    setSaveWhy('')
     setMultiPreviews([])
     setFetchError('')
     setSelectedFolderForItem(undefined)
@@ -1072,6 +1089,26 @@ export default function Cur8Category({ category }: Props) {
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                   <ExternalLink size={12} /> Open link
                 </button>
+                <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
+                <button onClick={() => { openExternal(buildMailtoShare(item.title, absoluteItemUrl(item.url))); setMenuItemId(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <Mail size={12} /> Share to email
+                </button>
+                <button onClick={() => { openExternal(buildWhatsAppShare(item.title, absoluteItemUrl(item.url))); setMenuItemId(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <MessageCircle size={12} /> Share to WhatsApp
+                </button>
+                <button onClick={async () => { setMenuItemId(null); const r = await saveOrDownload(item.title, item.url); flashToast(r === 'downloaded' ? 'Downloading…' : r === 'copied' ? 'Link copied' : 'Could not save') }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
+                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
+                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                  <Download size={12} /> {isDownloadableFile(item.url) ? 'Download file' : 'Save (copy link)'}
+                </button>
+                <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
                 <button onClick={() => setMoveItemId(item.id)}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
@@ -1704,9 +1741,15 @@ export default function Cur8Category({ category }: Props) {
               <div style={{ flexShrink: 0, padding: '12px 16px', borderTop: '1px solid rgba(245,240,232,0.08)', backgroundColor: '#0a1e1b', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 700, color: '#f5f0e8', margin: 0, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedItem.title}</h2>
-                  <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.4)', margin: 0 }}>
-                    {(() => { try { return new URL(selectedItem.url).hostname.replace('www.', '') } catch { return selectedItem.url } })()}
-                  </p>
+                  {selectedItem.whySaved ? (
+                    <p title={selectedItem.whySaved} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: tileStyle.accent, margin: 0, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Sparkles size={9} style={{ flexShrink: 0 }} /> {selectedItem.whySaved}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.4)', margin: 0 }}>
+                      {(() => { try { return new URL(selectedItem.url).hostname.replace('www.', '') } catch { return selectedItem.url } })()}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -1725,11 +1768,12 @@ export default function Cur8Category({ category }: Props) {
                     {speaking ? <Square size={11} /> : <Volume2 size={11} />} {!isMobile && (speaking ? 'Stop' : 'Listen')}
                   </button>
                 )}
-                <button onClick={() => setEditItem({ id: selectedItem.id, title: selectedItem.title, description: selectedItem.description ?? '' })}
-                  title="Edit title & note"
+                <button onClick={() => setEditItem({ id: selectedItem.id, title: selectedItem.title, description: selectedItem.description ?? '', whySaved: selectedItem.whySaved ?? '' })}
+                  title="Edit title, note & why you saved it"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <Pencil size={11} /> {!isMobile && 'Edit'}
                 </button>
+                <ShareMenu title={selectedItem.title} url={selectedItem.url} accent={tileStyle.accent} showLabel={!isMobile} />
                 <button onClick={() => openItem(selectedItem)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <ExternalLink size={11} /> {!isMobile && 'Open'}
@@ -2086,6 +2130,12 @@ export default function Cur8Category({ category }: Props) {
                             style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 11, color: '#6b8884', outline: 'none', marginTop: 4, boxSizing: 'border-box' }} />
                         </div>
                       </div>
+                      <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, borderRadius: 11, border: `1px solid ${tileStyle.accent}44`, backgroundColor: '#0d2420', padding: '9px 12px' }}>
+                        <Sparkles size={13} style={{ color: tileStyle.accent, flexShrink: 0 }} />
+                        <input value={saveWhy} onChange={(e) => setSaveWhy(e.target.value)} maxLength={280}
+                          placeholder="Why I'm saving this (a note to future me)…"
+                          style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 12.5, color: '#f5f0e8', outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
                       <button onClick={handleSave}
                         style={{ marginTop: 12, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
                         Save to {gardenName}{selectedFolderForItem ? ` · ${folders.find((f) => f.id === selectedFolderForItem)?.name}` : ''}
@@ -2283,8 +2333,19 @@ export default function Cur8Category({ category }: Props) {
                 value={editItem.description}
                 onChange={(e) => setEditItem((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
                 rows={3}
-                placeholder="Why you saved this, a reminder to future you…"
-                style={{ width: '100%', resize: 'vertical', minHeight: 72, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
+                placeholder="A description or any details you want to keep…"
+                style={{ width: '100%', resize: 'vertical', minHeight: 72, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', marginBottom: 14 }}
+              />
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: tileStyle.accent, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                <Sparkles size={11} /> Why I saved this
+              </label>
+              <input
+                value={editItem.whySaved}
+                onChange={(e) => setEditItem((prev) => (prev ? { ...prev, whySaved: e.target.value } : prev))}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) saveItemEdit() }}
+                maxLength={280}
+                placeholder="One line of context for future you…"
+                style={{ width: '100%', padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: `1px solid ${tileStyle.accent}55`, color: '#f5f0e8', fontSize: 14, outline: 'none' }}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
                 <button
@@ -2303,6 +2364,17 @@ export default function Cur8Category({ category }: Props) {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Transient status toast (share / save feedback) */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
+            style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 400, backgroundColor: '#122e29', color: '#f5f0e8', border: '1px solid rgba(245,240,232,0.14)', borderRadius: 50, padding: '9px 18px', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <Check size={13} style={{ color: tileStyle.accent }} /> {toast}
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

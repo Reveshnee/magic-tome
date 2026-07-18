@@ -2,8 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { cur8Item, cur8Folder, cur8Reflection, cur8GardenName } from '@/lib/db/schema'
-import { and, desc, eq } from 'drizzle-orm'
+import { cur8Item, cur8Folder, cur8Reflection, cur8GardenName, cur8Attachment, cur8Note } from '@/lib/db/schema'
+import { and, desc, eq, or, ilike, inArray } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
 
@@ -23,6 +23,7 @@ export interface Cur8ItemDTO {
   thumbnail?: string
   favicon?: string
   summary?: string
+  whySaved?: string
   savedAt: string
   openedAt?: string
 }
@@ -59,6 +60,7 @@ export async function getCur8Data(): Promise<{
       thumbnail: i.thumbnail ?? undefined,
       favicon: i.favicon ?? undefined,
       summary: i.summary ?? undefined,
+      whySaved: i.whySaved ?? undefined,
       savedAt: i.savedAt.toISOString(),
       openedAt: i.openedAt ? i.openedAt.toISOString() : undefined,
     })),
@@ -82,6 +84,7 @@ export async function createItem(input: {
   description?: string
   thumbnail?: string
   favicon?: string
+  whySaved?: string
 }): Promise<Cur8ItemDTO> {
   const userId = await getUserId()
   const id = randomUUID()
@@ -97,6 +100,7 @@ export async function createItem(input: {
     description: input.description ?? null,
     thumbnail: input.thumbnail ?? null,
     favicon: input.favicon ?? null,
+    whySaved: input.whySaved?.trim() ? input.whySaved.trim() : null,
     savedAt,
   })
 
@@ -109,6 +113,7 @@ export async function createItem(input: {
     description: input.description,
     thumbnail: input.thumbnail,
     favicon: input.favicon,
+    whySaved: input.whySaved?.trim() || undefined,
     savedAt: savedAt.toISOString(),
   }
 }
@@ -116,7 +121,7 @@ export async function createItem(input: {
 // Edit a saved item's title and/or personal note (description).
 export async function updateItem(
   itemId: string,
-  input: { title?: string; description?: string },
+  input: { title?: string; description?: string; whySaved?: string },
 ): Promise<Cur8ItemDTO | null> {
   const userId = await getUserId()
   const patch: Record<string, string | null> = {}
@@ -126,6 +131,9 @@ export async function updateItem(
   }
   if (typeof input.description === 'string') {
     patch.description = input.description.trim() ? input.description.trim() : null
+  }
+  if (typeof input.whySaved === 'string') {
+    patch.whySaved = input.whySaved.trim() ? input.whySaved.trim().slice(0, 280) : null
   }
   if (Object.keys(patch).length === 0) return null
   await db
@@ -147,6 +155,7 @@ export async function updateItem(
     thumbnail: row.thumbnail ?? undefined,
     favicon: row.favicon ?? undefined,
     summary: row.summary ?? undefined,
+    whySaved: row.whySaved ?? undefined,
     savedAt: row.savedAt.toISOString(),
     openedAt: row.openedAt ? row.openedAt.toISOString() : undefined,
   }
@@ -527,4 +536,170 @@ export async function resetGardenName(category: string) {
   await db
     .delete(cur8GardenName)
     .where(and(eq(cur8GardenName.userId, userId), eq(cur8GardenName.category, category)))
+}
+
+// ─── Attachments (on brain-dump notes and reflections) ───
+export interface AttachmentDTO {
+  id: string
+  parentType: string // 'note' | 'reflection'
+  parentId: string
+  kind: string // 'item' | 'note' | 'file'
+  refId?: string
+  url?: string
+  title: string
+  thumbnail?: string
+  mimeType?: string
+  createdAt: string
+}
+
+function mapAttachment(a: typeof cur8Attachment.$inferSelect): AttachmentDTO {
+  return {
+    id: a.id,
+    parentType: a.parentType,
+    parentId: a.parentId,
+    kind: a.kind,
+    refId: a.refId ?? undefined,
+    url: a.url ?? undefined,
+    title: a.title,
+    thumbnail: a.thumbnail ?? undefined,
+    mimeType: a.mimeType ?? undefined,
+    createdAt: a.createdAt.toISOString(),
+  }
+}
+
+// Fetch attachments for a set of parents (notes or reflections) at once.
+export async function getAttachmentsFor(
+  parentType: 'note' | 'reflection',
+  parentIds: string[],
+): Promise<AttachmentDTO[]> {
+  const userId = await getUserId()
+  if (parentIds.length === 0) return []
+  const rows = await db
+    .select()
+    .from(cur8Attachment)
+    .where(
+      and(
+        eq(cur8Attachment.userId, userId),
+        eq(cur8Attachment.parentType, parentType),
+        inArray(cur8Attachment.parentId, parentIds),
+      ),
+    )
+    .orderBy(desc(cur8Attachment.createdAt))
+  return rows.map(mapAttachment)
+}
+
+export async function addAttachment(input: {
+  parentType: 'note' | 'reflection'
+  parentId: string
+  kind: 'item' | 'note' | 'file'
+  refId?: string
+  url?: string
+  title: string
+  thumbnail?: string
+  mimeType?: string
+}): Promise<AttachmentDTO> {
+  const userId = await getUserId()
+  const id = randomUUID()
+  const createdAt = new Date()
+  await db.insert(cur8Attachment).values({
+    id,
+    userId,
+    parentType: input.parentType,
+    parentId: input.parentId,
+    kind: input.kind,
+    refId: input.refId ?? null,
+    url: input.url ?? null,
+    title: input.title.slice(0, 300),
+    thumbnail: input.thumbnail ?? null,
+    mimeType: input.mimeType ?? null,
+    createdAt,
+  })
+  return {
+    id,
+    parentType: input.parentType,
+    parentId: input.parentId,
+    kind: input.kind,
+    refId: input.refId,
+    url: input.url,
+    title: input.title.slice(0, 300),
+    thumbnail: input.thumbnail,
+    mimeType: input.mimeType,
+    createdAt: createdAt.toISOString(),
+  }
+}
+
+export async function removeAttachment(attachmentId: string) {
+  const userId = await getUserId()
+  await db
+    .delete(cur8Attachment)
+    .where(and(eq(cur8Attachment.id, attachmentId), eq(cur8Attachment.userId, userId)))
+}
+
+// ─── Global search across all havens, notes, and reflections ───
+export interface SearchResults {
+  items: Cur8ItemDTO[]
+  notes: { id: string; body: string; createdAt: string }[]
+  reflections: ReflectionDTO[]
+}
+
+export async function searchEverything(query: string): Promise<SearchResults> {
+  const userId = await getUserId()
+  const q = query.trim()
+  if (!q) return { items: [], notes: [], reflections: [] }
+  const like = `%${q}%`
+
+  const [items, notes, reflections] = await Promise.all([
+    db
+      .select()
+      .from(cur8Item)
+      .where(
+        and(
+          eq(cur8Item.userId, userId),
+          or(
+            ilike(cur8Item.title, like),
+            ilike(cur8Item.description, like),
+            ilike(cur8Item.whySaved, like),
+            ilike(cur8Item.url, like),
+          ),
+        ),
+      )
+      .orderBy(desc(cur8Item.savedAt))
+      .limit(60),
+    db
+      .select()
+      .from(cur8Note)
+      .where(and(eq(cur8Note.userId, userId), ilike(cur8Note.body, like)))
+      .orderBy(desc(cur8Note.createdAt))
+      .limit(30),
+    db
+      .select()
+      .from(cur8Reflection)
+      .where(and(eq(cur8Reflection.userId, userId), ilike(cur8Reflection.body, like)))
+      .orderBy(desc(cur8Reflection.createdAt))
+      .limit(30),
+  ])
+
+  return {
+    items: items.map((i) => ({
+      id: i.id,
+      category: i.category,
+      folderId: i.folderId ?? undefined,
+      url: i.url,
+      title: i.title,
+      description: i.description ?? undefined,
+      thumbnail: i.thumbnail ?? undefined,
+      favicon: i.favicon ?? undefined,
+      summary: i.summary ?? undefined,
+      whySaved: i.whySaved ?? undefined,
+      savedAt: i.savedAt.toISOString(),
+      openedAt: i.openedAt ? i.openedAt.toISOString() : undefined,
+    })),
+    notes: notes.map((n) => ({ id: n.id, body: n.body, createdAt: n.createdAt.toISOString() })),
+    reflections: reflections.map((r) => ({
+      id: r.id,
+      category: r.category,
+      body: r.body,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  }
 }
