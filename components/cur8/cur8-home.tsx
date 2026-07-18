@@ -85,7 +85,8 @@ export default function Cur8Home() {
 
   useEffect(() => {
     const h = new Date().getHours()
-    setGreeting(h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening')
+    // Softer, calming, ADHD-friendly greeting that shifts with the day.
+    setGreeting(h < 12 ? 'Ease into the day' : h < 17 ? 'Take a breath' : 'Unwind a little')
     const day = Math.floor(Date.now() / 86400000) % MOTIVATIONAL.length
     setQuote(MOTIVATIONAL[day])
     getCur8Data()
@@ -126,7 +127,7 @@ export default function Cur8Home() {
       <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
         <Image
           src="/cur8/koi-pond.jpg"
-          alt="Reveshnee's garden"
+          alt="Reveshnee's haven"
           fill
           className="object-cover object-center"
           priority
@@ -183,7 +184,7 @@ export default function Cur8Home() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your garden..."
+                placeholder="Search your haven..."
                 autoFocus
                 style={{ width: '100%', padding: '13px 20px', borderRadius: 50, border: '1.5px solid rgba(245,240,232,0.25)', backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(20px)', color: '#f5f0e8', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
               />
@@ -212,7 +213,7 @@ export default function Cur8Home() {
           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-gold)', marginBottom: 10 }}>{greeting}, Reveshnee</p>
           <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(44px, 6vw, 80px)', fontWeight: 700, color: 'var(--c-cream)', lineHeight: 1.0, margin: 0, marginBottom: 12, letterSpacing: '-0.01em' }}>
             {"Reveshnee's"}<br />
-            <em style={{ fontStyle: 'italic', color: 'var(--c-gold)' }}>Garden</em>
+            <em style={{ fontStyle: 'italic', color: 'var(--c-gold)' }}>Haven</em>
           </h1>
           <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.65)', marginBottom: 20, maxWidth: 400, lineHeight: 1.6 }}>&ldquo;{quote}&rdquo;</p>
           {/* Stats row */}
@@ -229,7 +230,7 @@ export default function Cur8Home() {
             <div style={{ width: 1, height: 28, backgroundColor: 'rgba(245,240,232,0.15)' }} />
             <div>
               <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c-sage)', fontFamily: 'var(--font-playfair), Georgia, serif' }}>8</span>
-              <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', marginLeft: 6 }}>gardens</span>
+              <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', marginLeft: 6 }}>havens</span>
             </div>
             {items.length > 0 && (
               <>
@@ -338,7 +339,7 @@ export default function Cur8Home() {
         {/* Gardens grid — editorial bento style */}
         <section>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--c-cream)' }}>Your gardens</h2>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--c-cream)' }}>Your havens</h2>
             <span style={{ fontSize: 11, color: 'var(--c-muted)', letterSpacing: '0.05em' }}>8 spaces to curate</span>
           </div>
 
@@ -421,8 +422,8 @@ export default function Cur8Home() {
             <div style={{ width: 60, height: 60, borderRadius: 20, backgroundColor: 'rgba(90,158,132,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Sparkles size={24} color="var(--c-sage)" />
             </div>
-            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 24, fontWeight: 700, color: 'var(--c-cream)', marginBottom: 8 }}>Your garden awaits</h2>
-            <p style={{ fontSize: 14, color: 'var(--c-muted)', lineHeight: 1.6, maxWidth: 320, margin: '0 auto 24px' }}>Pick a garden above and paste your first link — YouTube, articles, docs, anything.</p>
+          <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 24, fontWeight: 700, color: 'var(--c-cream)', marginBottom: 8 }}>Your haven awaits</h2>
+          <p style={{ fontSize: 14, color: 'var(--c-muted)', lineHeight: 1.6, maxWidth: 320, margin: '0 auto 24px' }}>Pick a haven above and paste your first link — YouTube, articles, docs, anything.</p>
             <Link href="/cur8/youtube" style={{ textDecoration: 'none' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 22px', borderRadius: 50, backgroundColor: 'var(--c-coral)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 <Plus size={13} /> Start with The Grove

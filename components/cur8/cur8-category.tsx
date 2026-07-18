@@ -796,7 +796,7 @@ export default function Cur8Category({ category }: Props) {
             ) : gardenPickItemId === item.id ? (
               <div style={{ padding: 8 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(245,240,232,0.4)', padding: '0 4px 6px' }}>
-                  {gardenPickMode === 'move' ? 'Move to garden' : 'Copy to garden'}
+                        {gardenPickMode === 'move' ? 'Move to haven' : 'Copy to haven'}
                 </p>
                 {otherGardens.map((g) => (
                   <button key={g.name} onClick={() => handleSendToGarden(item.id, g.name as Category, gardenPickMode)}
@@ -837,13 +837,13 @@ export default function Cur8Category({ category }: Props) {
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                  <ArrowRightLeft size={12} /> Move to garden
+                  <ArrowRightLeft size={12} /> Move to haven
                 </button>
                 <button onClick={() => { setGardenPickMode('copy'); setGardenPickItemId(item.id) }}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '9px 14px', fontSize: 12, fontWeight: 500, color: '#f5f0e8', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', textAlign: 'left' }}
                   onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(245,240,232,0.07)')}
                   onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                  <Send size={12} /> Copy to garden
+                  <Send size={12} /> Copy to haven
                 </button>
                 <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.08)', margin: '2px 0' }} />
                 <button onClick={() => { handleDelete(item.id); setMenuItemId(null) }}
@@ -930,7 +930,7 @@ export default function Cur8Category({ category }: Props) {
         {/* Nav */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
           <Link href="/cur8" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', textDecoration: 'none', backgroundColor: 'rgba(245,240,232,0.12)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}>
-            <ArrowLeft size={10} /> All gardens
+            <ArrowLeft size={10} /> All havens
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
@@ -953,8 +953,8 @@ export default function Cur8Category({ category }: Props) {
             <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 28, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{gardenName}</h1>
             <button
               onClick={openRename}
-              aria-label="Rename this garden"
-              title="Rename this garden"
+              aria-label="Rename this haven"
+              title="Rename this haven"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 8, background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--c-cream)', cursor: 'pointer', backdropFilter: 'blur(8px)', flexShrink: 0 }}
             >
               <Pencil size={11} />
@@ -1428,14 +1428,14 @@ export default function Cur8Category({ category }: Props) {
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              role="dialog" aria-label="Rename garden"
+              role="dialog" aria-label="Rename haven"
               style={{ position: 'fixed', zIndex: 141, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(380px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Pencil size={15} color={tileStyle.accent} />
                 </div>
-                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>Rename this garden</h2>
+                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>Rename this haven</h2>
               </div>
               <p style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.5)', margin: '0 0 14px', lineHeight: 1.5 }}>
                 Give this area a name that fits you. It updates everywhere — the tile, header, save buttons and email subjects.

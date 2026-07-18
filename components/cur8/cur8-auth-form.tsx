@@ -70,10 +70,10 @@ export function Cur8AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           {/* Card */}
           <div style={{ backgroundColor: 'var(--c-surface)', borderRadius: 24, padding: 24, boxShadow: '0 4px 24px rgba(13,61,58,0.10)', border: '1.5px solid var(--c-border)' }}>
             <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 700, color: 'var(--c-teal)', marginBottom: 4 }}>
-              {isSignUp ? "Create your garden" : "Welcome back"}
+              {isSignUp ? "Create your haven" : "Welcome back"}
             </h1>
             <p style={{ fontSize: 13, color: 'var(--c-muted)', marginBottom: 20 }}>
-              {isSignUp ? "Your private space to curate everything you love." : "Sign in to tend your garden."}
+              {isSignUp ? "Your private space to curate everything you love." : "Sign in to return to your haven."}
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -113,13 +113,13 @@ export function Cur8AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
                 disabled={loading}
                 style={{ marginTop: 4, padding: '12px', borderRadius: 50, backgroundColor: 'var(--c-teal)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.65 : 1 }}
               >
-                {loading ? 'Please wait...' : isSignUp ? 'Create my garden' : 'Enter my garden'}
+                {loading ? 'Please wait...' : isSignUp ? 'Create my haven' : 'Enter my haven'}
               </button>
             </form>
           </div>
 
           <p style={{ marginTop: 16, textAlign: 'center', fontSize: 13, color: 'var(--c-muted)' }}>
-            {isSignUp ? 'Already have a garden? ' : "Don't have a garden yet? "}
+            {isSignUp ? 'Already have a haven? ' : "Don't have a haven yet? "}
             <Link href={isSignUp ? '/cur8/sign-in' : '/cur8/sign-up'}
               style={{ color: 'var(--c-teal)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
               {isSignUp ? 'Sign in' : 'Create one'}

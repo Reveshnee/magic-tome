@@ -39,7 +39,7 @@ export default function SharePicker({
           Save to Cur8
         </p>
         <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 26, fontWeight: 700, margin: '6px 0 14px', lineHeight: 1.2 }}>
-          Which garden is this for?
+          Which haven is this for?
         </h1>
 
         {/* The shared link preview */}
