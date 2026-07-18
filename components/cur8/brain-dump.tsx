@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain, X, Mic, MicOff, Send, Volume2, Square, Pin, PinOff,
-  Copy, Trash2, Loader2, Mail, Check, ChevronDown,
+  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle,
 } from 'lucide-react'
 import {
   getNotes, createNote, deleteNote, togglePinNote,
@@ -118,19 +118,30 @@ export default function BrainDump() {
   // Build a mailto that opens the user's own email app, pre-addressed to mem.ai
   // (and cc'd to their own inbox) with the thought as the body. Sending from the
   // user's own address is what lets mem.ai recognise and file it.
-  function buildMailto(body: string) {
-    const to = settings.memEmail.trim() || 'save@mem.ai'
+  //
+  // IMPORTANT: we build the query with encodeURIComponent (which encodes spaces
+  // as %20), NOT URLSearchParams — URLSearchParams encodes spaces as "+", and
+  // email apps like Gmail then show the "+" signs literally in the message.
+  function buildMailto(body: string, toOverride?: string) {
+    const to = (toOverride ?? settings.memEmail).trim() || 'save@mem.ai'
     const cc = settings.emailTo.trim()
     const firstLine = body.split('\n')[0].slice(0, 60)
-    const params = new URLSearchParams()
-    params.set('subject', firstLine || 'Cur8 thought')
-    params.set('body', body)
-    if (cc) params.set('cc', cc)
-    return `mailto:${encodeURIComponent(to)}?${params.toString()}`
+    const parts = [
+      `subject=${encodeURIComponent(firstLine || 'Cur8 thought')}`,
+      `body=${encodeURIComponent(body)}`,
+    ]
+    // Don't cc yourself when you're deliberately sending to someone else.
+    if (cc && !toOverride) parts.push(`cc=${encodeURIComponent(cc)}`)
+    return `mailto:${to}?${parts.join('&')}`
   }
 
-  function emailNote(body: string) {
-    window.location.href = buildMailto(body)
+  function emailNote(body: string, toOverride?: string) {
+    window.location.href = buildMailto(body, toOverride)
+  }
+
+  // Open WhatsApp with the thought pre-filled; the user picks any contact.
+  function whatsAppNote(body: string) {
+    window.open(`https://wa.me/?text=${encodeURIComponent(body)}`, '_blank', 'noopener')
   }
 
   async function persistSettings(next: Cur8Settings) {
@@ -289,8 +300,11 @@ export default function BrainDump() {
                                 {speakingId === note.id && speaking ? <Square size={14} /> : <Volume2 size={14} />}
                               </IconBtn>
                             )}
-                            <IconBtn onClick={() => emailNote(note.body)} title="Send to mem.ai by email">
+                            <IconBtn onClick={() => emailNote(note.body)} title={`Email to ${settings.memEmail.trim() || 'save@mem.ai'}`}>
                               <Mail size={14} />
+                            </IconBtn>
+                            <IconBtn onClick={() => whatsAppNote(note.body)} title="Send via WhatsApp">
+                              <MessageCircle size={14} />
                             </IconBtn>
                             <IconBtn onClick={() => copyNote(note)} title="Copy">
                               {copiedId === note.id ? <Check size={14} color={SAGE} /> : <Copy size={14} />}
@@ -315,7 +329,7 @@ export default function BrainDump() {
                   onClick={() => setShowSettings((s) => !s)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.7)', fontSize: 12.5, fontWeight: 600 }}
                 >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mail size={14} color={ACCENT} /> Send thoughts to mem.ai {settingsSaved && <Check size={13} color={SAGE} />}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Mail size={14} color={ACCENT} /> Where thoughts are sent {settingsSaved && <Check size={13} color={SAGE} />}</span>
                   <ChevronDown size={16} style={{ transform: showSettings ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                 </button>
                 <AnimatePresence>
@@ -326,11 +340,11 @@ export default function BrainDump() {
                     >
                       <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                         <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', margin: 0, lineHeight: 1.5 }}>
-                          Tapping the mail icon opens your own email app with the thought ready to send to mem.ai. Because it comes from your address, mem files it automatically.
+                          The mail icon opens your email app with the thought ready to send. Keep it as save@mem.ai to file into mem, or change it to send to anyone. The WhatsApp icon lets you share a thought to any chat.
                         </p>
 
                         <label style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)' }}>
-                          mem.ai save address
+                          Email the mail icon sends to
                           <input
                             value={settings.memEmail}
                             onChange={(e) => setSettings((s) => ({ ...s, memEmail: e.target.value }))}
