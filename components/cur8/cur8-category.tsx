@@ -16,7 +16,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones, CheckSquare, CheckCircle2, Circle } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
@@ -214,6 +214,13 @@ export default function Cur8Category({ category }: Props) {
   const [preview, setPreview] = useState<Partial<Cur8Item> | null>(null)
   const [multiPreviews, setMultiPreviews] = useState<(Partial<Cur8Item> & { selected: boolean })[]>([])
   const [selectedItem, setSelectedItem] = useState<Cur8Item | null>(null)
+  const [editItem, setEditItem] = useState<{ id: string; title: string; description: string } | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  // Multi-select
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [batchPicker, setBatchPicker] = useState<null | 'folder' | 'moveGarden' | 'copyGarden'>(null)
+  const [batchBusy, setBatchBusy] = useState(false)
   const [connections, setConnections] = useState<{ item: { id: string; title: string; category: string; url: string }; reason: string }[]>([])
   const [connectionsLoading, setConnectionsLoading] = useState(false)
   const [fetchError, setFetchError] = useState('')
@@ -326,6 +333,73 @@ export default function Cur8Category({ category }: Props) {
   async function editReflection(id: string, body: string) {
     setReflections((prev) => prev.map((r) => (r.id === id ? { ...r, body } : r)))
     await updateReflection(id, body).catch(() => {})
+  }
+  async function saveItemEdit() {
+    if (!editItem) return
+    const title = editItem.title.trim()
+    if (!title) return
+    setSavingEdit(true)
+    const description = editItem.description.trim()
+    // Optimistic update in the list and the open preview
+    setAllItems((prev) => prev.map((it) => (it.id === editItem.id ? { ...it, title, description } : it)))
+    setSelectedItem((prev) => (prev && prev.id === editItem.id ? { ...prev, title, description } : prev))
+    await updateItemAction(editItem.id, { title, description }).catch(() => {})
+    setSavingEdit(false)
+    setEditItem(null)
+  }
+
+  // ── Multi-select ──
+  function enterSelectMode() {
+    setSelectMode(true)
+    setSelectedItem(null)
+    setSelectedIds(new Set())
+  }
+  function exitSelectMode() {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+    setBatchPicker(null)
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  function selectAllVisible() {
+    setSelectedIds(new Set(catItems.map((i) => i.id)))
+  }
+  async function batchMoveToFolder(folderId: string | undefined) {
+    const ids = Array.from(selectedIds)
+    setBatchBusy(true)
+    setAllItems((prev) => prev.map((i) => (selectedIds.has(i.id) ? { ...i, folderId } : i)))
+    for (const id of ids) await moveItemAction(id, folderId).catch(() => {})
+    setBatchBusy(false)
+    exitSelectMode()
+  }
+  async function batchSendToGarden(targetCategory: Category, mode: 'move' | 'copy') {
+    const ids = Array.from(selectedIds)
+    setBatchBusy(true)
+    if (mode === 'move') {
+      setAllItems((prev) => prev.map((i) => (selectedIds.has(i.id) ? { ...i, category: targetCategory, folderId: undefined } : i)))
+      for (const id of ids) await moveItemToGardenAction(id, targetCategory).catch(() => {})
+    } else {
+      for (const id of ids) {
+        const copy = await copyItemToGardenAction(id, targetCategory).catch(() => null)
+        if (copy) setAllItems((prev) => [copy as Cur8Item, ...prev])
+      }
+    }
+    setBatchBusy(false)
+    exitSelectMode()
+  }
+  async function batchDelete() {
+    const ids = Array.from(selectedIds)
+    setBatchBusy(true)
+    setAllItems((prev) => prev.filter((i) => !selectedIds.has(i.id)))
+    for (const id of ids) await deleteItemAction(id).catch(() => {})
+    setBatchBusy(false)
+    exitSelectMode()
   }
 
   // On mobile, jump to the preview tab whenever an item is opened
@@ -1146,6 +1220,13 @@ export default function Cur8Category({ category }: Props) {
           >
             <Headphones size={11} color="#8ec8b4" /> Focus sounds
           </button>
+          {/* Select multiple */}
+          <button
+            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
+          </button>
           {/* Spacer */}
           <div style={{ flex: 1 }} />
           {/* Quick count chip */}
@@ -1290,15 +1371,16 @@ export default function Cur8Category({ category }: Props) {
                 {videoItems.map((item) => {
                   const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                   const isActive = selectedItem?.id === item.id
+                  const isChecked = selectedIds.has(item.id)
                   return (
                     <div key={item.id} style={{ position: 'relative' }}>
                       <div
                         role="button"
                         tabIndex={0}
-                        onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
+                        onClick={() => { if (selectMode) { toggleSelect(item.id); return } setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (selectMode) { toggleSelect(item.id); return } setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
                         title={item.title}
-                        style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
+                        style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: (selectMode && isChecked) ? `2.5px solid ${tileStyle.accent}` : isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
                         <div style={{ position: 'relative', width: '100%', height: isMobile ? 88 : 72, backgroundColor: tileStyle.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Clapperboard size={20} style={{ color: tileStyle.accent }} />
                           {thumb ? (
@@ -1313,13 +1395,21 @@ export default function Cur8Category({ category }: Props) {
                         </div>
                         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.75) 0%, transparent 55%)' }} />
                         <p style={{ position: 'absolute', bottom: 4, left: 4, right: 4, fontSize: 8, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                        {/* Selection overlay */}
+                        {selectMode && (
+                          <div style={{ position: 'absolute', inset: 0, backgroundColor: isChecked ? `${tileStyle.accent}33` : 'rgba(0,0,0,0.25)', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', padding: 4 }}>
+                            {isChecked ? <CheckCircle2 size={20} color={tileStyle.accent} fill="#0d2420" /> : <Circle size={20} color="#fff" />}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
-                        title="Options"
-                        style={{ position: 'absolute', top: 3, right: 3, zIndex: 10, background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 6, color: '#fff', display: 'flex', alignItems: 'center' }}>
-                        <MoreVertical size={12} />
-                      </button>
+                      {!selectMode && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
+                          title="Options"
+                          style={{ position: 'absolute', top: 3, right: 3, zIndex: 10, background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 3, borderRadius: 6, color: '#fff', display: 'flex', alignItems: 'center' }}>
+                          <MoreVertical size={12} />
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -1517,6 +1607,11 @@ export default function Cur8Category({ category }: Props) {
                     {speaking ? <Square size={11} /> : <Volume2 size={11} />} {!isMobile && (speaking ? 'Stop' : 'Listen')}
                   </button>
                 )}
+                <button onClick={() => setEditItem({ id: selectedItem.id, title: selectedItem.title, description: selectedItem.description ?? '' })}
+                  title="Edit title & note"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                  <Pencil size={11} /> {!isMobile && 'Edit'}
+                </button>
                 <button onClick={() => openItem(selectedItem)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <ExternalLink size={11} /> {!isMobile && 'Open'}
@@ -1609,18 +1704,24 @@ export default function Cur8Category({ category }: Props) {
             ) : docItems.map((item) => {
               const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
               const isActive = selectedItem?.id === item.id
+              const isChecked = selectedIds.has(item.id)
               return (
                 <div key={item.id} style={{ position: 'relative' }}>
                   {/* Use div+role instead of <button> so the inner three-dot <button> is valid HTML */}
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 8px', borderRadius: 12, cursor: 'pointer', border: isActive ? `1px solid ${tileStyle.accent}44` : '1px solid transparent', textAlign: 'left', backgroundColor: isActive ? 'rgba(245,240,232,0.07)' : 'transparent', marginBottom: 2, transition: 'background 0.12s' }}
-                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(245,240,232,0.05)' }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent' }}
+                    onClick={() => { if (selectMode) { toggleSelect(item.id); return } setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (selectMode) { toggleSelect(item.id); return } setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 8px', borderRadius: 12, cursor: 'pointer', border: (selectMode && isChecked) ? `1px solid ${tileStyle.accent}` : isActive ? `1px solid ${tileStyle.accent}44` : '1px solid transparent', textAlign: 'left', backgroundColor: (selectMode && isChecked) ? `${tileStyle.accent}22` : isActive ? 'rgba(245,240,232,0.07)' : 'transparent', marginBottom: 2, transition: 'background 0.12s' }}
+                    onMouseEnter={e => { if (!isActive && !isChecked) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(245,240,232,0.05)' }}
+                    onMouseLeave={e => { if (!isActive && !isChecked) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent' }}
                   >
+                    {selectMode && (
+                      <span style={{ flexShrink: 0, display: 'flex' }}>
+                        {isChecked ? <CheckCircle2 size={18} color={tileStyle.accent} /> : <Circle size={18} color="rgba(245,240,232,0.35)" />}
+                      </span>
+                    )}
                     {thumb ? (
                       <img src={thumb} alt="" style={{ width: 48, height: 34, borderRadius: 7, objectFit: 'cover', flexShrink: 0 }} />
                     ) : (
@@ -1635,12 +1736,14 @@ export default function Cur8Category({ category }: Props) {
                       </p>
                     </div>
                     {/* Three-dot menu */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
-                      style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 2, borderRadius: 6, color: 'rgba(245,240,232,0.35)', display: 'flex', alignItems: 'center' }}
-                    >
-                      <MoreVertical size={13} />
-                    </button>
+                    {!selectMode && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleItemMenu(item.id, e) }}
+                        style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 2, borderRadius: 6, color: 'rgba(245,240,232,0.35)', display: 'flex', alignItems: 'center' }}
+                      >
+                        <MoreVertical size={13} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -1943,6 +2046,142 @@ export default function Cur8Category({ category }: Props) {
                     <RotateCcw size={13} /> Reset
                   </button>
                 )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Multi-select batch action bar ── */}
+      <AnimatePresence>
+        {selectMode && (
+          <motion.div
+            initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+            style={{ position: 'fixed', left: '50%', bottom: 16, transform: 'translateX(-50%)', zIndex: 160, width: 'min(560px, calc(100vw - 24px))', backgroundColor: '#0a1e1b', border: `1px solid ${tileStyle.accent}55`, borderRadius: 16, boxShadow: '0 16px 50px rgba(0,0,0,0.55)', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#f5f0e8', whiteSpace: 'nowrap' }}>{selectedIds.size} selected</span>
+            <button onClick={selectAllVisible} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)', background: 'none', border: '1px solid rgba(245,240,232,0.15)', borderRadius: 50, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Select all</button>
+            <div style={{ flex: 1 }} />
+            <button disabled={selectedIds.size === 0 || batchBusy} onClick={() => setBatchPicker('folder')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+              <FolderInput size={13} /> Folder
+            </button>
+            <button disabled={selectedIds.size === 0 || batchBusy} onClick={() => setBatchPicker('moveGarden')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+              <ArrowRightLeft size={13} /> Move
+            </button>
+            <button disabled={selectedIds.size === 0 || batchBusy} onClick={() => setBatchPicker('copyGarden')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+              <Copy size={13} /> Copy
+            </button>
+            <button disabled={selectedIds.size === 0 || batchBusy} onClick={batchDelete}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#e8927c' : 'rgba(245,240,232,0.3)', backgroundColor: selectedIds.size ? 'rgba(200,90,64,0.14)' : 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+              {batchBusy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Delete
+            </button>
+            <button onClick={exitSelectMode} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: '7px 8px' }}>
+              <X size={13} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Batch picker sheet (choose folder or destination haven) ── */}
+      <AnimatePresence>
+        {batchPicker && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setBatchPicker(null)}
+              style={{ position: 'fixed', inset: 0, zIndex: 170, backgroundColor: 'rgba(6,18,16,0.6)', backdropFilter: 'blur(3px)' }} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              role="dialog" aria-label="Choose destination"
+              style={{ position: 'fixed', zIndex: 171, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(380px, 92vw)', maxHeight: '70vh', overflowY: 'auto', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 18, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+            >
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 700, color: '#f5f0e8', margin: '0 0 4px' }}>
+                {batchPicker === 'folder' ? 'Move to folder' : batchPicker === 'moveGarden' ? 'Move to another haven' : 'Copy to another haven'}
+              </h2>
+              <p style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.5)', margin: '0 0 14px' }}>{selectedIds.size} item{selectedIds.size === 1 ? '' : 's'} selected</p>
+              {batchPicker === 'folder' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <button onClick={() => batchMoveToFolder(undefined)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, border: 'none', background: 'rgba(245,240,232,0.06)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                    <FolderOpen size={15} style={{ color: tileStyle.accent }} /> No folder (top level)
+                  </button>
+                  {folders.map((f) => (
+                    <button key={f.id} onClick={() => batchMoveToFolder(f.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, border: 'none', background: 'rgba(245,240,232,0.06)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                      <Folder size={15} style={{ color: tileStyle.accent }} /> {f.name}
+                    </button>
+                  ))}
+                  {folders.length === 0 && <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.4)', padding: '8px 4px' }}>No folders yet in this haven.</p>}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {CATEGORIES.filter((c) => c.name !== category).map((g) => (
+                    <button key={g.name} onClick={() => batchSendToGarden(g.name as Category, batchPicker === 'moveGarden' ? 'move' : 'copy')}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, border: 'none', background: 'rgba(245,240,232,0.06)', color: '#f5f0e8', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                      <ArrowRightLeft size={14} style={{ color: tileStyle.accent }} /> {displayName(g.name as Category)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit item modal (title & note) ── */}
+      <AnimatePresence>
+        {editItem && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setEditItem(null)}
+              style={{ position: 'fixed', inset: 0, zIndex: 150, backgroundColor: 'rgba(6,18,16,0.6)', backdropFilter: 'blur(3px)' }}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              role="dialog" aria-label="Edit item"
+              style={{ position: 'fixed', zIndex: 151, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(420px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Pencil size={15} color={tileStyle.accent} />
+                </div>
+                <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>Edit this item</h2>
+              </div>
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.5)', display: 'block', marginBottom: 5 }}>Title</label>
+              <input
+                autoFocus
+                value={editItem.title}
+                onChange={(e) => setEditItem((prev) => (prev ? { ...prev, title: e.target.value } : prev))}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) saveItemEdit() }}
+                maxLength={300}
+                style={{ width: '100%', padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, outline: 'none', marginBottom: 14 }}
+              />
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.5)', display: 'block', marginBottom: 5 }}>Your note</label>
+              <textarea
+                value={editItem.description}
+                onChange={(e) => setEditItem((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
+                rows={3}
+                placeholder="Why you saved this, a reminder to future you…"
+                style={{ width: '100%', resize: 'vertical', minHeight: 72, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                <button
+                  onClick={saveItemEdit}
+                  disabled={savingEdit || !editItem.title.trim()}
+                  style={{ flex: 1, padding: '10px', borderRadius: 11, border: 'none', cursor: savingEdit || !editItem.title.trim() ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 700, backgroundColor: editItem.title.trim() ? tileStyle.accent : 'rgba(245,240,232,0.12)', color: editItem.title.trim() ? '#fff' : 'rgba(245,240,232,0.4)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  {savingEdit ? <Loader2 size={13} className="animate-spin" /> : null} Save changes
+                </button>
+                <button
+                  onClick={() => setEditItem(null)}
+                  style={{ padding: '10px 16px', borderRadius: 11, border: '1px solid rgba(245,240,232,0.15)', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)' }}
+                >
+                  Cancel
+                </button>
               </div>
             </motion.div>
           </>

@@ -3,6 +3,7 @@ import {
   text,
   timestamp,
   boolean,
+  integer,
   primaryKey,
 } from 'drizzle-orm/pg-core'
 
@@ -63,6 +64,8 @@ export const cur8Folder = pgTable('cur8_folder', {
   userId: text('userId').notNull(),
   category: text('category').notNull(),
   name: text('name').notNull(),
+  pinned: boolean('pinned').notNull().default(false),
+  sortOrder: integer('sortOrder').notNull().default(0),
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
