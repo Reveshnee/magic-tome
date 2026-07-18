@@ -56,7 +56,7 @@ export function Cur8AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,61,58,0.2) 0%, rgba(242,245,242,1) 100%)' }} />
         <div style={{ position: 'absolute', top: 18, left: 20, display: 'flex', alignItems: 'center', gap: 9 }}>
           <div style={{ width: 34, height: 34, borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>
-            <Image src="/cur8/logo-v2/icon-duo.png" alt="Cur8 koi logo" width={34} height={34} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Image src="/cur8/logo-v2/icon-pair.png" alt="Cur8 koi logo" width={34} height={34} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 700, color: '#f5f0e8', textShadow: '0 1px 6px rgba(0,0,0,0.3)' }}>cur8</span>
         </div>

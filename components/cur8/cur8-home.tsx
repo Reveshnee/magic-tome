@@ -155,7 +155,7 @@ export default function Cur8Home() {
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '20px 32px', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
             <div style={{ width: 32, height: 32, borderRadius: 9, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.35)', flexShrink: 0 }}>
-              <Image src="/cur8/logo-v2/icon-duo.png" alt="Cur8 koi logo" width={32} height={32} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Image src="/cur8/logo-v2/icon-pair.png" alt="Cur8 koi logo" width={32} height={32} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: 'var(--c-cream)', letterSpacing: '0.02em' }}>cur8</span>
           </div>
