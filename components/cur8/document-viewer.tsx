@@ -11,17 +11,25 @@ interface Props {
 
 type DocKind = 'pdf' | 'word' | 'sheet' | 'text' | 'unsupported'
 
+function kindFromString(s: string): DocKind | null {
+  // Strip query string before checking extension
+  const clean = s.split('?')[0].toLowerCase()
+  if (clean.endsWith('.pdf')) return 'pdf'
+  if (clean.endsWith('.doc') || clean.endsWith('.docx')) return 'word'
+  if (clean.endsWith('.xls') || clean.endsWith('.xlsx') || clean.endsWith('.csv')) return 'sheet'
+  if (clean.endsWith('.txt') || clean.endsWith('.md')) return 'text'
+  return null
+}
+
 function kindFromName(name: string): DocKind {
-  const n = name.toLowerCase()
-  if (n.endsWith('.pdf')) return 'pdf'
-  if (n.endsWith('.doc') || n.endsWith('.docx')) return 'word'
-  if (n.endsWith('.xls') || n.endsWith('.xlsx') || n.endsWith('.csv')) return 'sheet'
-  if (n.endsWith('.txt') || n.endsWith('.md')) return 'text'
-  return 'unsupported'
+  return kindFromString(name) ?? 'unsupported'
 }
 
 export default function DocumentViewer({ url, filename, accent }: Props) {
-  const kind = kindFromName(filename)
+  // Blob pathnames look like: cur8/My_File-abc123.pdf  — the extension is embedded
+  // in the original filename segment. Check both the passed filename AND the url
+  // pathname so we reliably detect the type even when filename has no extension.
+  const kind: DocKind = kindFromString(filename) ?? kindFromString(url) ?? 'unsupported'
   const [html, setHtml] = useState<string>('')
   const [text, setText] = useState<string>('')
   const [loading, setLoading] = useState(false)
@@ -72,14 +80,35 @@ export default function DocumentViewer({ url, filename, accent }: Props) {
     return () => { cancelled = true }
   }, [url, kind])
 
-  // PDFs: native browser viewer inside our own-origin iframe
+  // PDFs: route through Google Docs viewer so Android Chrome renders them
+  // (Android refuses to display PDFs inside iframes natively — shows blank).
+  // Google Docs viewer fetches the file server-side and renders a real preview.
   if (kind === 'pdf') {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const abs = url.startsWith('http') ? url : `${origin}${url}`
+    const viewerSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
+    const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}download=1`
     return (
-      <iframe
-        src={url}
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
-        title={filename}
-      />
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <iframe
+          src={viewerSrc}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
+          title={filename}
+        />
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 12px', backgroundColor: 'rgba(13,36,32,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>Can&rsquo;t see it? Open or download instead.</span>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#0d2420', backgroundColor: accent, border: 'none', cursor: 'pointer' }}>
+              <ExternalLink size={11} /> Open
+            </button>
+            <a href={downloadUrl} download={filename}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.12)', textDecoration: 'none' }}>
+              <Download size={11} /> Download
+            </a>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -96,9 +125,14 @@ export default function DocumentViewer({ url, filename, accent }: Props) {
   if (error || kind === 'unsupported') {
     // For Word / Office docs that failed mammoth, fall back to Google Docs viewer.
     // Build an absolute URL so Google can fetch our private blob proxy.
-    const canGoogleView = (kind === 'word' || kind === 'sheet') && url.startsWith('/api/cur8/file')
+    // Also try Google Docs viewer for word/sheet/unsupported blob files —
+    // now that kind detection is reliable, this will catch docx correctly.
+    const isBlob = url.startsWith('/api/cur8/file')
+    const canGoogleView = isBlob || url.startsWith('http')
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const abs = url.startsWith('http') ? url : `${origin}${url}`
     const googleViewUrl = canGoogleView
-      ? `https://docs.google.com/viewer?url=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}${url}`)}&embedded=true`
+      ? `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
       : null
 
     if (googleViewUrl) {
