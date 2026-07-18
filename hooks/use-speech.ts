@@ -21,18 +21,39 @@ export function useReadAloud() {
   const speak = useCallback((text: string, rate = 1) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
-    if (!text.trim()) return
-    const u = new SpeechSynthesisUtterance(text)
-    u.rate = rate
-    u.pitch = 1
-    // Prefer a calm English voice if available
+    const clean = text.replace(/\s+/g, ' ').trim()
+    if (!clean) return
+
+    // Chrome (desktop + Android) has a long-standing bug: any single utterance
+    // that plays for more than ~15s triggers an internal watchdog that pauses
+    // then resumes the engine — and on resume it RE-READS part of the current
+    // sentence, which is why words/phrases were being duplicated. The reliable
+    // fix is to never hand it one long utterance: we split the text into short
+    // sentence-sized chunks and queue them, so each utterance finishes well
+    // under the watchdog window and nothing gets repeated.
+    const chunks = clean.match(/[^.!?;:]+[.!?;:]*/g)?.reduce<string[]>((acc, part) => {
+      const piece = part.trim()
+      if (!piece) return acc
+      const last = acc[acc.length - 1]
+      // Merge tiny fragments into the previous chunk, but keep chunks short.
+      if (last && (last.length + piece.length) < 160) acc[acc.length - 1] = `${last} ${piece}`
+      else acc.push(piece)
+      return acc
+    }, []) ?? [clean]
+
     const voices = window.speechSynthesis.getVoices()
     const preferred = voices.find((v) => /en(-|_)?(GB|US|ZA)/i.test(v.lang) && /female|samantha|karen|natural|google/i.test(v.name))
-    if (preferred) u.voice = preferred
-    u.onstart = () => setSpeaking(true)
-    u.onend = () => setSpeaking(false)
-    u.onerror = () => setSpeaking(false)
-    window.speechSynthesis.speak(u)
+
+    chunks.forEach((chunk, i) => {
+      const u = new SpeechSynthesisUtterance(chunk)
+      u.rate = rate
+      u.pitch = 1
+      if (preferred) u.voice = preferred
+      if (i === 0) u.onstart = () => setSpeaking(true)
+      if (i === chunks.length - 1) u.onend = () => setSpeaking(false)
+      u.onerror = () => setSpeaking(false)
+      window.speechSynthesis.speak(u)
+    })
   }, [])
 
   const stop = useCallback(() => {

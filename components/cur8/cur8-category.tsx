@@ -17,7 +17,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones, CheckSquare, CheckCircle2, Circle } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones, CheckSquare, CheckCircle2, Circle, Maximize2, Minimize2 } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
@@ -270,9 +270,14 @@ export default function Cur8Category({ category }: Props) {
   const [folderGardenPickId, setFolderGardenPickId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
   const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | null>(null)
-  // Collapsible side panels — desktop only (mobile uses tab switcher instead)
-  const [leftOpen, setLeftOpen] = useState(true)
-  const [rightOpen, setRightOpen] = useState(true)
+  // Collapsible side panels — desktop only (mobile uses tab switcher instead).
+  // Start collapsed so the centre preview fills as much width as possible by
+  // default — no need to manually hit Expand.
+  const [leftOpen, setLeftOpen] = useState(false)
+  const [rightOpen, setRightOpen] = useState(false)
+  // Desktop "full page" preview — hides both side panels + all chrome so the
+  // media fills the whole window (the mobile experience, brought to laptop).
+  const [expandedPreview, setExpandedPreview] = useState(false)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -1017,12 +1022,32 @@ export default function Cur8Category({ category }: Props) {
         const abs = item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`
         embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
       }
+      const isBlobPdf = item.url.startsWith('/api/cur8/file')
+      const downloadUrl = isBlobPdf ? `${item.url}${item.url.includes('?') ? '&' : '?'}download=1` : item.url
       return (
-        <iframe
-          src={embedUrl}
-          style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
-          title={item.title}
-        />
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <iframe
+            src={embedUrl}
+            style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
+            title={item.title}
+          />
+          {/* Recovery bar — some browsers (esp. mobile) won't render a PDF inside
+              an iframe, leaving it blank. These always-present buttons let the
+              document be opened full-screen or downloaded regardless. */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 12px', backgroundColor: 'rgba(13,36,32,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>Can&rsquo;t see it? Open or download instead.</span>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#0d2420', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer' }}>
+                <ExternalLink size={11} /> Open
+              </button>
+              <a href={downloadUrl} download
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', textDecoration: 'none' }}>
+                <Download size={11} /> Download
+              </a>
+            </div>
+          </div>
+        </div>
       )
     }
 
@@ -1272,7 +1297,9 @@ export default function Cur8Category({ category }: Props) {
 
   // When previewing a media item on mobile, collapse the banner/stats/folder
   // chrome so the video (esp. tall TikTok embeds) gets nearly the full screen.
-  const mediaFocus = isMobile && !!selectedItem && middleView === 'preview'
+  // On desktop the same full-screen treatment kicks in when the user taps the
+  // Expand button (expandedPreview), so the media can fill the whole laptop.
+  const mediaFocus = (isMobile || expandedPreview) && !!selectedItem && middleView === 'preview'
 
   return (
     <div
@@ -1309,12 +1336,13 @@ export default function Cur8Category({ category }: Props) {
       {/* ── Media-focus overlay: fixed back buttons when video is fullscreen ── */}
       {mediaFocus && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 180, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', backgroundColor: 'rgba(10,30,27,0.9)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          {/* Back to haven browse */}
+          {/* Exit full page. On desktop this just shrinks back to the 3-panel view
+              (keeping the item open); on mobile it returns to the haven browse. */}
           <button
-            onClick={() => { setSelectedItem(null); setMobileTab('browse') }}
+            onClick={() => { if (isMobile) { setSelectedItem(null); setMobileTab('browse') } else { setExpandedPreview(false) } }}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
           >
-            <ArrowLeft size={12} /> Back to {gardenName}
+            {isMobile ? <><ArrowLeft size={12} /> Back to {gardenName}</> : <><Minimize2 size={12} /> Exit full page</>}
           </button>
           {/* Back to all havens */}
           <Link
@@ -1512,7 +1540,7 @@ export default function Cur8Category({ category }: Props) {
         {/* ── Panel 1: Videos lane ── */}
         {/* Desktop: collapsible. Mobile: tab-switched. */}
         {/* When left panel is collapsed on desktop, show a floating re-open tab on the left edge */}
-        {!isMobile && !leftOpen && (
+        {!isMobile && !leftOpen && !mediaFocus && (
           <button
             onClick={() => setLeftOpen(true)}
             title="Show videos panel"
@@ -1532,7 +1560,7 @@ export default function Cur8Category({ category }: Props) {
         <motion.div
           animate={{ width: isMobile ? '100%' : (leftOpen ? 240 : 0) }}
           transition={{ type: 'spring', stiffness: 340, damping: 36 }}
-          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
+          style={{ flexShrink: 0, display: mediaFocus || (isMobile && mobileTab !== 'browse') ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
           <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Clapperboard size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Videos</span>
@@ -1807,11 +1835,18 @@ export default function Cur8Category({ category }: Props) {
                   <Pencil size={11} /> {!isMobile && 'Edit'}
                 </button>
                 <ShareMenu title={selectedItem.title} url={selectedItem.url} accent={tileStyle.accent} showLabel={!isMobile} />
+                {!isMobile && (
+                  <button onClick={() => setExpandedPreview((v) => !v)}
+                    title={expandedPreview ? 'Exit full page' : 'Fill the whole page'}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: expandedPreview ? '#0d2420' : 'rgba(245,240,232,0.8)', backgroundColor: expandedPreview ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                    {expandedPreview ? <Minimize2 size={11} /> : <Maximize2 size={11} />} {expandedPreview ? 'Shrink' : 'Expand'}
+                  </button>
+                )}
                 <button onClick={() => openItem(selectedItem)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <ExternalLink size={11} /> {!isMobile && 'Open'}
                 </button>
-                <button onClick={() => setSelectedItem(null)}
+                <button onClick={() => { setSelectedItem(null); setExpandedPreview(false) }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
                   <X size={11} /> {!isMobile && 'Close'}
                 </button>
@@ -1856,7 +1891,7 @@ export default function Cur8Category({ category }: Props) {
 
         {/* ── Panel 3: Right — docs & links ── */}
         {/* When right panel is collapsed on desktop, show a floating re-open tab on the right edge */}
-        {!isMobile && !rightOpen && (
+        {!isMobile && !rightOpen && !mediaFocus && (
           <button
             onClick={() => setRightOpen(true)}
             title="Show docs panel"
@@ -1876,7 +1911,7 @@ export default function Cur8Category({ category }: Props) {
         <motion.div
           animate={{ width: isMobile ? '100%' : (rightOpen ? 260 : 0) }}
           transition={{ type: 'spring', stiffness: 340, damping: 36 }}
-          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
+          style={{ flexShrink: 0, display: mediaFocus || (isMobile && mobileTab !== 'links') ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
           <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             {/* Desktop collapse — hide panel (chevron first so it's on the left edge) */}
             {!isMobile && (
