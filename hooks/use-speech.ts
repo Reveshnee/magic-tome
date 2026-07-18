@@ -101,6 +101,9 @@ export function useDictation(onResult: (text: string) => void) {
   const recRef = useRef<any>(null)
   const onResultRef = useRef(onResult)
   onResultRef.current = onResult
+  // Persistent accumulator for finalized speech. We only ever append NEW final
+  // results (tracked via e.resultIndex) so a chunk is never counted twice.
+  const finalRef = useRef('')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -111,16 +114,17 @@ export function useDictation(onResult: (text: string) => void) {
     rec.continuous = true
     rec.interimResults = true
     rec.lang = 'en-US'
-    let finalText = ''
     rec.onresult = (e: any) => {
+      // Start from resultIndex, not 0. On Android Chrome the results list
+      // re-reports already-finalized chunks; iterating from 0 and rebuilding
+      // double-counts them, which is what caused "this this is a test test".
       let interim = ''
-      finalText = ''
-      for (let i = 0; i < e.results.length; i++) {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) finalText += t
+        if (e.results[i].isFinal) finalRef.current += t
         else interim += t
       }
-      onResultRef.current((finalText + interim).trim())
+      onResultRef.current((finalRef.current + interim).trim())
     }
     rec.onend = () => setListening(false)
     rec.onerror = () => setListening(false)
@@ -133,6 +137,7 @@ export function useDictation(onResult: (text: string) => void) {
   const start = useCallback(() => {
     if (!recRef.current) return
     try {
+      finalRef.current = '' // fresh session — clear any previous transcript
       recRef.current.start()
       setListening(true)
     } catch { /* already started */ }
