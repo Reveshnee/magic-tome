@@ -10,6 +10,8 @@ import {
   discoverPatterns, generateWeeklyDigest, getMemories, updateMemory, discoverYou,
   type DiscoveryResult, type DigestResult, type YouResult,
 } from '@/app/actions/ai-features'
+import WordMap from '@/components/cur8/word-map'
+import type { Cur8Item } from '@/lib/cur8-store'
 
 const GOLD   = '#c9a84c'
 const SAGE   = '#5a9e84'
@@ -30,7 +32,7 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function AiHub() {
+export default function AiHub({ items = [] }: { items?: Pick<Cur8Item, 'id' | 'title' | 'description'>[] }) {
   const [tab, setTab] = useState<Tab>('discover')
 
   const [discovery, setDiscovery] = useState<DiscoveryResult | null>(null)
@@ -138,7 +140,7 @@ export default function AiHub() {
           {tab === 'you' && (
             youLoading ? <Loader label="Building your profile..." /> :
             !you ? <EmptyState label="Build your interests profile." onRetry={loadYou} retryLabel="Build profile" /> :
-            <YouBody you={you} onRefresh={loadYou} loading={youLoading} />
+            <YouBody you={you} onRefresh={loadYou} loading={youLoading} items={items} />
           )}
 
           {tab === 'ask' && <AskBody />}
@@ -213,7 +215,7 @@ function MemoryBody({ memories, onRefresh, loading }: { memories: { id: string; 
 
 // ─── YOU ─────────────────────────────────────────────────────────────────────
 
-function YouBody({ you, onRefresh, loading }: { you: YouResult; onRefresh: () => void; loading: boolean }) {
+function YouBody({ you, onRefresh, loading, items }: { you: YouResult; onRefresh: () => void; loading: boolean; items: Pick<Cur8Item, 'id' | 'title' | 'description'>[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -245,6 +247,14 @@ function YouBody({ you, onRefresh, loading }: { you: YouResult; onRefresh: () =>
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Compact word map — visual fingerprint of their library */}
+      {items.length >= 3 && (
+        <div>
+          <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: `${CREAM}44` }}>Your library fingerprint</p>
+          <WordMap items={items} compact />
         </div>
       )}
 

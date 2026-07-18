@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const [items, notes] = await Promise.all([
     db.select({ title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description })
       .from(cur8Item).where(eq(cur8Item.userId, userId)).orderBy(desc(cur8Item.savedAt)).limit(80),
-    db.select({ content: cur8Note.content })
+    db.select({ content: cur8Note.body })
       .from(cur8Note).where(eq(cur8Note.userId, userId)).orderBy(desc(cur8Note.createdAt)).limit(20),
   ])
 

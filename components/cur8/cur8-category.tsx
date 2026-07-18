@@ -49,6 +49,7 @@ import {
 } from '@/app/actions/cur8'
 import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
+import WordMap from '@/components/cur8/word-map'
 import CategoryReflections from '@/components/cur8/category-reflections'
 import ShareMenu from '@/components/cur8/share-menu'
 import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile, shareToDevice, deviceShareSupported } from '@/lib/cur8-share'
@@ -278,6 +279,8 @@ export default function Cur8Category({ category }: Props) {
   // Desktop "full page" preview — hides both side panels + all chrome so the
   // media fills the whole window (the mobile experience, brought to laptop).
   const [expandedPreview, setExpandedPreview] = useState(false)
+  // Word map filter — tap a word in the compact cloud to narrow visible items
+  const [havenWordFilter, setHavenWordFilter] = useState<string | null>(null)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -498,7 +501,10 @@ export default function Cur8Category({ category }: Props) {
   // close the menu on the very click that opens a submenu (Move to folder).
 
   const catItems = allItems.filter((i) => i.category === category)
-  const visibleItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
+  const folderItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
+  const visibleItems = havenWordFilter
+    ? folderItems.filter((i) => `${i.title ?? ''} ${i.description ?? ''}`.toLowerCase().includes(havenWordFilter))
+    : folderItems
 
   // Auto-sorted lanes
   const videoItems = visibleItems.filter((i) => getContentKind(i) === 'video')
@@ -1577,6 +1583,12 @@ export default function Cur8Category({ category }: Props) {
               </button>
             )}
           </div>
+          {/* Compact word map — keyword filter for this haven */}
+          {catItems.length >= 3 && (
+            <div style={{ padding: '8px 8px 4px' }}>
+              <WordMap items={catItems} onFilter={setHavenWordFilter} activeWord={havenWordFilter} compact />
+            </div>
+          )}
           <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto', padding: 8, minHeight: isMobile ? 'auto' : 0 }}>
             {videoItems.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>

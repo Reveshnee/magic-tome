@@ -23,6 +23,7 @@ import MiniCalendarWidget from '@/components/cur8/widgets/mini-calendar-widget'
 import IntentionWidget from '@/components/cur8/widgets/intention-widget'
 import { useViewport } from '@/hooks/use-viewport'
 import AiHub from '@/components/cur8/ai-hub'
+import WordMap from '@/components/cur8/word-map'
 import HomeQuickActions from '@/components/cur8/widgets/home-quick-actions'
 import { QuickSave, OneThing } from '@/components/cur8/hub-quick-tools'
 
@@ -81,6 +82,7 @@ export default function Cur8Home() {
   const [results, setResults] = useState<SearchResults | null>(null)
   const [searching, setSearching] = useState(false)
   const [calm, setCalm] = useCalmMode()
+  const [activeWord, setActiveWord] = useState<string | null>(null)
   const { displayName } = useGardenNames()
   // Horizontal scroll for the haven tab bar — arrows nudge it left/right and we
   // track whether more tabs exist off each edge so the arrows only show when useful.
@@ -480,9 +482,39 @@ export default function Cur8Home() {
           <HomeQuickActions />
         </section>
 
-        {/* AI Insights Hub */}
+        {/* Word map — cross-haven keyword cloud */}
+        {items.length >= 3 && (
+          <section style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 12, display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--c-cream)', margin: 0 }}>Word map</h2>
+              <span style={{ fontSize: 11, color: 'var(--c-muted)' }}>tap a word to filter across all havens</span>
+            </div>
+            <WordMap items={items} onFilter={setActiveWord} activeWord={activeWord} />
+            {activeWord && (
+              <div style={{ marginTop: 12 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--c-muted)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Saves containing &ldquo;{activeWord}&rdquo; — {items.filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord)).length} items
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {items
+                    .filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord))
+                    .slice(0, 8)
+                    .map(it => (
+                      <a key={it.id} href={it.url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.15)', textDecoration: 'none' }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: 'var(--c-cream)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
+                        <span style={{ flexShrink: 0, fontSize: 10, color: 'var(--c-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{it.category}</span>
+                      </a>
+                    ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Know Yourself — AI insights panel */}
         <section style={{ marginBottom: 28 }}>
-          <AiHub />
+          <AiHub items={items} />
         </section>
 
         {/* Gardens grid — editorial bento style */}
