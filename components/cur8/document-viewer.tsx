@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FileText, Download, AlertCircle, Loader2 } from 'lucide-react'
+import { FileText, Download, AlertCircle, Loader2, ExternalLink } from 'lucide-react'
 
 interface Props {
   url: string
@@ -94,6 +94,38 @@ export default function DocumentViewer({ url, filename, accent }: Props) {
   }
 
   if (error || kind === 'unsupported') {
+    // For Word / Office docs that failed mammoth, fall back to Google Docs viewer.
+    // Build an absolute URL so Google can fetch our private blob proxy.
+    const canGoogleView = (kind === 'word' || kind === 'sheet') && url.startsWith('/api/cur8/file')
+    const googleViewUrl = canGoogleView
+      ? `https://docs.google.com/viewer?url=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}${url}`)}&embedded=true`
+      : null
+
+    if (googleViewUrl) {
+      return (
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <iframe
+            src={googleViewUrl}
+            style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
+            title={filename}
+          />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 12px', backgroundColor: 'rgba(13,36,32,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>Can&rsquo;t see it? Open or download instead.</span>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#0d2420', backgroundColor: accent, border: 'none', cursor: 'pointer' }}>
+                <ExternalLink size={11} /> Open
+              </button>
+              <a href={`${url}${url.includes('?') ? '&' : '?'}download=1`} download={filename}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.12)', textDecoration: 'none' }}>
+                <Download size={11} /> Download
+              </a>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, backgroundColor: '#0a1e1b', color: '#f5f0e8', padding: 32, textAlign: 'center' }}>
         <div style={{ width: 64, height: 64, borderRadius: 16, backgroundColor: `${accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
