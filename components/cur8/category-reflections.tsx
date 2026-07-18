@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail, MessageCircle, Pencil } from 'lucide-react'
+import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail, MessageCircle, Pencil, Paperclip } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
 import { getSettings, type Cur8Settings } from '@/app/actions/notes'
+import { AttachmentChips, AttachmentPicker, useAttachments } from '@/components/cur8/attachment-panel'
 
 interface Props {
   open: boolean
@@ -32,7 +33,10 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
   const [settings, setSettings] = useState<Cur8Settings | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
+  const [attachFor, setAttachFor] = useState<string | null>(null)
   const baseRef = useRef('')
+  const reflectionIds = reflections.map((r) => r.id)
+  const attachments = useAttachments('reflection', reflectionIds, open)
 
   async function saveEdit(id: string) {
     const body = editDraft.trim()
@@ -214,6 +218,13 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
                   <MessageCircle size={13} />
                 </button>
                 <button
+                  onClick={() => setAttachFor(r.id)}
+                  title="Attach something"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
+                >
+                  <Paperclip size={13} />
+                </button>
+                <button
                   onClick={() => onDelete(r.id)}
                   title="Delete reflection"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
@@ -221,6 +232,11 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
                   <Trash2 size={13} />
                 </button>
               </div>
+              <AttachmentChips
+                attachments={attachments.byParent[r.id] || []}
+                accent={accent}
+                onRemove={(id) => attachments.remove(r.id, id)}
+              />
                 </>
               )}
             </motion.div>
@@ -233,6 +249,15 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
         )}
             </div>
           </motion.div>
+          {attachFor && (
+            <AttachmentPicker
+              parentType="reflection"
+              parentId={attachFor}
+              accent={accent}
+              onClose={() => setAttachFor(null)}
+              onAttached={(a) => attachments.add(a)}
+            />
+          )}
         </>
       )}
     </AnimatePresence>

@@ -12,7 +12,7 @@ import {
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
-import { getCur8Data } from '@/app/actions/cur8'
+import { getCur8Data, searchEverything, type SearchResults } from '@/app/actions/cur8'
 import { authClient } from '@/lib/auth-client'
 import FloatingParticles from '@/components/cur8/widgets/floating-particles'
 import BreathworkWidget from '@/components/cur8/widgets/breathwork-widget'
@@ -22,6 +22,7 @@ import IntentionWidget from '@/components/cur8/widgets/intention-widget'
 import { useViewport } from '@/hooks/use-viewport'
 import AiHub from '@/components/cur8/ai-hub'
 import HomeQuickActions from '@/components/cur8/widgets/home-quick-actions'
+import { QuickSave, OneThing } from '@/components/cur8/hub-quick-tools'
 
 const KOI: React.CSSProperties = {
   '--c-bg':       '#0d2420',
@@ -75,8 +76,24 @@ export default function Cur8Home() {
   const [greeting, setGreeting] = useState('Good morning')
   const [quote, setQuote] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [results, setResults] = useState<SearchResults | null>(null)
+  const [searching, setSearching] = useState(false)
   const [calm, setCalm] = useCalmMode()
   const { displayName } = useGardenNames()
+
+  // Debounced cross-everything search (items, notes, reflections)
+  useEffect(() => {
+    const q = search.trim()
+    if (!q) { setResults(null); setSearching(false); return }
+    setSearching(true)
+    const t = setTimeout(() => {
+      searchEverything(q)
+        .then(setResults)
+        .catch(() => {})
+        .finally(() => setSearching(false))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [search])
 
   // Surprise me — open a random saved item (reduces decision paralysis)
   function surpriseMe() {
@@ -110,13 +127,6 @@ export default function Cur8Home() {
     .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
     .slice(0, 8)
 
-  const filtered = search.trim()
-    ? items.filter((i) =>
-        i.title.toLowerCase().includes(search.toLowerCase()) ||
-        i.category.toLowerCase().includes(search.toLowerCase())
-      )
-    : []
-
   const todayCount = items.filter((i) => {
     const saved = new Date(i.savedAt)
     return saved.toDateString() === new Date().toDateString()
@@ -143,9 +153,9 @@ export default function Cur8Home() {
 
         {/* Top bar — logo + sign out */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '16px 20px' : '20px 32px', zIndex: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: 'var(--c-coral)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Leaf size={12} color="#fff" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.35)', flexShrink: 0 }}>
+              <Image src="/cur8/logo-v2/icon-duo.png" alt="Cur8 koi logo" width={32} height={32} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: 'var(--c-cream)', letterSpacing: '0.02em' }}>cur8</span>
           </div>
@@ -186,24 +196,61 @@ export default function Cur8Home() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search your haven..."
+                placeholder="Search everything — saved items, notes, reflections…"
                 autoFocus
                 style={{ width: '100%', padding: '13px 20px', borderRadius: 50, border: '1.5px solid rgba(245,240,232,0.25)', backgroundColor: 'rgba(13,36,32,0.7)', backdropFilter: 'blur(20px)', color: '#f5f0e8', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
               />
-              {/* Search results */}
-              {filtered.length > 0 && (
+              {/* Grouped cross-everything results */}
+              {search.trim() && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  style={{ marginTop: 8, backgroundColor: 'rgba(13,36,32,0.92)', backdropFilter: 'blur(20px)', borderRadius: 18, border: '1px solid rgba(245,240,232,0.12)', overflow: 'hidden' }}
+                  style={{ marginTop: 8, maxHeight: '60vh', overflowY: 'auto', backgroundColor: 'rgba(13,36,32,0.94)', backdropFilter: 'blur(20px)', borderRadius: 18, border: '1px solid rgba(245,240,232,0.12)' }}
                 >
-                  {filtered.slice(0, 6).map((item) => (
-                    <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', textDecoration: 'none', color: '#f5f0e8', borderBottom: '1px solid rgba(245,240,232,0.06)' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 50, backgroundColor: 'rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.6)' }}>{item.category}</span>
-                      <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</span>
-                    </a>
-                  ))}
+                  {searching && (!results || (results.items.length + results.notes.length + results.reflections.length === 0)) ? (
+                    <p style={{ fontSize: 12.5, color: 'rgba(245,240,232,0.5)', textAlign: 'center', padding: 18, margin: 0 }}>Searching…</p>
+                  ) : results && (results.items.length + results.notes.length + results.reflections.length) === 0 ? (
+                    <p style={{ fontSize: 12.5, color: 'rgba(245,240,232,0.5)', textAlign: 'center', padding: 18, margin: 0 }}>Nothing found for &ldquo;{search.trim()}&rdquo;.</p>
+                  ) : results && (
+                    <>
+                      {results.items.length > 0 && (
+                        <div>
+                          <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', padding: '10px 16px 4px', margin: 0 }}>Saved items</p>
+                          {results.items.slice(0, 8).map((item) => (
+                            <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', textDecoration: 'none', color: '#f5f0e8' }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 50, backgroundColor: 'rgba(245,240,232,0.1)', color: 'rgba(245,240,232,0.6)', flexShrink: 0 }}>{displayName(item.category)}</span>
+                              <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {results.notes.length > 0 && (
+                        <div style={{ borderTop: '1px solid rgba(245,240,232,0.06)' }}>
+                          <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', padding: '10px 16px 4px', margin: 0 }}>Brain dump notes</p>
+                          {results.notes.slice(0, 5).map((n) => (
+                            <button key={n.id} onClick={() => { setSearchOpen(false); window.dispatchEvent(new Event('cur8:openBrainDump')) }}
+                              style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', padding: '9px 16px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: '#f5f0e8' }}>
+                              <Brain size={14} color="var(--c-gold)" style={{ flexShrink: 0, marginTop: 1 }} />
+                              <span style={{ fontSize: 12.5, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.body}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {results.reflections.length > 0 && (
+                        <div style={{ borderTop: '1px solid rgba(245,240,232,0.06)' }}>
+                          <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', padding: '10px 16px 4px', margin: 0 }}>Reflections</p>
+                          {results.reflections.slice(0, 5).map((r) => (
+                            <Link key={r.id} href={`/cur8/${r.category.toLowerCase()}`} onClick={() => setSearchOpen(false)}
+                              style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 16px', textDecoration: 'none', color: '#f5f0e8' }}>
+                              <Leaf size={14} color="var(--c-sage)" style={{ flexShrink: 0, marginTop: 1 }} />
+                              <span style={{ fontSize: 12.5, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </motion.div>
               )}
             </motion.div>
@@ -340,9 +387,15 @@ export default function Cur8Home() {
 
         {/* Quick Actions — Brain Dump, Reflect, Focus Sounds */}
         <section style={{ marginBottom: 48 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
-            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--c-cream)' }}>Quick actions</h2>
-            <span style={{ fontSize: 11, color: 'var(--c-muted)' }}>capture, reflect, focus</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--c-cream)' }}>Quick actions</h2>
+              <span style={{ fontSize: 11, color: 'var(--c-muted)' }}>capture, reflect, focus</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <QuickSave onSaved={(item) => setItems((prev) => [item, ...prev])} />
+              <OneThing items={items} />
+            </div>
           </div>
           <HomeQuickActions />
         </section>

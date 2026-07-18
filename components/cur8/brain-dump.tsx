@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain, X, Mic, MicOff, Send, Volume2, Square, Pin, PinOff,
-  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle, Wand2, Pencil,
+  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle, Wand2, Pencil, Paperclip,
 } from 'lucide-react'
 import {
   getNotes, createNote, deleteNote, togglePinNote, updateNote,
@@ -13,6 +13,7 @@ import {
 } from '@/app/actions/notes'
 import { useReadAloud, useDictation } from '@/hooks/use-speech'
 import { cleanupBrainDump, type CleanupResult } from '@/app/actions/ai-features'
+import { AttachmentChips, AttachmentPicker, useAttachments } from '@/components/cur8/attachment-panel'
 
 const ACCENT = '#c9a84c'
 const SAGE = '#8ec8b4'
@@ -35,6 +36,9 @@ export default function BrainDump() {
   const baseDraftRef = useRef('')
   const [cleanup, setCleanup] = useState<CleanupResult | null>(null)
   const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [attachFor, setAttachFor] = useState<string | null>(null)
+  const noteIds = notes.map((n) => n.id)
+  const attachments = useAttachments('note', noteIds, open)
 
   const { speak, stop: stopSpeak, speaking, supported: ttsSupported } = useReadAloud()
 
@@ -421,6 +425,9 @@ export default function BrainDump() {
                             <IconBtn onClick={() => copyNote(note)} title="Copy">
                               {copiedId === note.id ? <Check size={14} color={SAGE} /> : <Copy size={14} />}
                             </IconBtn>
+                            <IconBtn onClick={() => setAttachFor(note.id)} title="Attach something">
+                              <Paperclip size={14} />
+                            </IconBtn>
                             <IconBtn onClick={() => handlePin(note)} title={note.pinned ? 'Unpin' : 'Pin'} active={note.pinned}>
                               {note.pinned ? <PinOff size={14} /> : <Pin size={14} />}
                             </IconBtn>
@@ -429,6 +436,11 @@ export default function BrainDump() {
                             </IconBtn>
                           </div>
                         </div>
+                        <AttachmentChips
+                          attachments={attachments.byParent[note.id] || []}
+                          accent={ACCENT}
+                          onRemove={(id) => attachments.remove(note.id, id)}
+                        />
                           </>
                         )}
                       </motion.div>
@@ -500,6 +512,16 @@ export default function BrainDump() {
           </>
         )}
       </AnimatePresence>
+
+      {attachFor && (
+        <AttachmentPicker
+          parentType="note"
+          parentId={attachFor}
+          accent={ACCENT}
+          onClose={() => setAttachFor(null)}
+          onAttached={(a) => attachments.add(a)}
+        />
+      )}
 
       <style>{`
         @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }
