@@ -22,6 +22,7 @@ import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
 import { generateVideoThumbnail } from '@/lib/video-thumbnail'
 import { findConnections } from '@/app/actions/ai-features'
+import { fetchPlaylist, type PlaylistItem } from '@/app/actions/fetch-playlist'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -194,6 +195,12 @@ export default function Cur8Category({ category }: Props) {
   const [folders, setFolders] = useState<Cur8Folder[]>([])
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [saveTab, setSaveTab] = useState<'links' | 'playlist'>('links')
+  const [playlistInput, setPlaylistInput] = useState('')
+  const [playlistFetching, setPlaylistFetching] = useState(false)
+  const [playlistSaving, setPlaylistSaving] = useState(false)
+  const [playlistResult, setPlaylistResult] = useState<{ title: string; items: (PlaylistItem & { selected: boolean })[] } | null>(null)
+  const [playlistError, setPlaylistError] = useState('')
   const [newFolderName, setNewFolderName] = useState('')
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [selectedFolderForItem, setSelectedFolderForItem] = useState<string | undefined>(undefined)
@@ -643,6 +650,52 @@ export default function Cur8Category({ category }: Props) {
     }
   }
 
+  async function handleFetchPlaylist() {
+    const input = playlistInput.trim()
+    if (!input) return
+    setPlaylistFetching(true)
+    setPlaylistError('')
+    setPlaylistResult(null)
+    try {
+      const result = await fetchPlaylist(input)
+      if (result.error) { setPlaylistError(result.error); return }
+      setPlaylistResult({ title: result.title, items: result.items.map((i) => ({ ...i, selected: true })) })
+    } catch (e) {
+      setPlaylistError(e instanceof Error ? e.message : 'Could not load playlist')
+    } finally {
+      setPlaylistFetching(false)
+    }
+  }
+
+  async function handleSavePlaylist() {
+    if (!playlistResult) return
+    const selected = playlistResult.items.filter((i) => i.selected)
+    if (selected.length === 0) return
+    setSaving(true)
+    for (const item of selected) {
+      try {
+        // Reuse the existing fetch-meta flow to get proper metadata
+        const metaRes = await fetch('/api/cur8/fetch-meta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: item.url }),
+        })
+        const meta = metaRes.ok ? await metaRes.json() : null
+        const newItem = await createItemAction({
+          url: item.url,
+          title: meta?.title || item.title,
+          description: meta?.description || '',
+          thumbnail: meta?.thumbnail || item.thumbnail || '',
+          category: cat as Category,
+          folderId: selectedFolderForItem,
+        })
+        if (newItem) setAllItems((prev) => [newItem as Cur8Item, ...prev])
+      } catch { /* skip failed items */ }
+    }
+    setSaving(false)
+    closeModal()
+  }
+
   function closeModal() {
     setShowAdd(false)
     setUrl('')
@@ -650,6 +703,10 @@ export default function Cur8Category({ category }: Props) {
     setMultiPreviews([])
     setFetchError('')
     setSelectedFolderForItem(undefined)
+    setSaveTab('links')
+    setPlaylistInput('')
+    setPlaylistResult(null)
+    setPlaylistError('')
   }
 
   // Render the centre preview panel content — fills the entire panel height
@@ -1189,67 +1246,114 @@ export default function Cur8Category({ category }: Props) {
             </div>
           ) : selectedItem ? (
             <>
-              {/* Preview area — fills as much as possible */}
+              {/* Preview area — fills ALL available space; overlays float on top */}
               <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden', position: 'relative' }}>
                 {renderPreview(selectedItem)}
-              </div>
-              {/* AI smart-summary panel (sits just above the details bar) */}
-              <AnimatePresence>
-                {summaryOpen && (summaryLoading || summaryError || selectedItem.summary) && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    style={{ flexShrink: 0, overflow: 'hidden', backgroundColor: '#122e29', borderTop: `1px solid ${tileStyle.accent}33` }}
-                  >
-                    <div style={{ padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <Sparkles size={12} style={{ color: tileStyle.accent }} />
-                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: tileStyle.accent }}>A gentle summary</span>
-                        {!summaryLoading && selectedItem.summary && (
-                          <button onClick={() => handleSummarise(selectedItem, true)} title="Refresh this summary"
-                            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 50, fontSize: 9, fontWeight: 600, color: 'rgba(245,240,232,0.55)', backgroundColor: 'rgba(245,240,232,0.06)', border: 'none', cursor: 'pointer' }}>
-                            <RotateCcw size={9} /> Refresh
+
+                {/* AI summary — absolute overlay at the bottom of the preview,
+                    does NOT push the video up */}
+                <AnimatePresence>
+                  {summaryOpen && (summaryLoading || summaryError || selectedItem.summary) && (
+                    <motion.div
+                      initial={{ y: '100%', opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: '100%', opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+                      style={{
+                        position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20,
+                        overflow: 'hidden',
+                        backgroundColor: 'rgba(14,40,34,0.95)',
+                        backdropFilter: 'blur(14px)',
+                        borderTop: `1px solid ${tileStyle.accent}44`,
+                        borderRadius: '14px 14px 0 0',
+                      }}
+                    >
+                      <div style={{ padding: '12px 16px', maxHeight: 220, overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                          <Sparkles size={12} style={{ color: tileStyle.accent }} />
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: tileStyle.accent }}>A gentle summary</span>
+                          {!summaryLoading && selectedItem.summary && (
+                            <button onClick={() => handleSummarise(selectedItem, true)} title="Refresh this summary"
+                              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 50, fontSize: 9, fontWeight: 600, color: 'rgba(245,240,232,0.55)', backgroundColor: 'rgba(245,240,232,0.06)', border: 'none', cursor: 'pointer' }}>
+                              <RotateCcw size={9} /> Refresh
+                            </button>
+                          )}
+                          <button onClick={() => setSummaryOpen(false)} title="Hide summary"
+                            style={{ marginLeft: selectedItem.summary && !summaryLoading ? 0 : 'auto', display: 'inline-flex', padding: 3, borderRadius: 50, color: 'rgba(245,240,232,0.5)', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}>
+                            <X size={12} />
                           </button>
-                        )}
-                        <button onClick={() => setSummaryOpen(false)} title="Hide summary"
-                          style={{ marginLeft: selectedItem.summary && !summaryLoading ? 0 : 'auto', display: 'inline-flex', padding: 3, borderRadius: 50, color: 'rgba(245,240,232,0.5)', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}>
-                          <X size={12} />
-                        </button>
-                      </div>
-                      {summaryLoading ? (
-                        <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'rgba(245,240,232,0.6)', margin: 0, fontStyle: 'italic' }}>
-                          <Loader2 size={13} className="animate-spin" style={{ color: tileStyle.accent }} /> Taking a gentle look...
-                        </p>
-                      ) : summaryError ? (
-                        <p style={{ fontSize: 12.5, color: '#e8b4a0', margin: 0 }}>{summaryError}</p>
-                      ) : (
-                        <p style={{ fontSize: 13, lineHeight: 1.6, color: 'rgba(245,240,232,0.9)', margin: 0 }}>{selectedItem.summary}</p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              {/* Related items — cross-haven connections */}
-              {(connections.length > 0 || connectionsLoading) && (
-                <div style={{ flexShrink: 0, padding: '10px 14px', borderTop: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0d2420' }}>
-                  <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#c9a84c', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Sparkles size={10} /> Also in your havens
-                  </p>
-                  {connectionsLoading ? (
-                    <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic' }}>Finding connections...</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {connections.map(({ item: conn, reason }) => (
-                        <div key={conn.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#f5f0e8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.title}</span>
-                          <span style={{ fontSize: 10.5, color: '#c9a84c', opacity: 0.75 }}>{conn.category} · {reason}</span>
                         </div>
-                      ))}
-                    </div>
+                        {summaryLoading ? (
+                          <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'rgba(245,240,232,0.6)', margin: 0, fontStyle: 'italic' }}>
+                            <Loader2 size={13} className="animate-spin" style={{ color: tileStyle.accent }} /> Taking a gentle look...
+                          </p>
+                        ) : summaryError ? (
+                          <p style={{ fontSize: 12.5, color: '#e8b4a0', margin: 0 }}>{summaryError}</p>
+                        ) : (
+                          <p style={{ fontSize: 13, lineHeight: 1.6, color: 'rgba(245,240,232,0.9)', margin: 0 }}>{selectedItem.summary}</p>
+                        )}
+
+                        {/* Related items inline inside the summary overlay */}
+                        {(connections.length > 0 || connectionsLoading) && (
+                          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(245,240,232,0.1)' }}>
+                            <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#c9a84c', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <Sparkles size={10} /> Also in your havens
+                            </p>
+                            {connectionsLoading ? (
+                              <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic' }}>Finding connections...</p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                {connections.map(({ item: conn, reason }) => (
+                                  <div key={conn.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: '#f5f0e8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.title}</span>
+                                    <span style={{ fontSize: 10.5, color: '#c9a84c', opacity: 0.75 }}>{conn.category} · {reason}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
                   )}
-                </div>
-              )}
+                </AnimatePresence>
+
+                {/* Connections-only overlay (shown when no summary is open) */}
+                <AnimatePresence>
+                  {!summaryOpen && (connections.length > 0 || connectionsLoading) && (
+                    <motion.div
+                      initial={{ y: '100%', opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: '100%', opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 340, damping: 34 }}
+                      style={{
+                        position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20,
+                        backgroundColor: 'rgba(13,36,32,0.95)',
+                        backdropFilter: 'blur(14px)',
+                        borderTop: '1px solid rgba(201,168,76,0.25)',
+                        borderRadius: '14px 14px 0 0',
+                        padding: '10px 14px',
+                      }}
+                    >
+                      <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#c9a84c', display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <Sparkles size={10} /> Also in your havens
+                      </p>
+                      {connectionsLoading ? (
+                        <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic' }}>Finding connections...</p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {connections.map(({ item: conn, reason }) => (
+                            <div key={conn.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: '#f5f0e8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.title}</span>
+                              <span style={{ fontSize: 10.5, color: '#c9a84c', opacity: 0.75 }}>{conn.category} · {reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Details bar at bottom */}
               <div style={{ flexShrink: 0, padding: '12px 16px', borderTop: '1px solid rgba(245,240,232,0.08)', backgroundColor: '#0a1e1b', display: 'flex', alignItems: 'center', gap: 10 }}>

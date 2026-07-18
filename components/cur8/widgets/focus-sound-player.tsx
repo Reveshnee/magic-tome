@@ -237,16 +237,23 @@ export default function FocusSoundPlayer() {
         )}
       </AnimatePresence>
 
-      {/* Floating toggle button */}
+      {/* Floating toggle button — always shows a label so it's easy to find */}
       <motion.button
         onClick={() => setOpen((o) => !o)}
         whileTap={{ scale: 0.92 }}
         aria-label="Focus sounds"
-        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: playing ? '10px 16px' : '12px', borderRadius: 50, border: '1px solid rgba(245,240,232,0.15)', cursor: 'pointer', backgroundColor: playing ? activeDef.color : 'rgba(10,30,27,0.96)', backdropFilter: 'blur(20px)', boxShadow: '0 6px 24px rgba(0,0,0,0.4)', color: '#f5f0e8', float: 'right' }}
+        style={{
+          marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '10px 16px', borderRadius: 50, cursor: 'pointer',
+          border: playing ? 'none' : '1px solid rgba(201,168,76,0.35)',
+          backgroundColor: playing ? activeDef.color : 'rgba(10,30,27,0.96)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: playing ? '0 6px 24px rgba(0,0,0,0.5)' : '0 4px 20px rgba(0,0,0,0.45)',
+          color: '#f5f0e8', float: 'right',
+        }}
       >
         {playing ? (
           <>
-            {/* animated equaliser bars */}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 16 }}>
               {[0, 1, 2].map((i) => (
                 <motion.div
@@ -260,7 +267,10 @@ export default function FocusSoundPlayer() {
             <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{activeDef.label}</span>
           </>
         ) : (
-          <Headphones size={20} color="#c9a84c" />
+          <>
+            <Headphones size={17} color="#c9a84c" />
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#c9a84c', whiteSpace: 'nowrap' }}>Focus sounds</span>
+          </>
         )}
       </motion.button>
     </div>

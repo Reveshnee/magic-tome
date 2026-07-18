@@ -43,14 +43,16 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
 
   // Open the user's own email app pre-addressed to mem.ai, tagging the garden
   // so filed reflections stay grouped by area.
+  // IMPORTANT: build the query with encodeURIComponent (spaces → %20), NOT
+  // URLSearchParams (spaces → "+"), which desktop Chrome renders literally.
   function emailReflection(body: string) {
     const to = (settings?.memEmail || 'save@mem.ai').trim()
     const cc = (settings?.emailTo || '').trim()
-    const params = new URLSearchParams()
-    params.set('subject', `Cur8 reflection · ${categoryLabel}`)
-    params.set('body', `${body}\n\n— Reflection from ${categoryLabel} (Cur8)`)
-    if (cc) params.set('cc', cc)
-    window.location.href = `mailto:${encodeURIComponent(to)}?${params.toString()}`
+    const subject = encodeURIComponent(`Cur8 reflection · ${categoryLabel}`)
+    const fullBody = encodeURIComponent(`${body}\n\n— Reflection from ${categoryLabel} (Cur8)`)
+    const parts = [`subject=${subject}`, `body=${fullBody}`]
+    if (cc) parts.push(`cc=${encodeURIComponent(cc)}`)
+    window.location.href = `mailto:${to}?${parts.join('&')}`
   }
 
   function toggleMic() {
