@@ -1,33 +1,33 @@
 import Image from 'next/image'
 
-// Option B (two koi forming the 8) in three colour combos pulled from the
-// koi-pond hero image: petrol-teal water, vermilion + gold koi, cream lotus.
-// Each combo is shown in BOTH contexts: the app-open icon (home screen /
-// splash) and the in-app wordmark (header).
+// Option B (two koi forming the 8), warm koi on the green/teal background —
+// the app background is always this pond-green, so the koi stay warm (red /
+// orange) to pop against it. Each combo is shown in BOTH contexts: the
+// app-open icon (home screen / splash) and the in-app wordmark (header).
 const COMBOS = [
   {
-    id: 'gold',
-    name: 'Combo 1 · Gold on Petrol',
-    swatches: ['#0e2e2b', '#c9a04a', '#f3e7d6'],
-    note: 'Two gold koi on deep pond-teal. Classic, calm, luxurious — the safest, most timeless option.',
-    icon: '/cur8/logo-v2/icon-gold.png',
-    word: '/cur8/logo-v2/word-gold.png',
+    id: 'duo',
+    name: 'Combo 1 · Red + Orange koi',
+    swatches: ['#0e2e2b', '#d13a1f', '#e8792b'],
+    note: 'One deep red koi, one warm orange koi on pond-teal — the truest match to real koi and to your hero image. The 8 reads clearest here.',
+    icon: '/cur8/logo-v2/icon-duo.png',
+    word: '/cur8/logo-v2/word-duo.png',
   },
   {
-    id: 'pair',
-    name: 'Combo 2 · Koi Pair (red + gold)',
-    swatches: ['#0e2e2b', '#d9512b', '#c9a04a'],
-    note: 'One vermilion koi, one gold — the truest match to the real koi in your hero image. Warmest and most alive.',
-    icon: '/cur8/logo-v2/icon-pair.png',
-    word: '/cur8/logo-v2/word-pair.png',
+    id: 'red',
+    name: 'Combo 2 · Twin Red koi',
+    swatches: ['#0e2e2b', '#d13a1f', '#f3e7d6'],
+    note: 'Two vermilion-red koi on deep pond-teal. Boldest and most striking — strong red-against-green contrast.',
+    icon: '/cur8/logo-v2/icon-red.png',
+    word: '/cur8/logo-v2/word-red.png',
   },
   {
-    id: 'ivory',
-    name: 'Combo 3 · Ivory & Coral',
-    swatches: ['#123734', '#f3e7d6', '#e08a6b'],
-    note: 'Soft cream koi with coral fins, gold wordmark. The gentlest, most spa-like and nervous-system-calming of the three.',
-    icon: '/cur8/logo-v2/icon-ivory.png',
-    word: '/cur8/logo-v2/word-ivory.png',
+    id: 'orange',
+    name: 'Combo 3 · Orange on Emerald',
+    swatches: ['#0f3b33', '#e8792b', '#f3e7d6'],
+    note: 'Warm orange koi on a slightly brighter emerald green. Softest and sunniest — glows without the red intensity.',
+    icon: '/cur8/logo-v2/icon-orange.png',
+    word: '/cur8/logo-v2/word-orange.png',
   },
 ]
 
