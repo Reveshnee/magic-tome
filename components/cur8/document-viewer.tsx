@@ -12,7 +12,16 @@ interface Props {
 type DocKind = 'pdf' | 'word' | 'sheet' | 'text' | 'unsupported'
 
 function kindFromString(s: string): DocKind | null {
-  const clean = s.split('?')[0].toLowerCase()
+  // For blob proxy URLs like /api/cur8/file?pathname=cur8%2FMyFile.pdf,
+  // the extension is inside the pathname= query param, not the path itself.
+  let check = s
+  try {
+    const u = new URL(s, 'http://x')
+    const p = u.searchParams.get('pathname')
+    if (p) check = decodeURIComponent(p)
+  } catch { /* not a parseable URL, use as-is */ }
+
+  const clean = check.split('?')[0].toLowerCase()
   if (clean.endsWith('.pdf')) return 'pdf'
   if (clean.endsWith('.doc') || clean.endsWith('.docx')) return 'word'
   if (clean.endsWith('.xls') || clean.endsWith('.xlsx') || clean.endsWith('.csv')) return 'sheet'
