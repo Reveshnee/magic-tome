@@ -12,7 +12,8 @@ import {
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
-import { getCur8Data, searchEverything, type SearchResults } from '@/app/actions/cur8'
+import { getCur8Data, searchEverything, ensureGuideSaved, type SearchResults } from '@/app/actions/cur8'
+import KoiLeap from '@/components/cur8/koi-leap'
 import { authClient } from '@/lib/auth-client'
 import FloatingParticles from '@/components/cur8/widgets/floating-particles'
 import BreathworkWidget from '@/components/cur8/widgets/breathwork-widget'
@@ -80,6 +81,17 @@ export default function Cur8Home() {
   const [searching, setSearching] = useState(false)
   const [calm, setCalm] = useCalmMode()
   const { displayName } = useGardenNames()
+  // Koi leap: when a haven is chosen, an orange koi leaps into it (splash), then
+  // we navigate. Skipped when calm mode is on (respects reduced-motion intent).
+  const [leap, setLeap] = useState<{ href: string; x: number; y: number } | null>(null)
+
+  function handleHavenClick(e: React.MouseEvent, href: string) {
+    if (calm) return // let the Link navigate normally
+    // Only intercept plain left-clicks (allow new-tab / modified clicks through)
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+    e.preventDefault()
+    setLeap({ href, x: e.clientX, y: e.clientY })
+  }
 
   // Debounced cross-everything search (items, notes, reflections)
   useEffect(() => {
@@ -108,13 +120,19 @@ export default function Cur8Home() {
     setGreeting(h < 12 ? 'Ease into the day' : h < 17 ? 'Take a breath' : 'Unwind a little')
     const day = Math.floor(Date.now() / 86400000) % MOTIVATIONAL.length
     setQuote(MOTIVATIONAL[day])
-    getCur8Data()
-      .then((data) => {
-        setItems(data.items as Cur8Item[])
-        setFolders(data.folders as Cur8Folder[])
-      })
+    // Make sure the guide is filed into The Tide once, then load everything (so
+    // the guide appears in the list on this very visit).
+    ensureGuideSaved()
       .catch(() => {})
-      .finally(() => setMounted(true))
+      .finally(() => {
+        getCur8Data()
+          .then((data) => {
+            setItems(data.items as Cur8Item[])
+            setFolders(data.folders as Cur8Folder[])
+          })
+          .catch(() => {})
+          .finally(() => setMounted(true))
+      })
   }, [])
 
   async function handleSignOut() {
@@ -325,7 +343,7 @@ export default function Cur8Home() {
             const count = items.filter((i) => i.category === cat.name).length
             const accent = TILE_ACCENT[cat.name] ?? '#5a9e84'
             return (
-              <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+              <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.name.toLowerCase()}`)} style={{ textDecoration: 'none', flexShrink: 0 }}>
                 <div
                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '14px 16px', borderBottom: '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderBottomColor = accent; e.currentTarget.style.color = '#f5f0e8' }}
@@ -428,7 +446,7 @@ export default function Cur8Home() {
               const count = items.filter((item) => item.category === cat.name).length
               const accent = TILE_ACCENT[cat.name]
               return (
-                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
+                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.name.toLowerCase()}`)} style={{ textDecoration: 'none' }}>
                   <motion.div
                     whileHover={{ scale: 1.015 }}
                     transition={{ type: 'spring', stiffness: 280 }}
@@ -459,7 +477,7 @@ export default function Cur8Home() {
               const count = items.filter((item) => item.category === cat.name).length
               const accent = TILE_ACCENT[cat.name] ?? '#5a9e84'
               return (
-                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} style={{ textDecoration: 'none' }}>
+                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.name.toLowerCase()}`)} style={{ textDecoration: 'none' }}>
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     transition={{ type: 'spring', stiffness: 280 }}
@@ -510,6 +528,15 @@ export default function Cur8Home() {
           </motion.div>
         )}
       </div>
+
+      {/* Orange koi leaps into the chosen haven, then we navigate */}
+      <KoiLeap
+        active={!!leap}
+        origin={leap}
+        onComplete={() => {
+          if (leap) router.push(leap.href)
+        }}
+      />
     </div>
   )
 }

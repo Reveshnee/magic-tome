@@ -703,3 +703,46 @@ export async function searchEverything(query: string): Promise<SearchResults> {
     })),
   }
 }
+
+// ─── Auto-save the in-app guide into The Tide (Document Hub = category 'Web') ───
+// Runs on the hub for signed-in users. Saves once (keyed on the guide url) so it
+// doesn't create runaway duplicates on every visit.
+const GUIDE_URL = '/cur8/guide'
+export async function ensureGuideSaved(): Promise<Cur8ItemDTO | null> {
+  const userId = await getUserId()
+
+  const existing = await db
+    .select({ id: cur8Item.id })
+    .from(cur8Item)
+    .where(and(eq(cur8Item.userId, userId), eq(cur8Item.url, GUIDE_URL)))
+    .limit(1)
+  if (existing.length > 0) return null
+
+  const id = randomUUID()
+  const savedAt = new Date()
+  const title = 'How to use Cur8 — Your Guide'
+  const description =
+    'A gentle, plain-language walkthrough of every corner of Cur8: your 8 havens, saving, search, focus tools, folders and sharing.'
+  const whySaved = 'So I always have a simple map of my haven whenever I need it.'
+
+  await db.insert(cur8Item).values({
+    id,
+    userId,
+    category: 'Web',
+    url: GUIDE_URL,
+    title,
+    description,
+    whySaved,
+    savedAt,
+  })
+
+  return {
+    id,
+    category: 'Web',
+    url: GUIDE_URL,
+    title,
+    description,
+    whySaved,
+    savedAt: savedAt.toISOString(),
+  }
+}
