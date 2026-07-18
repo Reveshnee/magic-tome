@@ -1017,27 +1017,31 @@ export default function Cur8Category({ category }: Props) {
     }
 
     if (type === 'pdf') {
-      let embedUrl = item.url
-
+      // Private blob PDFs — fetch client-side (session cookie sent automatically)
+      // and create a local blob: URL. Avoids Android iframe blank + Google Docs
+      // viewer auth failure. DocumentViewer handles the fetch + objectURL lifecycle.
       if (item.url.startsWith('/api/cur8/file')) {
-        // Private blob — Android Chrome refuses to render PDFs inside iframes
-        // (shows blank). Route through Google Docs viewer which fetches the file
-        // server-side and renders it, bypassing the Android inline-PDF restriction.
-        const abs = `${window.location.origin}${item.url}`
-        embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
-      } else if (item.url.includes('drive.google.com/file/d/')) {
+        return (
+          <DocumentViewer
+            url={item.url}
+            filename={item.title ?? 'document.pdf'}
+            accent={tileStyle.accent}
+          />
+        )
+      }
+
+      // External / Google Drive PDFs — keep existing iframe approach
+      let embedUrl = item.url
+      if (item.url.includes('drive.google.com/file/d/')) {
         const id = item.url.match(/\/d\/([^/]+)/)?.[1]
         if (id) embedUrl = `https://drive.google.com/file/d/${id}/preview`
       } else if (item.url.includes('docs.google.com')) {
         embedUrl = item.url.replace('/edit', '/preview').replace('/pub', '/preview')
       } else {
-        // External PDF or Office doc — route through Google Docs viewer
-        // Build an absolute URL so Google can fetch it
         const abs = item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`
         embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
       }
-      const isBlobPdf = item.url.startsWith('/api/cur8/file')
-      const downloadUrl = isBlobPdf ? `${item.url}${item.url.includes('?') ? '&' : '?'}download=1` : item.url
+      const downloadUrl = `${item.url}${item.url.includes('?') ? '&' : '?'}download=1`
       return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
           <iframe
@@ -1045,13 +1049,10 @@ export default function Cur8Category({ category }: Props) {
             style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
             title={item.title}
           />
-          {/* Recovery bar — some browsers (esp. mobile) won't render a PDF inside
-              an iframe, leaving it blank. These always-present buttons let the
-              document be opened full-screen or downloaded regardless. */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 12px', backgroundColor: 'rgba(13,36,32,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>Can&rsquo;t see it? Open or download instead.</span>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button onClick={() => window.open(isBlobPdf ? item.url : embedUrl, '_blank', 'noopener,noreferrer')}
+              <button onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#0d2420', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer' }}>
                 <ExternalLink size={11} /> Open
               </button>
