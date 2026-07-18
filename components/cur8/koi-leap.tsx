@@ -42,7 +42,7 @@ export default function KoiLeap({ active, origin, onComplete }: KoiLeapProps) {
 
   if (!active || !origin || vp.w === 0) return null
 
-  const koiSize = vp.w < 640 ? 132 : 184
+  const koiSize = vp.w < 640 ? 92 : 129
   // Launch from the bottom (the pond surface), roughly under the chosen tile.
   const startX = Math.min(Math.max(origin.x, koiSize / 2), vp.w - koiSize / 2)
   const startY = vp.h + koiSize * 0.5
