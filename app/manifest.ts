@@ -12,11 +12,11 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/cur8',
     scope: '/cur8',
     display: 'standalone',
-    background_color: '#0a1e1b',
-    theme_color: '#0a1e1b',
+    background_color: '#0e2e2b',
+    theme_color: '#0e2e2b',
     icons: [
-      { src: '/cur8/app-icon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/cur8/app-icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/cur8/app-icon.png', sizes: '1024x1024', type: 'image/png', purpose: 'any' },
+      { src: '/cur8/app-icon.png', sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
     ],
     share_target: {
       action: '/cur8/share',
