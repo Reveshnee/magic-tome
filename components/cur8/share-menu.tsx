@@ -29,7 +29,7 @@ export default function ShareMenu({
   buttonStyle?: React.CSSProperties
 }) {
   const [open, setOpen] = useState(false)
-  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null)
+  const [anchor, setAnchor] = useState<{ x: number; top?: number; bottom?: number } | null>(null)
   const [status, setStatus] = useState('')
   const btnRef = useRef<HTMLButtonElement>(null)
 
@@ -40,8 +40,15 @@ export default function ShareMenu({
     }
     const r = btnRef.current?.getBoundingClientRect()
     if (r) {
-      // Anchor the menu above the button, right-aligned to it.
-      setAnchor({ x: Math.min(r.right, window.innerWidth - 12), y: r.top })
+      const x = Math.min(r.right, window.innerWidth - 12)
+      // Open upward when the button sits in the lower half of the screen,
+      // downward otherwise. We anchor with top/bottom directly because Framer
+      // Motion's `y` animation overrides any CSS transform we set.
+      if (r.top > window.innerHeight / 2) {
+        setAnchor({ x, bottom: window.innerHeight - r.top + 8 })
+      } else {
+        setAnchor({ x, top: r.bottom + 8 })
+      }
     }
     setOpen(true)
   }
@@ -53,66 +60,7 @@ export default function ShareMenu({
 
   const downloadable = isDownloadableFile(url)
   const deviceOk = deviceShareSupported()
-
-  const menu = open && anchor
-    ? createPortal(
-        <>
-          {/* Transparent backdrop — React onClick (not a native document
-              listener) so it reliably closes without breaking other handlers. */}
-          <div
-            onClick={() => setOpen(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 300 }}
-          />
-          <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.97 }}
-            transition={{ duration: 0.14 }}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              left: anchor.x - 210,
-              top: anchor.y - 12,
-              transform: 'translateY(-100%)',
-              zIndex: 301,
-              width: 210,
-              borderRadius: 14,
-              border: '1px solid rgba(245,240,232,0.14)',
-              backgroundColor: '#122e29',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
-              overflow: 'hidden',
-              padding: 6,
-            }}
-          >
-            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', padding: '4px 8px 6px' }}>
-              Share
-            </p>
-            <MenuRow icon={<Mail size={14} />} label="Email" onClick={() => { openExternal(buildMailtoShare(title, url)); setOpen(false) }} />
-            <MenuRow icon={<MessageCircle size={14} />} label="WhatsApp" onClick={() => { openExternal(buildWhatsAppShare(title, url)); setOpen(false) }} />
-            {deviceOk && (
-              <MenuRow icon={<Smartphone size={14} />} label="This device" onClick={async () => { setOpen(false); await shareToDevice(title, url) }} />
-            )}
-            <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.09)', margin: '5px 4px' }} />
-            <MenuRow
-              icon={<Link2 size={14} />}
-              label="Copy link"
-              onClick={async () => { const ok = await copyToClipboard(url); setOpen(false); flash(ok ? 'Link copied' : 'Copy failed') }}
-            />
-            <MenuRow
-              icon={<Download size={14} />}
-              label={downloadable ? 'Download file' : 'Save (copy link)'}
-              accent={accent}
-              onClick={async () => {
-                setOpen(false)
-                const res = await saveOrDownload(title, url)
-                flash(res === 'downloaded' ? 'Downloading…' : res === 'copied' ? 'Link copied' : 'Could not save')
-              }}
-            />
-          </motion.div>
-        </>,
-        document.body,
-      )
-    : null
+  const canPortal = typeof document !== 'undefined'
 
   return (
     <>
@@ -130,8 +78,73 @@ export default function ShareMenu({
       >
         <Share2 size={11} /> {showLabel && 'Share'}
       </button>
-      <AnimatePresence>{menu}</AnimatePresence>
-      {status && createPortal(
+
+      {/* Portal is always mounted; AnimatePresence lives INSIDE it so it can
+          track the menu's mount/unmount. (Wrapping a portal in AnimatePresence
+          the other way around silently fails to render.) */}
+      {canPortal && createPortal(
+        <AnimatePresence>
+          {open && anchor && (
+            <>
+              {/* Transparent backdrop — React onClick keeps other handlers intact. */}
+              <div
+                key="share-backdrop"
+                onClick={() => setOpen(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 300 }}
+              />
+              <motion.div
+                key="share-menu"
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                transition={{ duration: 0.14 }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'fixed',
+                  left: Math.max(12, anchor.x - 210),
+                  ...(anchor.top != null ? { top: anchor.top } : { bottom: anchor.bottom }),
+                  zIndex: 301,
+                  width: 210,
+                  borderRadius: 14,
+                  border: '1px solid rgba(245,240,232,0.14)',
+                  backgroundColor: '#122e29',
+                  boxShadow: '0 12px 40px rgba(0,0,0,0.55)',
+                  overflow: 'hidden',
+                  padding: 6,
+                }}
+              >
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', padding: '4px 8px 6px' }}>
+                  Share
+                </p>
+                <MenuRow icon={<Mail size={14} />} label="Email" onClick={() => { openExternal(buildMailtoShare(title, url)); setOpen(false) }} />
+                <MenuRow icon={<MessageCircle size={14} />} label="WhatsApp" onClick={() => { openExternal(buildWhatsAppShare(title, url)); setOpen(false) }} />
+                {deviceOk && (
+                  <MenuRow icon={<Smartphone size={14} />} label="This device" onClick={async () => { setOpen(false); await shareToDevice(title, url) }} />
+                )}
+                <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.09)', margin: '5px 4px' }} />
+                <MenuRow
+                  icon={<Link2 size={14} />}
+                  label="Copy link"
+                  onClick={async () => { const ok = await copyToClipboard(url); setOpen(false); flash(ok ? 'Link copied' : 'Copy failed') }}
+                />
+                <MenuRow
+                  icon={<Download size={14} />}
+                  label={downloadable ? 'Download file' : 'Save (copy link)'}
+                  accent={accent}
+                  onClick={async () => {
+                    setOpen(false)
+                    const res = await saveOrDownload(title, url)
+                    flash(res === 'downloaded' ? 'Downloading…' : res === 'copied' ? 'Link copied' : 'Could not save')
+                  }}
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
+
+      {status && canPortal && createPortal(
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 400, backgroundColor: '#122e29', color: '#f5f0e8', border: '1px solid rgba(245,240,232,0.14)', borderRadius: 50, padding: '9px 18px', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
           <Check size={13} style={{ color: accent }} /> {status}
         </div>,
