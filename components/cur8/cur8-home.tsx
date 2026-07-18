@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ChevronDown,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -344,13 +344,13 @@ export default function Cur8Home() {
           </div>
         </div>
 
-        {/* Scroll nudge */}
+        {/* Scroll-down nudge (vertical) */}
         <motion.div
-          animate={{ y: [0, 7, 0] }}
+          animate={calm ? undefined : { y: [0, 7, 0] }}
           transition={{ repeat: Infinity, duration: 2.2 }}
-          style={{ position: 'absolute', bottom: 12, right: isMobile ? 20 : 40, fontSize: 10, color: 'rgba(245,240,232,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase' }}
+          style={{ position: 'absolute', bottom: 12, right: isMobile ? 20 : 40, display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'rgba(245,240,232,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}
         >
-          scroll
+          Scroll down <ChevronDown size={13} />
         </motion.div>
       </div>
 
@@ -410,6 +410,7 @@ export default function Cur8Home() {
               </Link>
             )
           })}
+        </div>
         </div>
       </div>
 
