@@ -1,4 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { put } from '@vercel/blob'
+
+// TikTok/Instagram CDN thumbnail URLs are signed and expire after a while.
+// Download the image once and store it in our own Blob so the thumbnail keeps
+// working forever. Returns our proxy URL, or the original URL if caching fails.
+async function cacheThumbnail(src: string): Promise<string> {
+  try {
+    const res = await fetch(src, { signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return src
+    const contentType = res.headers.get('content-type') || 'image/jpeg'
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
+    const buf = await res.arrayBuffer()
+    const blob = await put(`cur8/thumbs/ext-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`, buf, {
+      access: 'private',
+      contentType,
+    })
+    return `/api/cur8/file?pathname=${encodeURIComponent(blob.pathname)}`
+  } catch {
+    return src
+  }
+}
 
 function extractYouTubeId(url: string): string | null {
   const patterns = [
@@ -52,18 +73,33 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // --- TikTok / Instagram: no reliable server-side thumbnail, return favicon only ---
-    if (hostname.includes('tiktok.com') || hostname.includes('instagram.com')) {
-      return NextResponse.json({
-        title: url,
-        description: '',
-        thumbnail: '',
-        favicon,
-        note: 'Thumbnail not available for this platform',
-      })
+    // --- TikTok: use the public oEmbed endpoint for a real thumbnail + title ---
+    // Works for full /video/ links AND short vm.tiktok.com / /t/ links, since
+    // TikTok resolves the redirect server-side for us.
+    if (hostname.includes('tiktok.com')) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 6000)
+        const oEmbed = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Cur8Bot/1.0)' },
+        })
+        clearTimeout(timer)
+        if (oEmbed.ok) {
+          const data = await oEmbed.json()
+          const thumbnail = data.thumbnail_url ? await cacheThumbnail(data.thumbnail_url) : ''
+          return NextResponse.json({
+            title: data.title || 'TikTok video',
+            description: data.author_name ? `by ${data.author_name}` : '',
+            thumbnail,
+            favicon,
+          })
+        }
+      } catch { /* fall through to favicon-only */ }
+      return NextResponse.json({ title: 'TikTok video', description: '', thumbnail: '', favicon })
     }
 
-    // --- General websites: scrape og:image / og:title ---
+    // --- General websites (incl. Instagram): scrape og:image / og:title ---
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Cur8Bot/1.0)' },
       signal: AbortSignal.timeout(8000),
@@ -94,10 +130,15 @@ export async function GET(req: NextRequest) {
       ''
 
     const origin = parsedUrl.origin
-    const thumbnail =
+    let thumbnail =
       rawThumb.startsWith('http') ? rawThumb :
       rawThumb.startsWith('//') ? `https:${rawThumb}` :
       rawThumb ? `${origin}${rawThumb}` : ''
+
+    // Social CDN images (Instagram/Facebook) are signed and expire — cache them.
+    if (thumbnail && /instagram|fbcdn|cdninstagram|facebook/.test(hostname + thumbnail)) {
+      thumbnail = await cacheThumbnail(thumbnail)
+    }
 
     return NextResponse.json({ title, description, thumbnail, favicon })
   } catch {

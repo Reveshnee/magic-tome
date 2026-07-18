@@ -58,6 +58,19 @@ function extractYouTubeId(url: string): string | null {
   return null
 }
 
+// Pull the numeric video id out of a full TikTok URL so we can embed the player.
+// Short links (vm.tiktok.com / /t/) don't expose the id, so those return null
+// and fall back to a thumbnail + "Open in TikTok".
+function extractTikTokId(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (!u.hostname.includes('tiktok.com')) return null
+    const m = u.pathname.match(/\/video\/(\d+)/)
+    return m ? m[1] : null
+  } catch {}
+  return null
+}
+
 function getThumbnailFromUrl(url: string, stored: string | undefined): string {
   if (stored) return stored
   try {
@@ -93,7 +106,7 @@ function filenameFromUrl(url: string, fallback: string): string {
 }
 
 // Determine how to render a URL in the preview panel
-function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
+function getPreviewType(url: string): 'youtube' | 'tiktok' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
   // Private-blob proxy URLs — detect by extension in the pathname query param
   if (url.startsWith('/api/cur8/file')) {
     try {
@@ -111,6 +124,7 @@ function getPreviewType(url: string): 'youtube' | 'image' | 'pdf' | 'video' | 'a
   try {
     const u = new URL(url)
     if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') return 'youtube'
+    if (u.hostname.includes('tiktok.com')) return 'tiktok'
     const path = u.pathname.toLowerCase()
     if (path.match(/\.(jpg|jpeg|png|gif|webp|svg|avif)$/)) return 'image'
     if (path.match(/\.(mp4|webm|mov|avi|mkv)$/)) return 'video'
@@ -610,6 +624,39 @@ export default function Cur8Category({ category }: Props) {
       )
     }
 
+    if (type === 'tiktok') {
+      const tkId = extractTikTokId(item.url)
+      // Full /video/ links embed & play inline via TikTok's player.
+      if (tkId) {
+        return (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
+            <iframe
+              style={{ width: '100%', maxWidth: 340, height: '100%', border: 'none', display: 'block' }}
+              src={`https://www.tiktok.com/embed/v2/${tkId}`}
+              title={item.title}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+            />
+          </div>
+        )
+      }
+      // Short links (vm.tiktok.com) have no embeddable id — show the poster + open button.
+      const poster = getThumbnailFromUrl(item.url, item.thumbnail)
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
+          {poster ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={poster} alt={item.title} style={{ maxWidth: 220, maxHeight: '55%', borderRadius: 14, objectFit: 'cover' }} />
+          ) : null}
+          <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300 }}>{item.title}</p>
+          <a href={item.url} target="_blank" rel="noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, textDecoration: 'none' }}>
+            <Play size={13} /> Play on TikTok
+          </a>
+        </div>
+      )
+    }
+
     if (type === 'image') {
       return (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
@@ -1011,13 +1058,14 @@ export default function Cur8Category({ category }: Props) {
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview') } }}
                         title={item.title}
                         style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
-                        {thumb ? (
-                          <img src={thumb} alt={item.title} style={{ width: '100%', height: isMobile ? 88 : 72, objectFit: 'cover', display: 'block' }} />
-                        ) : (
-                          <div style={{ width: '100%', height: isMobile ? 88 : 72, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: tileStyle.accentLight }}>
-                            <Clapperboard size={20} style={{ color: tileStyle.accent }} />
-                          </div>
-                        )}
+                        <div style={{ position: 'relative', width: '100%', height: isMobile ? 88 : 72, backgroundColor: tileStyle.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Clapperboard size={20} style={{ color: tileStyle.accent }} />
+                          {thumb ? (
+                            <img src={thumb} alt={item.title}
+                              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                              onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                          ) : null}
+                        </div>
                         {/* Play glyph so videos read as videos */}
                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 26, height: 26, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Play size={12} color="#fff" style={{ marginLeft: 1 }} />
