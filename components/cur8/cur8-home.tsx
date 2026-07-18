@@ -21,6 +21,7 @@ import MiniCalendarWidget from '@/components/cur8/widgets/mini-calendar-widget'
 import IntentionWidget from '@/components/cur8/widgets/intention-widget'
 import { useViewport } from '@/hooks/use-viewport'
 import AiHub from '@/components/cur8/ai-hub'
+import HomeQuickActions from '@/components/cur8/widgets/home-quick-actions'
 
 const KOI: React.CSSProperties = {
   '--c-bg':       '#0d2420',
@@ -336,6 +337,15 @@ export default function Cur8Home() {
             </div>
           </section>
         )}
+
+        {/* Quick Actions — Brain Dump, Reflect, Focus Sounds */}
+        <section style={{ marginBottom: 48 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 600, color: 'var(--c-cream)' }}>Quick actions</h2>
+            <span style={{ fontSize: 11, color: 'var(--c-muted)' }}>capture, reflect, focus</span>
+          </div>
+          <HomeQuickActions />
+        </section>
 
         {/* AI Insights Hub */}
         <section style={{ marginBottom: 28 }}>

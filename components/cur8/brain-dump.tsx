@@ -42,6 +42,13 @@ export default function BrainDump() {
   }, [])
   const { start: startDictation, stop: stopDictation, listening, supported: sttSupported } = useDictation(handleDictation)
 
+  // Allow other components (e.g. HomeQuickActions) to open the panel via a custom event
+  useEffect(() => {
+    function handleOpenEvent() { setOpen(true) }
+    window.addEventListener('cur8:openBrainDump', handleOpenEvent)
+    return () => window.removeEventListener('cur8:openBrainDump', handleOpenEvent)
+  }, [])
+
   useEffect(() => {
     if (!open) return
     setLoading(true)

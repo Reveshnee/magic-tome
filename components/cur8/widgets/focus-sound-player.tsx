@@ -31,6 +31,13 @@ export default function FocusSoundPlayer() {
   const [active, setActive] = useState<SoundId>('brown')
   const [volume, setVolume] = useState(0.5)
 
+  // Allow other components (e.g. HomeQuickActions) to open the panel via a custom event
+  useEffect(() => {
+    function handleOpenEvent() { setOpen(true) }
+    window.addEventListener('cur8:openFocusSounds', handleOpenEvent)
+    return () => window.removeEventListener('cur8:openFocusSounds', handleOpenEvent)
+  }, [])
+
   const ctxRef = useRef<AudioContext | null>(null)
   const masterRef = useRef<GainNode | null>(null)
   const nodesRef = useRef<AudioNode[]>([])

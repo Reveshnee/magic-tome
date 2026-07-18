@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail } from 'lucide-react'
+import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail, MessageCircle } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
 import { getSettings, type Cur8Settings } from '@/app/actions/notes'
@@ -53,6 +53,11 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
     const parts = [`subject=${subject}`, `body=${fullBody}`]
     if (cc) parts.push(`cc=${encodeURIComponent(cc)}`)
     window.location.href = `mailto:${to}?${parts.join('&')}`
+  }
+
+  // Open WhatsApp with the reflection pre-filled; the user picks any contact.
+  function whatsAppReflection(body: string) {
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${body}\n\n— Reflection from ${categoryLabel} (Cur8)`)}`, '_blank', 'noopener')
   }
 
   function toggleMic() {
@@ -163,6 +168,13 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
                 >
                   <Mail size={13} />
+                </button>
+                <button
+                  onClick={() => whatsAppReflection(r.body)}
+                  title="Share via WhatsApp"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
+                >
+                  <MessageCircle size={13} />
                 </button>
                 <button
                   onClick={() => onDelete(r.id)}
