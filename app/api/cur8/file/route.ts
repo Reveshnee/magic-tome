@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing pathname' }, { status: 400 })
   }
 
+  console.log('[v0] file route GET pathname:', pathname)
   try {
     const ifNoneMatch = request.headers.get('if-none-match') ?? undefined
     const result = await get(pathname, {

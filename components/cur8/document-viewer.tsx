@@ -52,6 +52,9 @@ export default function DocumentViewer({ url, filename, accent }: Props) {
   // Check both filename and url pathname — blob files have random suffixes
   // so the extension lives inside the original filename segment of the pathname.
   const kind: DocKind = kindFromString(filename) ?? kindFromString(url) ?? 'unsupported'
+  console.log('[v0] DocumentViewer url:', url)
+  console.log('[v0] DocumentViewer filename:', filename)
+  console.log('[v0] DocumentViewer kind:', kind)
 
   // For PDFs: objectUrl holds a blob: URL created from a client-side fetch.
   // The browser fetches /api/cur8/file with the session cookie automatically,
@@ -75,6 +78,7 @@ export default function DocumentViewer({ url, filename, accent }: Props) {
     ;(async () => {
       try {
         const res = await fetch(url)
+        console.log('[v0] fetch status:', res.status, 'content-type:', res.headers.get('content-type'))
         if (!res.ok) throw new Error(`Could not load file (${res.status})`)
 
         if (kind === 'pdf') {
