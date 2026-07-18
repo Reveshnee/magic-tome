@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
-  Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind,
+  Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -174,6 +174,13 @@ export default function Cur8Home() {
             >
               <Wind size={12} /> {!isMobile && (calm ? 'Calm on' : 'Calm')}
             </button>
+            <Link
+              href="/cur8/guide"
+              title="How to use Cur8"
+              style={{ background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(245,240,232,0.2)', borderRadius: 50, padding: '7px 12px', color: 'var(--c-cream)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', backdropFilter: 'blur(10px)' }}
+            >
+              <HelpCircle size={13} /> {!isMobile && 'Guide'}
+            </Link>
             <button
               onClick={handleSignOut}
               style={{ background: 'none', border: 'none', color: 'rgba(245,240,232,0.6)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
@@ -257,8 +264,10 @@ export default function Cur8Home() {
           )}
         </AnimatePresence>
 
-        {/* Hero text — bottom of viewport */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '0 20px 28px' : '0 40px 36px' }}>
+        {/* Hero text — bottom of viewport. Extra bottom padding reserves a clear
+            zone so the floating Brain-dump / Focus-sounds pills never overlap the
+            stats row or the Surprise-me button. */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '0 20px 84px' : '0 40px 88px' }}>
           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--c-gold)', marginBottom: 10 }}>{greeting}, Reveshnee</p>
           <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(44px, 6vw, 80px)', fontWeight: 700, color: 'var(--c-cream)', lineHeight: 1.0, margin: 0, marginBottom: 12, letterSpacing: '-0.01em' }}>
             {"Reveshnee's"}<br />
