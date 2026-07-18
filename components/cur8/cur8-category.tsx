@@ -28,6 +28,7 @@ import {
   createItem as createItemAction,
   moveItem as moveItemAction,
   duplicateItem as duplicateItemAction,
+  updateItem as updateItemAction,
   deleteItem as deleteItemAction,
   createFolder as createFolderAction,
   deleteFolder as deleteFolderAction,
@@ -38,6 +39,7 @@ import {
   getReflections,
   createReflection,
   deleteReflection,
+  updateReflection,
   type ReflectionDTO,
 } from '@/app/actions/cur8'
 import { summarizeItem } from '@/app/actions/summarize'
@@ -320,6 +322,10 @@ export default function Cur8Category({ category }: Props) {
   async function removeReflection(id: string) {
     setReflections((prev) => prev.filter((r) => r.id !== id))
     await deleteReflection(id).catch(() => {})
+  }
+  async function editReflection(id: string, body: string) {
+    setReflections((prev) => prev.map((r) => (r.id === id ? { ...r, body } : r)))
+    await updateReflection(id, body).catch(() => {})
   }
 
   // On mobile, jump to the preview tab whenever an item is opened
@@ -1885,6 +1891,7 @@ export default function Cur8Category({ category }: Props) {
         reflections={reflections}
         onAdd={addReflection}
         onDelete={removeReflection}
+        onEdit={editReflection}
       />
 
       {/* ── Rename garden modal ── */}

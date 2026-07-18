@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain, X, Mic, MicOff, Send, Volume2, Square, Pin, PinOff,
-  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle, Wand2,
+  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle, Wand2, Pencil,
 } from 'lucide-react'
 import {
-  getNotes, createNote, deleteNote, togglePinNote,
+  getNotes, createNote, deleteNote, togglePinNote, updateNote,
   getSettings, saveSettings, type NoteDTO, type Cur8Settings,
 } from '@/app/actions/notes'
 import { useReadAloud, useDictation } from '@/hooks/use-speech'
@@ -26,6 +26,8 @@ export default function BrainDump() {
   const [saving, setSaving] = useState(false)
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [settings, setSettings] = useState<Cur8Settings>({ emailTo: '', memEmail: 'save@mem.ai', autoEmail: false })
   const [settingsSaved, setSettingsSaved] = useState(false)
@@ -124,6 +126,26 @@ export default function BrainDump() {
     setNotes((prev) => prev.filter((n) => n.id !== id))
     if (speakingId === id) { stopSpeak(); setSpeakingId(null) }
     await deleteNote(id).catch(() => {})
+  }
+
+  function startEdit(note: NoteDTO) {
+    setEditingId(note.id)
+    setEditDraft(note.body)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditDraft('')
+  }
+
+  async function saveEdit(id: string) {
+    const body = editDraft.trim()
+    if (!body) return
+    // Optimistic update
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, body } : n)))
+    setEditingId(null)
+    setEditDraft('')
+    await updateNote(id, body).catch(() => {})
   }
 
   async function copyNote(note: NoteDTO) {
@@ -356,6 +378,26 @@ export default function BrainDump() {
                           border: `1px solid ${note.pinned ? `${ACCENT}55` : 'rgba(245,240,232,0.08)'}`,
                         }}
                       >
+                        {editingId === note.id ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <textarea
+                              value={editDraft}
+                              onChange={(e) => setEditDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) { e.preventDefault(); saveEdit(note.id) }
+                                if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+                              }}
+                              autoFocus
+                              rows={3}
+                              style={{ width: '100%', resize: 'vertical', minHeight: 64, padding: '10px 12px', borderRadius: 10, backgroundColor: '#0d2420', border: `1px solid ${SAGE}`, color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
+                            />
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                              <button onClick={cancelEdit} style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(245,240,232,0.2)', background: 'none', color: 'rgba(245,240,232,0.7)', cursor: 'pointer' }}>Cancel</button>
+                              <button onClick={() => saveEdit(note.id)} disabled={!editDraft.trim()} style={{ fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: editDraft.trim() ? ACCENT : 'rgba(245,240,232,0.1)', color: editDraft.trim() ? '#0d2420' : 'rgba(245,240,232,0.4)', cursor: editDraft.trim() ? 'pointer' : 'not-allowed' }}>Save</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
                         <p style={{ fontSize: 14, lineHeight: 1.55, margin: '0 0 8px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.body}</p>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: 10.5, color: 'rgba(245,240,232,0.4)' }}>
@@ -367,6 +409,9 @@ export default function BrainDump() {
                                 {speakingId === note.id && speaking ? <Square size={14} /> : <Volume2 size={14} />}
                               </IconBtn>
                             )}
+                            <IconBtn onClick={() => startEdit(note)} title="Edit">
+                              <Pencil size={14} />
+                            </IconBtn>
                             <IconBtn onClick={() => emailNote(note.body)} title={`Email to ${settings.memEmail.trim() || 'save@mem.ai'}`}>
                               <Mail size={14} />
                             </IconBtn>
@@ -384,6 +429,8 @@ export default function BrainDump() {
                             </IconBtn>
                           </div>
                         </div>
+                          </>
+                        )}
                       </motion.div>
                     ))}
                   </div>

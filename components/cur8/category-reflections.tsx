@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail, MessageCircle } from 'lucide-react'
+import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail, MessageCircle, Pencil } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
 import { getSettings, type Cur8Settings } from '@/app/actions/notes'
@@ -15,6 +15,7 @@ interface Props {
   reflections: ReflectionDTO[]
   onAdd: (body: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onEdit: (id: string, body: string) => Promise<void>
 }
 
 // Rotating prompts to spark a reflection for this specific garden
@@ -25,11 +26,20 @@ const PROMPTS = [
   'Note a thought before it slips away…',
 ]
 
-export default function CategoryReflections({ open, onClose, categoryLabel, accent, reflections, onAdd, onDelete }: Props) {
+export default function CategoryReflections({ open, onClose, categoryLabel, accent, reflections, onAdd, onDelete, onEdit }: Props) {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<Cur8Settings | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
   const baseRef = useRef('')
+
+  async function saveEdit(id: string) {
+    const body = editDraft.trim()
+    if (!body) return
+    setEditingId(null)
+    await onEdit(id, body).catch(() => {})
+  }
   const { start, stop, listening, supported: micSupported } = useDictation((text) => {
     setDraft((baseRef.current ? baseRef.current + ' ' : '') + text)
   })
@@ -157,11 +167,38 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
               exit={{ opacity: 0, height: 0, marginBottom: -8 }}
               style={{ position: 'relative', padding: '12px 14px', borderRadius: 12, backgroundColor: 'rgba(245,240,232,0.04)', border: '1px solid rgba(245,240,232,0.08)', borderLeft: `3px solid ${accent}` }}
             >
-              <p style={{ fontSize: 13, color: '#f5f0e8', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', paddingRight: 48 }}>{r.body}</p>
+              {editingId === r.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <textarea
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); saveEdit(r.id) }
+                      if (e.key === 'Escape') { e.preventDefault(); setEditingId(null) }
+                    }}
+                    autoFocus
+                    rows={3}
+                    style={{ width: '100%', resize: 'vertical', minHeight: 60, padding: '8px 10px', borderRadius: 8, backgroundColor: '#0d2420', border: `1px solid ${accent}`, color: '#f5f0e8', fontSize: 13, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setEditingId(null)} style={{ fontSize: 11.5, fontWeight: 600, padding: '5px 12px', borderRadius: 7, border: '1px solid rgba(245,240,232,0.2)', background: 'none', color: 'rgba(245,240,232,0.7)', cursor: 'pointer' }}>Cancel</button>
+                    <button onClick={() => saveEdit(r.id)} disabled={!editDraft.trim()} style={{ fontSize: 11.5, fontWeight: 700, padding: '5px 12px', borderRadius: 7, border: 'none', backgroundColor: editDraft.trim() ? accent : 'rgba(245,240,232,0.1)', color: editDraft.trim() ? '#fff' : 'rgba(245,240,232,0.4)', cursor: editDraft.trim() ? 'pointer' : 'not-allowed' }}>Save</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+              <p style={{ fontSize: 13, color: '#f5f0e8', lineHeight: 1.55, margin: 0, whiteSpace: 'pre-wrap', paddingRight: 68 }}>{r.body}</p>
               <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.4)', marginTop: 6, display: 'block' }}>
                 {new Date(r.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
               </span>
               <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => { setEditingId(r.id); setEditDraft(r.body) }}
+                  title="Edit reflection"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
+                >
+                  <Pencil size={13} />
+                </button>
                 <button
                   onClick={() => emailReflection(r.body)}
                   title="Send to mem.ai by email"
@@ -184,6 +221,8 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
                   <Trash2 size={13} />
                 </button>
               </div>
+                </>
+              )}
             </motion.div>
           ))}
         </AnimatePresence>

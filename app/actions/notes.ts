@@ -45,6 +45,22 @@ export async function createNote(body: string): Promise<NoteDTO> {
   return { id, body: trimmed, pinned: false, createdAt: createdAt.toISOString() }
 }
 
+export async function updateNote(id: string, body: string): Promise<NoteDTO | null> {
+  const userId = await getUserId()
+  const trimmed = body.trim()
+  if (!trimmed) return null
+  await db
+    .update(cur8Note)
+    .set({ body: trimmed })
+    .where(and(eq(cur8Note.id, id), eq(cur8Note.userId, userId)))
+  const [row] = await db
+    .select()
+    .from(cur8Note)
+    .where(and(eq(cur8Note.id, id), eq(cur8Note.userId, userId)))
+  if (!row) return null
+  return { id: row.id, body: row.body, pinned: row.pinned, createdAt: row.createdAt.toISOString() }
+}
+
 export async function togglePinNote(id: string, pinned: boolean) {
   const userId = await getUserId()
   await db

@@ -101,9 +101,6 @@ export function useDictation(onResult: (text: string) => void) {
   const recRef = useRef<any>(null)
   const onResultRef = useRef(onResult)
   onResultRef.current = onResult
-  // Persistent accumulator for finalized speech. We only ever append NEW final
-  // results (tracked via e.resultIndex) so a chunk is never counted twice.
-  const finalRef = useRef('')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -115,16 +112,20 @@ export function useDictation(onResult: (text: string) => void) {
     rec.interimResults = true
     rec.lang = 'en-US'
     rec.onresult = (e: any) => {
-      // Start from resultIndex, not 0. On Android Chrome the results list
-      // re-reports already-finalized chunks; iterating from 0 and rebuilding
-      // double-counts them, which is what caused "this this is a test test".
+      // Rebuild the FULL transcript from scratch on every event. The engine
+      // keeps the complete results list for the session, so we walk all of it
+      // and concatenate each result exactly once. This is immune to the
+      // re-reporting quirk that caused "this this is a test test" when we
+      // previously used an accumulator + resultIndex.
+      let finalText = ''
       let interim = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = 0; i < e.results.length; i++) {
         const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) finalRef.current += t
+        if (e.results[i].isFinal) finalText += t
         else interim += t
       }
-      onResultRef.current((finalRef.current + interim).trim())
+      // Collapse any accidental double-spaces from joined chunks.
+      onResultRef.current((finalText + interim).replace(/\s+/g, ' ').trim())
     }
     rec.onend = () => setListening(false)
     rec.onerror = () => setListening(false)
@@ -137,7 +138,6 @@ export function useDictation(onResult: (text: string) => void) {
   const start = useCallback(() => {
     if (!recRef.current) return
     try {
-      finalRef.current = '' // fresh session — clear any previous transcript
       recRef.current.start()
       setListening(true)
     } catch { /* already started */ }

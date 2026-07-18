@@ -109,6 +109,45 @@ export async function createItem(input: {
   }
 }
 
+// Edit a saved item's title and/or personal note (description).
+export async function updateItem(
+  itemId: string,
+  input: { title?: string; description?: string },
+): Promise<Cur8ItemDTO | null> {
+  const userId = await getUserId()
+  const patch: Record<string, string | null> = {}
+  if (typeof input.title === 'string') {
+    const t = input.title.trim()
+    if (t) patch.title = t.slice(0, 300)
+  }
+  if (typeof input.description === 'string') {
+    patch.description = input.description.trim() ? input.description.trim() : null
+  }
+  if (Object.keys(patch).length === 0) return null
+  await db
+    .update(cur8Item)
+    .set(patch)
+    .where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
+  const [row] = await db
+    .select()
+    .from(cur8Item)
+    .where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
+  if (!row) return null
+  return {
+    id: row.id,
+    category: row.category,
+    folderId: row.folderId ?? undefined,
+    url: row.url,
+    title: row.title,
+    description: row.description ?? undefined,
+    thumbnail: row.thumbnail ?? undefined,
+    favicon: row.favicon ?? undefined,
+    summary: row.summary ?? undefined,
+    savedAt: row.savedAt.toISOString(),
+    openedAt: row.openedAt ? row.openedAt.toISOString() : undefined,
+  }
+}
+
 export async function moveItem(itemId: string, folderId: string | undefined) {
   const userId = await getUserId()
   await db
@@ -334,6 +373,22 @@ export async function createReflection(category: string, body: string): Promise<
   const createdAt = new Date()
   await db.insert(cur8Reflection).values({ id, userId, category, body: trimmed, createdAt })
   return { id, category, body: trimmed, createdAt: createdAt.toISOString() }
+}
+
+export async function updateReflection(id: string, body: string): Promise<ReflectionDTO | null> {
+  const userId = await getUserId()
+  const trimmed = body.trim()
+  if (!trimmed) return null
+  await db
+    .update(cur8Reflection)
+    .set({ body: trimmed })
+    .where(and(eq(cur8Reflection.id, id), eq(cur8Reflection.userId, userId)))
+  const [row] = await db
+    .select()
+    .from(cur8Reflection)
+    .where(and(eq(cur8Reflection.id, id), eq(cur8Reflection.userId, userId)))
+  if (!row) return null
+  return { id: row.id, category: row.category, body: row.body, createdAt: row.createdAt.toISOString() }
 }
 
 export async function deleteReflection(id: string) {
