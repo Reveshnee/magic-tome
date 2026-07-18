@@ -284,6 +284,67 @@ export async function generateWeeklyDigest(): Promise<DigestResult> {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// TASK 7: Know Yourself — personal interests profile + outside suggestions
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface YouResult {
+  narrative: string           // 2-3 sentence "you are someone who…" summary
+  interests: string[]         // 4-8 short interest labels e.g. "Nervous system regulation"
+  outside: {                  // Things outside her library she'd likely love
+    title: string
+    type: string              // "book" | "podcast" | "concept" | "creator" etc
+    why: string
+  }[]
+  pattern: string             // One sentence about the shape of her curiosity
+}
+
+export async function discoverYou(): Promise<YouResult> {
+  const userId = await getUserId()
+
+  const items = await db
+    .select({ title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description })
+    .from(cur8Item)
+    .where(eq(cur8Item.userId, userId))
+    .orderBy(desc(cur8Item.savedAt))
+    .limit(80)
+
+  if (items.length < 3) {
+    return {
+      narrative: 'Save a few more things and I\'ll start building your interests profile.',
+      interests: [],
+      outside: [],
+      pattern: '',
+    }
+  }
+
+  const catalogue = itemCatalogue(items)
+
+  const { object } = await generateObject({
+    model: 'google/gemini-2.5-flash',
+    schema: z.object({
+      narrative: z.string(),
+      interests: z.array(z.string()).min(3).max(8),
+      outside: z.array(z.object({
+        title: z.string(),
+        type: z.string(),
+        why: z.string(),
+      })).min(3).max(6),
+      pattern: z.string(),
+    }),
+    system: SYSTEM_WARM,
+    prompt:
+      `Here are all of Reveshnee's saved items:\n${catalogue}\n\n` +
+      'Based on this collection, build her interests profile:\n' +
+      '- "narrative": 2-3 warm sentences starting with "You are someone who…" describing who she is as a learner and curator\n' +
+      '- "interests": 4-8 short interest labels (2-4 words each) that define her curiosity areas\n' +
+      '- "outside": 3-5 things she would likely love that are NOT in her library yet — real books, podcasts, YouTube channels, concepts, frameworks, or creators. For each: title, type (book/podcast/concept/creator/film), and a 1-sentence "why" connecting it to what she already saves\n' +
+      '- "pattern": one sentence describing the underlying shape of her curiosity — the thread that connects everything',
+  })
+
+  return object
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // TASK 6: AI Discovery — themes and patterns across all havens
 // ────────────────────────────────────────────────────────────────────────────
 
