@@ -1,5 +1,26 @@
 import Image from 'next/image'
 
+const LOGOS = [
+  {
+    label: 'Option A · Koi forms the 8',
+    src: '/cur8/logo-koi8-single.png',
+    alt: 'Cur8 logo: a single golden koi curves to form the 8 in Cur8',
+    note: 'One koi loops back on itself to become the 8.',
+  },
+  {
+    label: 'Option B · Two koi form the 8',
+    src: '/cur8/logo-koi8-double.png',
+    alt: 'Cur8 logo: two golden koi swirl together to form the 8 in Cur8',
+    note: 'Two koi chase each other into a yin-yang style 8.',
+  },
+  {
+    label: 'Option C · Koi before the name',
+    src: '/cur8/logo-koi.png',
+    alt: 'Cur8 logo: a golden koi sits beside the Cur8 name',
+    note: 'The original: koi sits to the left of the wordmark.',
+  },
+]
+
 export default function LogoPreviewPage() {
   return (
     <main
@@ -12,7 +33,7 @@ export default function LogoPreviewPage() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 28,
+        gap: 24,
       }}
     >
       <div style={{ textAlign: 'center', maxWidth: 420 }}>
@@ -27,72 +48,43 @@ export default function LogoPreviewPage() {
           Pick your Cur8 logo
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.6)', margin: 0, lineHeight: 1.5 }}>
-          Have a look at both, then tell me which one you&apos;d like: Option 1 or Option 2.
+          Have a look, then tell me which you&apos;d like: Option A, B or C.
         </p>
       </div>
 
-      {/* Option 1 — Koi + wordmark */}
-      <section
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          backgroundColor: '#0a1e1b',
-          border: '1px solid rgba(245,240,232,0.1)',
-          borderRadius: 18,
-          overflow: 'hidden',
-        }}
-      >
-        <div
+      {LOGOS.map((logo) => (
+        <section
+          key={logo.src}
           style={{
-            padding: '10px 16px',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-            color: '#c9a84c',
-            borderBottom: '1px solid rgba(245,240,232,0.08)',
+            width: '100%',
+            maxWidth: 420,
+            backgroundColor: '#0a1e1b',
+            border: '1px solid rgba(245,240,232,0.1)',
+            borderRadius: 18,
+            overflow: 'hidden',
           }}
         >
-          Option 1 · Koi + wordmark
-        </div>
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
-          <Image src="/cur8/logo-koi.png" alt="Cur8 logo option 1: golden koi beside the Cur8 name" fill style={{ objectFit: 'contain' }} />
-        </div>
-      </section>
-
-      {/* Option 2 — Abstract ripple 8 + wordmark */}
-      <section
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          backgroundColor: '#0a1e1b',
-          border: '1px solid rgba(245,240,232,0.1)',
-          borderRadius: 18,
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            padding: '10px 16px',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-            color: '#c9a84c',
-            borderBottom: '1px solid rgba(245,240,232,0.08)',
-          }}
-        >
-          Option 2 · Abstract ripple 8 + wordmark
-        </div>
-        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
-          <Image
-            src="/cur8/logo-abstract.png"
-            alt="Cur8 logo option 2: golden concentric-ripple infinity mark beside the Cur8 name"
-            fill
-            style={{ objectFit: 'contain' }}
-          />
-        </div>
-      </section>
+          <div
+            style={{
+              padding: '10px 16px',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+              color: '#c9a84c',
+              borderBottom: '1px solid rgba(245,240,232,0.08)',
+            }}
+          >
+            {logo.label}
+          </div>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
+            <Image src={logo.src} alt={logo.alt} fill style={{ objectFit: 'contain' }} />
+          </div>
+          <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.55)', margin: 0, padding: '10px 16px 14px', lineHeight: 1.5 }}>
+            {logo.note}
+          </p>
+        </section>
+      ))}
     </main>
   )
 }
