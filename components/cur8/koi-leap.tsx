@@ -20,8 +20,9 @@ export interface KoiLeapProps {
   onComplete: () => void
 }
 
-const TOTAL = 1.05 // seconds — full leap
-const NAV_AT = 0.72 // fraction of TOTAL when we hand off to navigation
+const TOTAL = 1.15 // seconds — full leap
+const NAV_AT = 0.86 // fraction of TOTAL when we hand off to navigation (after the dive lands)
+const DIVE_AT = 0.68 // fraction when the koi has fully entered the water head-first
 
 export default function KoiLeap({ active, origin, onComplete }: KoiLeapProps) {
   const [vp, setVp] = useState({ w: 0, h: 0 })
@@ -43,8 +44,11 @@ export default function KoiLeap({ active, origin, onComplete }: KoiLeapProps) {
   if (!active || !origin || vp.w === 0) return null
 
   const koiSize = vp.w < 640 ? 92 : 129
-  // Launch from the bottom (the pond surface), roughly under the chosen tile.
-  const startX = Math.min(Math.max(origin.x, koiSize / 2), vp.w - koiSize / 2)
+  // The koi image faces LEFT, so it must travel leftward to swim head-first.
+  // Launch from the pond (bottom) a little to the RIGHT of the chosen tile, then
+  // arc up and to the LEFT, diving nose-first into the tile.
+  const travel = koiSize * 1.6
+  const startX = Math.min(Math.max(origin.x + travel, koiSize / 2), vp.w - koiSize / 2)
   const startY = vp.h + koiSize * 0.5
   // Dive into the chosen tile.
   const endX = origin.x
@@ -61,26 +65,30 @@ export default function KoiLeap({ active, origin, onComplete }: KoiLeapProps) {
       {/* Launch splash — at the pond surface (bottom) */}
       <Splash x={startX} y={vp.h} delay={0} scale={vp.w < 640 ? 1 : 1.35} />
 
-      {/* Landing splash — where the koi dives into the tile */}
-      <Splash x={endX} y={endY} delay={TOTAL * 0.62} scale={vp.w < 640 ? 0.85 : 1.1} />
+      {/* Landing splash — fires as the koi's head enters the water at the tile */}
+      <Splash x={endX} y={endY} delay={TOTAL * (DIVE_AT - 0.05)} scale={vp.w < 640 ? 0.85 : 1.1} />
 
       {/* The koi */}
       <motion.img
         src="/cur8/koi-leap.png"
         alt=""
-        initial={{ x: startX - koiSize / 2, y: startY - koiSize / 2, rotate: 18, scale: 0.72, opacity: 0 }}
+        initial={{ x: startX - koiSize / 2, y: startY - koiSize / 2, rotate: 20, scale: 0.72, opacity: 0 }}
         animate={{
           x: [startX - koiSize / 2, midX - koiSize / 2, endX - koiSize / 2],
           y: [startY - koiSize / 2, peakY - koiSize / 2, endY - koiSize / 2],
-          rotate: [18, -8, 46],
-          scale: [0.72, 1, 0.8],
+          // The image's head points up-LEFT at rotate 0. Rotating counter-
+          // clockwise swings the nose from up (steep ascent) → left (over the
+          // peak) → down-left (diving into the water head-first).
+          rotate: [20, -55, -110],
+          scale: [0.72, 1, 0.82],
           opacity: [0, 1, 1, 0.15],
         }}
         transition={{
           duration: TOTAL,
           ease: [0.33, 0, 0.35, 1],
-          times: [0, 0.5, 1],
-          opacity: { duration: TOTAL, times: [0, 0.12, 0.82, 1] },
+          times: [0, DIVE_AT * 0.6, DIVE_AT],
+          rotate: { duration: TOTAL, ease: 'easeIn', times: [0, DIVE_AT * 0.6, DIVE_AT] },
+          opacity: { duration: TOTAL, times: [0, 0.1, DIVE_AT, DIVE_AT + 0.06] },
         }}
         style={{
           position: 'absolute',
