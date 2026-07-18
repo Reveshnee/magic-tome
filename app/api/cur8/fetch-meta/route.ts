@@ -88,11 +88,23 @@ export async function GET(req: NextRequest) {
         if (oEmbed.ok) {
           const data = await oEmbed.json()
           const thumbnail = data.thumbnail_url ? await cacheThumbnail(data.thumbnail_url) : ''
+          // The video id is exposed even for short (vm.tiktok.com) links, since
+          // TikTok resolves the redirect. Build a canonical /video/<id> URL and
+          // return it as resolvedUrl so the app can embed & play it inline.
+          const videoId: string | undefined =
+            data.embed_product_id ||
+            (data.html?.match(/data-video-id="(\d+)"/)?.[1]) ||
+            (data.html?.match(/\/video\/(\d+)/)?.[1])
+          const author = data.author_unique_id || (data.author_url?.match(/@([^/?]+)/)?.[1])
+          const resolvedUrl = videoId
+            ? `https://www.tiktok.com/@${author || 'tiktok'}/video/${videoId}`
+            : undefined
           return NextResponse.json({
             title: data.title || 'TikTok video',
             description: data.author_name ? `by ${data.author_name}` : '',
             thumbnail,
             favicon,
+            resolvedUrl,
           })
         }
       } catch { /* fall through to favicon-only */ }

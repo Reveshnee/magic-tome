@@ -503,7 +503,9 @@ export default function Cur8Category({ category }: Props) {
         const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(normalised)}`)
         if (!res.ok) throw new Error('fetch failed')
         const data = await res.json()
-        setPreview({ url: normalised, ...data })
+        // Prefer a resolved canonical URL (e.g. TikTok short link → /video/<id>)
+        // so playback can embed it inline instead of bouncing to the app.
+        setPreview({ ...data, url: data.resolvedUrl || normalised })
       } catch {
         setFetchError('Could not auto-fetch — you can still save manually.')
         setPreview({ url: normalised, title: normalised, description: '', thumbnail: '' })
@@ -518,7 +520,7 @@ export default function Cur8Category({ category }: Props) {
             const res = await fetch(`/api/cur8/fetch-meta?url=${encodeURIComponent(u)}`)
             if (!res.ok) throw new Error('fetch failed')
             const data = await res.json()
-            return { url: u, ...data, selected: true }
+            return { ...data, url: data.resolvedUrl || u, selected: true }
           } catch {
             return { url: u, title: u, description: '', thumbnail: '', favicon: '', selected: true }
           }
