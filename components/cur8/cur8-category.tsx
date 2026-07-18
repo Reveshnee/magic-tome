@@ -1265,7 +1265,17 @@ export default function Cur8Category({ category }: Props) {
                         backdropFilter: 'blur(2px)',
                       }}
                     />
-                    {/* Modal card */}
+                    {/* Modal card — use a non-motion wrapper to handle the CSS centering,
+                        so framer-motion only animates opacity/scale without fighting translate */}
+                    <div style={{
+                      position: 'fixed',
+                      top: '50%', left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 291,
+                      width: 'min(480px, 90vw)',
+                      maxHeight: '70vh',
+                      display: 'flex', flexDirection: 'column',
+                    }}>
                     <motion.div
                       key="summary-modal"
                       initial={{ opacity: 0, scale: 0.96 }}
@@ -1273,21 +1283,13 @@ export default function Cur8Category({ category }: Props) {
                       exit={{ opacity: 0, scale: 0.96 }}
                       transition={{ type: 'spring', stiffness: 340, damping: 32 }}
                       style={{
-                        position: 'fixed',
-                        // Centre on screen — use margin auto + inset trick so framer-motion
-                        // doesn't fight a transform translate
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        margin: 'auto',
-                        zIndex: 291,
-                        width: 'min(480px, 90vw)',
-                        maxHeight: '70vh',
-                        height: 'fit-content',
-                        display: 'flex', flexDirection: 'column',
+                        flex: 1, display: 'flex', flexDirection: 'column',
                         backgroundColor: '#0a1e1b',
                         border: `1px solid ${tileStyle.accent}44`,
                         borderRadius: 20,
                         boxShadow: '0 24px 80px rgba(0,0,0,0.75)',
                         overflow: 'hidden',
+                        maxHeight: '70vh',
                       }}
                     >
                       {/* Modal header */}
@@ -1306,8 +1308,9 @@ export default function Cur8Category({ category }: Props) {
                         </button>
                       </div>
 
-                      {/* Scrollable content */}
-                      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px' }}>
+                      {/* Scrollable content — flex: 1 1 0 + minHeight: 0 lets it shrink
+                          within the parent's maxHeight constraint so long notes scroll */}
+                      <div style={{ flex: '1 1 0', minHeight: 0, overflowY: 'auto', padding: '16px 18px' }}>
                         {summaryLoading ? (
                           <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(245,240,232,0.6)', margin: 0, fontStyle: 'italic' }}>
                             <Loader2 size={14} className="animate-spin" style={{ color: tileStyle.accent }} /> Taking a gentle look...
@@ -1339,6 +1342,7 @@ export default function Cur8Category({ category }: Props) {
                         )}
                       </div>
                     </motion.div>
+                    </div>{/* end position wrapper */}
                   </>
                 )}
               </AnimatePresence>
