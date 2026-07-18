@@ -270,9 +270,11 @@ export default function Cur8Category({ category }: Props) {
   const [folderGardenPickId, setFolderGardenPickId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
   const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | null>(null)
-  // Collapsible side panels — desktop only (mobile uses tab switcher instead)
-  const [leftOpen, setLeftOpen] = useState(true)
-  const [rightOpen, setRightOpen] = useState(true)
+  // Collapsible side panels — desktop only (mobile uses tab switcher instead).
+  // Start collapsed so the centre preview fills as much width as possible by
+  // default — no need to manually hit Expand.
+  const [leftOpen, setLeftOpen] = useState(false)
+  const [rightOpen, setRightOpen] = useState(false)
   // Desktop "full page" preview — hides both side panels + all chrome so the
   // media fills the whole window (the mobile experience, brought to laptop).
   const [expandedPreview, setExpandedPreview] = useState(false)
