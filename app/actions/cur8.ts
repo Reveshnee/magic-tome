@@ -22,6 +22,7 @@ export interface Cur8ItemDTO {
   description?: string
   thumbnail?: string
   favicon?: string
+  summary?: string
   savedAt: string
   openedAt?: string
 }
@@ -55,6 +56,7 @@ export async function getCur8Data(): Promise<{
       description: i.description ?? undefined,
       thumbnail: i.thumbnail ?? undefined,
       favicon: i.favicon ?? undefined,
+      summary: i.summary ?? undefined,
       savedAt: i.savedAt.toISOString(),
       openedAt: i.openedAt ? i.openedAt.toISOString() : undefined,
     })),

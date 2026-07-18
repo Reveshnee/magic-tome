@@ -38,6 +38,7 @@ import {
   deleteReflection,
   type ReflectionDTO,
 } from '@/app/actions/cur8'
+import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
 import CategoryReflections from '@/components/cur8/category-reflections'
 
@@ -241,6 +242,34 @@ export default function Cur8Category({ category }: Props) {
       markItemOpened(item.id).catch(() => {})
     }
     window.open(item.url, '_blank', 'noopener,noreferrer')
+  }
+
+  // ── AI smart summary ──
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState('')
+  const [summaryOpen, setSummaryOpen] = useState(false)
+
+  // When the selected item changes, show its summary panel if one already
+  // exists, and clear any stale loading/error state from the previous item.
+  useEffect(() => {
+    setSummaryError('')
+    setSummaryLoading(false)
+    setSummaryOpen(!!selectedItem?.summary)
+  }, [selectedItem?.id, selectedItem?.summary])
+
+  async function handleSummarise(item: Cur8Item, regenerate = false) {
+    setSummaryError('')
+    setSummaryLoading(true)
+    try {
+      const { summary } = await summarizeItem(item.id, regenerate)
+      // Store it on the item so it's cached in the UI and shown instantly next time
+      setAllItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, summary } : it)))
+      setSelectedItem((cur) => (cur && cur.id === item.id ? { ...cur, summary } : cur))
+    } catch {
+      setSummaryError('Could not create a summary just now. Please try again in a moment.')
+    } finally {
+      setSummaryLoading(false)
+    }
   }
 
   // Rename this garden
@@ -1150,6 +1179,43 @@ export default function Cur8Category({ category }: Props) {
               <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden', position: 'relative' }}>
                 {renderPreview(selectedItem)}
               </div>
+              {/* AI smart-summary panel (sits just above the details bar) */}
+              <AnimatePresence>
+                {summaryOpen && (summaryLoading || summaryError || selectedItem.summary) && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    style={{ flexShrink: 0, overflow: 'hidden', backgroundColor: '#122e29', borderTop: `1px solid ${tileStyle.accent}33` }}
+                  >
+                    <div style={{ padding: '12px 16px', maxHeight: 160, overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <Sparkles size={12} style={{ color: tileStyle.accent }} />
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: tileStyle.accent }}>A gentle summary</span>
+                        {!summaryLoading && selectedItem.summary && (
+                          <button onClick={() => handleSummarise(selectedItem, true)} title="Refresh this summary"
+                            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 50, fontSize: 9, fontWeight: 600, color: 'rgba(245,240,232,0.55)', backgroundColor: 'rgba(245,240,232,0.06)', border: 'none', cursor: 'pointer' }}>
+                            <RotateCcw size={9} /> Refresh
+                          </button>
+                        )}
+                        <button onClick={() => setSummaryOpen(false)} title="Hide summary"
+                          style={{ marginLeft: selectedItem.summary && !summaryLoading ? 0 : 'auto', display: 'inline-flex', padding: 3, borderRadius: 50, color: 'rgba(245,240,232,0.5)', backgroundColor: 'transparent', border: 'none', cursor: 'pointer' }}>
+                          <X size={12} />
+                        </button>
+                      </div>
+                      {summaryLoading ? (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'rgba(245,240,232,0.6)', margin: 0, fontStyle: 'italic' }}>
+                          <Loader2 size={13} className="animate-spin" style={{ color: tileStyle.accent }} /> Taking a gentle look...
+                        </p>
+                      ) : summaryError ? (
+                        <p style={{ fontSize: 12.5, color: '#e8b4a0', margin: 0 }}>{summaryError}</p>
+                      ) : (
+                        <p style={{ fontSize: 13, lineHeight: 1.6, color: 'rgba(245,240,232,0.9)', margin: 0 }}>{selectedItem.summary}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {/* Details bar at bottom */}
               <div style={{ flexShrink: 0, padding: '12px 16px', borderTop: '1px solid rgba(245,240,232,0.08)', backgroundColor: '#0a1e1b', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1158,20 +1224,30 @@ export default function Cur8Category({ category }: Props) {
                     {(() => { try { return new URL(selectedItem.url).hostname.replace('www.', '') } catch { return selectedItem.url } })()}
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    if (selectedItem.summary && !summaryLoading) { setSummaryOpen((o) => !o) }
+                    else { setSummaryOpen(true); handleSummarise(selectedItem) }
+                  }}
+                  disabled={summaryLoading}
+                  title="Get a warm AI summary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: summaryOpen ? '#0d2420' : 'rgba(245,240,232,0.8)', backgroundColor: summaryOpen ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: 'none', cursor: summaryLoading ? 'wait' : 'pointer', flexShrink: 0 }}>
+                  {summaryLoading ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />} {!isMobile && 'Summary'}
+                </button>
                 {ttsSupported && (
                   <button onClick={() => readItemAloud(selectedItem)}
                     title={speaking ? 'Stop reading' : 'Read title & notes aloud'}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: speaking ? '#0d2420' : 'rgba(245,240,232,0.8)', backgroundColor: speaking ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-                    {speaking ? <Square size={11} /> : <Volume2 size={11} />} {speaking ? 'Stop' : 'Listen'}
+                    {speaking ? <Square size={11} /> : <Volume2 size={11} />} {!isMobile && (speaking ? 'Stop' : 'Listen')}
                   </button>
                 )}
                 <button onClick={() => openItem(selectedItem)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-                  <ExternalLink size={11} /> Open
+                  <ExternalLink size={11} /> {!isMobile && 'Open'}
                 </button>
                 <button onClick={() => setSelectedItem(null)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-                  <X size={11} /> Close
+                  <X size={11} /> {!isMobile && 'Close'}
                 </button>
               </div>
             </>

@@ -23,6 +23,7 @@ export interface Cur8Item {
   title: string
   description?: string
   thumbnail?: string
+  summary?: string
   savedAt: string
   favicon?: string
   openedAt?: string

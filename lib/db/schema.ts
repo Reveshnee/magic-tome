@@ -76,6 +76,7 @@ export const cur8Item = pgTable('cur8_item', {
   description: text('description'),
   thumbnail: text('thumbnail'),
   favicon: text('favicon'),
+  summary: text('summary'), // AI-generated warm summary, cached after first request
   savedAt: timestamp('savedAt').notNull().defaultNow(),
   openedAt: timestamp('openedAt'),
 })
