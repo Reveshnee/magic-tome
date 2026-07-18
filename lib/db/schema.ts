@@ -109,6 +109,30 @@ export const cur8Setting = pgTable('cur8_setting', {
   updatedAt: timestamp('updatedAt').notNull().defaultNow(),
 })
 
+// AI memory — things Cur8 has learned about you across all havens
+export const cur8Memory = pgTable('cur8_memory', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  // A concise insight extracted from saved items, e.g. "Reveshnee is studying
+  // SACAP psychology and also saves nervous-system regulation content."
+  insight: text('insight').notNull(),
+  // Which categories/havens this insight was drawn from
+  sources: text('sources').notNull(), // JSON array of category slugs
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
+// AI connections — links between items AI found thematically related
+export const cur8Connection = pgTable('cur8_connection', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  itemAId: text('itemAId').notNull(),
+  itemBId: text('itemBId').notNull(),
+  // Short description of *why* these items connect
+  reason: text('reason').notNull(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+})
+
 // Per-user custom names for the 8 gardens (overrides the default displayName)
 export const cur8GardenName = pgTable('cur8_garden_name', {
   userId: text('userId').notNull(),

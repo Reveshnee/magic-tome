@@ -5,13 +5,14 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Brain, X, Mic, MicOff, Send, Volume2, Square, Pin, PinOff,
-  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle,
+  Copy, Trash2, Loader2, Mail, Check, ChevronDown, MessageCircle, Wand2,
 } from 'lucide-react'
 import {
   getNotes, createNote, deleteNote, togglePinNote,
   getSettings, saveSettings, type NoteDTO, type Cur8Settings,
 } from '@/app/actions/notes'
 import { useReadAloud, useDictation } from '@/hooks/use-speech'
+import { cleanupBrainDump, type CleanupResult } from '@/app/actions/ai-features'
 
 const ACCENT = '#c9a84c'
 const SAGE = '#8ec8b4'
@@ -30,6 +31,8 @@ export default function BrainDump() {
   const [settingsSaved, setSettingsSaved] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const baseDraftRef = useRef('')
+  const [cleanup, setCleanup] = useState<CleanupResult | null>(null)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
 
   const { speak, stop: stopSpeak, speaking, supported: ttsSupported } = useReadAloud()
 
@@ -248,6 +251,20 @@ export default function BrainDump() {
                       {listening ? <MicOff size={15} /> : <Mic size={15} />} {listening ? 'Stop' : 'Speak'}
                     </button>
                   )}
+                  {/* AI Tidy button */}
+                  <button
+                    onClick={async () => {
+                      if (!draft.trim()) return
+                      setCleanup(null)
+                      setCleanupLoading(true)
+                      try { setCleanup(await cleanupBrainDump(draft)) } catch { /* noop */ } finally { setCleanupLoading(false) }
+                    }}
+                    disabled={cleanupLoading || !draft.trim()}
+                    title="AI: tidy this thought and pull out action items"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 13px', borderRadius: 10, cursor: cleanupLoading || !draft.trim() ? 'not-allowed' : 'pointer', border: `1px solid ${ACCENT}55`, fontSize: 13, fontWeight: 600, backgroundColor: `${ACCENT}15`, color: cleanupLoading || !draft.trim() ? 'rgba(245,240,232,0.3)' : ACCENT }}
+                  >
+                    {cleanupLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={14} />} Tidy
+                  </button>
                   <button
                     onClick={handleSave}
                     disabled={!draft.trim() || saving}
@@ -264,6 +281,37 @@ export default function BrainDump() {
                 {!sttSupported && (
                   <p style={{ fontSize: 10.5, color: 'rgba(245,240,232,0.4)', marginTop: 8 }}>Voice dictation isn&apos;t supported in this browser — try Chrome or your Android phone.</p>
                 )}
+
+                {/* AI cleanup result panel */}
+                <AnimatePresence>
+                  {cleanup && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                      style={{ overflow: 'hidden', marginTop: 10, borderRadius: 12, border: `1px solid ${ACCENT}44`, backgroundColor: '#0e2822' }}>
+                      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT }}>Tidied thought</span>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <button onClick={() => { setDraft(cleanup.tidy); setCleanup(null) }} style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 10px', borderRadius: 50, color: '#0d2420', backgroundColor: ACCENT, border: 'none', cursor: 'pointer' }}>Use this</button>
+                            <button onClick={() => setCleanup(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', display: 'flex' }}><X size={13} /></button>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 13, lineHeight: 1.6, color: '#f5f0e8', margin: 0 }}>{cleanup.tidy}</p>
+                        {cleanup.bullets.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.45)', margin: 0 }}>Key points</p>
+                            {cleanup.bullets.map((b, i) => <p key={i} style={{ fontSize: 12, color: 'rgba(245,240,232,0.8)', margin: 0, paddingLeft: 10, borderLeft: `2px solid ${ACCENT}55` }}>{b}</p>)}
+                          </div>
+                        )}
+                        {cleanup.actions.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.45)', margin: 0 }}>Action items</p>
+                            {cleanup.actions.map((a, i) => <p key={i} style={{ fontSize: 12, color: '#c8e6c9', margin: 0, paddingLeft: 10, borderLeft: '2px solid #5a9e84' }}>{a}</p>)}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Notes list */}

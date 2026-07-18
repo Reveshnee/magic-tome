@@ -21,6 +21,7 @@ import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
 import { generateVideoThumbnail } from '@/lib/video-thumbnail'
+import { findConnections } from '@/app/actions/ai-features'
 import {
   getCur8Data,
   createItem as createItemAction,
@@ -203,6 +204,8 @@ export default function Cur8Category({ category }: Props) {
   const [preview, setPreview] = useState<Partial<Cur8Item> | null>(null)
   const [multiPreviews, setMultiPreviews] = useState<(Partial<Cur8Item> & { selected: boolean })[]>([])
   const [selectedItem, setSelectedItem] = useState<Cur8Item | null>(null)
+  const [connections, setConnections] = useState<{ item: { id: string; title: string; category: string; url: string }; reason: string }[]>([])
+  const [connectionsLoading, setConnectionsLoading] = useState(false)
   const [fetchError, setFetchError] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -271,6 +274,17 @@ export default function Cur8Category({ category }: Props) {
       setSummaryLoading(false)
     }
   }
+
+  // Load cross-haven connections when an item is selected
+  useEffect(() => {
+    if (!selectedItem) { setConnections([]); return }
+    setConnectionsLoading(true)
+    findConnections(selectedItem.id)
+      .then(setConnections)
+      .catch(() => {})
+      .finally(() => setConnectionsLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItem?.id])
 
   // Rename this garden
   function openRename() {
@@ -1216,6 +1230,27 @@ export default function Cur8Category({ category }: Props) {
                   </motion.div>
                 )}
               </AnimatePresence>
+              {/* Related items — cross-haven connections */}
+              {(connections.length > 0 || connectionsLoading) && (
+                <div style={{ flexShrink: 0, padding: '10px 14px', borderTop: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0d2420' }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#c9a84c', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Sparkles size={10} /> Also in your havens
+                  </p>
+                  {connectionsLoading ? (
+                    <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic' }}>Finding connections...</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {connections.map(({ item: conn, reason }) => (
+                        <div key={conn.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#f5f0e8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conn.title}</span>
+                          <span style={{ fontSize: 10.5, color: '#c9a84c', opacity: 0.75 }}>{conn.category} · {reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Details bar at bottom */}
               <div style={{ flexShrink: 0, padding: '12px 16px', borderTop: '1px solid rgba(245,240,232,0.08)', backgroundColor: '#0a1e1b', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>

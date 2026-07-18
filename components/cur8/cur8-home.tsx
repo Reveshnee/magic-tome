@@ -20,6 +20,7 @@ import FocusTimerWidget from '@/components/cur8/widgets/focus-timer-widget'
 import MiniCalendarWidget from '@/components/cur8/widgets/mini-calendar-widget'
 import IntentionWidget from '@/components/cur8/widgets/intention-widget'
 import { useViewport } from '@/hooks/use-viewport'
+import AiHub from '@/components/cur8/ai-hub'
 
 const KOI: React.CSSProperties = {
   '--c-bg':       '#0d2420',
@@ -335,6 +336,11 @@ export default function Cur8Home() {
             </div>
           </section>
         )}
+
+        {/* AI Insights Hub */}
+        <section style={{ marginBottom: 28 }}>
+          <AiHub />
+        </section>
 
         {/* Gardens grid — editorial bento style */}
         <section>
