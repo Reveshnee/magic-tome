@@ -74,8 +74,21 @@ async function fetchYouTubePlaylist(playlistId: string): Promise<PlaylistResult>
 
     const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({})) as { error?: { message?: string } }
-      throw new Error(err?.error?.message ?? `YouTube API error ${res.status}`)
+      const err = await res.json().catch(() => ({})) as { error?: { message?: string; errors?: Array<{ reason?: string }> } }
+      const reason = err?.error?.errors?.[0]?.reason
+      // Map common YouTube API errors to plain-language messages
+      if (reason === 'playlistNotFound' || res.status === 404) {
+        throw new Error('That playlist could not be found. Make sure the link is a public YouTube playlist and try copying it again.')
+      }
+      if (reason === 'quotaExceeded') {
+        throw new Error('The daily YouTube import limit has been reached. Please try again tomorrow.')
+      }
+      if (reason === 'keyInvalid' || reason === 'badRequest' || res.status === 400) {
+        throw new Error('The YouTube API key looks invalid. Double-check YOUTUBE_API_KEY in Settings → Vars.')
+      }
+      // Strip any HTML tags from the raw API message before showing it
+      const raw = (err?.error?.message ?? `YouTube API error ${res.status}`).replace(/<[^>]+>/g, '')
+      throw new Error(raw)
     }
 
     const data = await res.json() as {
