@@ -2417,7 +2417,8 @@ export default function Cur8Category({ category }: Props) {
         {toast && (
           <motion.div
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-            style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 400, backgroundColor: '#122e29', color: '#f5f0e8', border: '1px solid rgba(245,240,232,0.14)', borderRadius: 50, padding: '9px 18px', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            transformTemplate={(_, generated) => `translateX(-50%) ${generated}`}
+            style={{ position: 'fixed', bottom: 24, left: '50%', zIndex: 400, backgroundColor: '#122e29', color: '#f5f0e8', border: '1px solid rgba(245,240,232,0.14)', borderRadius: 50, padding: '9px 18px', fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 7, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <Check size={13} style={{ color: tileStyle.accent }} /> {toast}
           </motion.div>
         )}

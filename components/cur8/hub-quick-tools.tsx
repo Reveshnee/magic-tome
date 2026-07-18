@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Zap, X, ClipboardPaste, Loader2, Check, Shuffle, Focus, ExternalLink, Undo2,
+  Zap, X, ClipboardPaste, Loader2, Check, Shuffle, Focus, ExternalLink, Undo2, Play,
 } from 'lucide-react'
 import { CATEGORIES, type Cur8Item, type Category } from '@/lib/cur8-store'
 import { createItem, moveItemToGarden } from '@/app/actions/cur8'
@@ -11,6 +11,36 @@ import { useGardenNames } from '@/components/cur8/garden-names-provider'
 
 const ACCENT = '#d13a1f'
 const GOLD = '#c9a84c'
+
+// Pull an embeddable id so videos can play inline (instead of jumping to YouTube).
+function ytEmbedId(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.includes('/shorts/')) return u.pathname.split('/shorts/')[1]?.split('?')[0] ?? null
+      return u.searchParams.get('v')
+    }
+    if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null
+  } catch {}
+  return null
+}
+function tkEmbedId(url: string): string | null {
+  try {
+    const u = new URL(url)
+    if (!u.hostname.includes('tiktok.com')) return null
+    const m = u.pathname.match(/\/video\/(\d+)/)
+    return m ? m[1] : null
+  } catch {}
+  return null
+}
+// Returns the inline-embed src for a playable video, or null if not embeddable.
+function embedSrc(url: string): string | null {
+  const yt = ytEmbedId(url)
+  if (yt) return `https://www.youtube.com/embed/${yt}?autoplay=1&rel=0`
+  const tk = tkEmbedId(url)
+  if (tk) return `https://www.tiktok.com/embed/v2/${tk}`
+  return null
+}
 
 // Detect which haven a pasted link belongs to, by content type.
 // Slugs are content-type based: youtube, tiktok, instagram, facebook, images,
@@ -205,11 +235,13 @@ export function OneThing({ items }: { items: Cur8Item[] }) {
   const [open, setOpen] = useState(false)
   const [category, setCategory] = useState<Category | null>(null)
   const [current, setCurrent] = useState<Cur8Item | null>(null)
+  const [playing, setPlaying] = useState(false)
 
   const pool = category ? items.filter((i) => i.category === category) : []
 
   function pick(fromCategory: Category) {
     const list = items.filter((i) => i.category === fromCategory)
+    setPlaying(false)
     if (list.length === 0) { setCategory(fromCategory); setCurrent(null); return }
     setCategory(fromCategory)
     setCurrent(list[Math.floor(Math.random() * list.length)])
@@ -217,6 +249,7 @@ export function OneThing({ items }: { items: Cur8Item[] }) {
 
   function shuffle() {
     if (pool.length === 0) return
+    setPlaying(false)
     let next = pool[Math.floor(Math.random() * pool.length)]
     if (pool.length > 1 && current) {
       while (next.id === current.id) next = pool[Math.floor(Math.random() * pool.length)]
@@ -228,6 +261,7 @@ export function OneThing({ items }: { items: Cur8Item[] }) {
     setOpen(false)
     setCategory(null)
     setCurrent(null)
+    setPlaying(false)
   }
 
   const havenCounts = CATEGORIES.map((c) => ({ ...c, count: items.filter((i) => i.category === c.name).length }))
@@ -269,10 +303,37 @@ export function OneThing({ items }: { items: Cur8Item[] }) {
               // Step 2: the one surfaced item
               <motion.div key={current.id} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} style={{ width: 'min(460px, 100%)', textAlign: 'center' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: GOLD, margin: '0 0 16px' }}>Just this one — {displayName(category)}</p>
+                {(() => {
+                const src = embedSrc(current.url)
+                const isVideo = !!src
+                return (
+                <>
                 <div style={{ borderRadius: 18, overflow: 'hidden', border: '1px solid rgba(245,240,232,0.12)', backgroundColor: '#122e29', marginBottom: 18 }}>
-                  {current.thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={current.thumbnail || '/placeholder.svg'} alt={current.title} crossOrigin="anonymous" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
+                  {isVideo && playing ? (
+                    <iframe
+                      src={src}
+                      title={current.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                      allowFullScreen
+                      style={{ width: '100%', height: 240, border: 'none', display: 'block' }}
+                    />
+                  ) : current.thumbnail ? (
+                    // Clickable poster: for videos, tapping plays inline instead of leaving the app
+                    <button
+                      onClick={() => isVideo && setPlaying(true)}
+                      style={{ position: 'relative', display: 'block', width: '100%', height: 220, padding: 0, border: 'none', cursor: isVideo ? 'pointer' : 'default', background: 'none' }}
+                      aria-label={isVideo ? `Play ${current.title}` : current.title}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={current.thumbnail || '/placeholder.svg'} alt={current.title} crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      {isVideo && (
+                        <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.28)' }}>
+                          <span style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px rgba(0,0,0,0.4)' }}>
+                            <Play size={24} color="#0d2420" style={{ marginLeft: 3 }} />
+                          </span>
+                        </span>
+                      )}
+                    </button>
                   ) : (
                     <div style={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Focus size={40} color={GOLD} /></div>
                   )}
@@ -286,11 +347,21 @@ export function OneThing({ items }: { items: Cur8Item[] }) {
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 50, border: '1px solid rgba(245,240,232,0.2)', background: 'none', color: pool.length < 2 ? 'rgba(245,240,232,0.3)' : '#f5f0e8', fontSize: 13, fontWeight: 600, cursor: pool.length < 2 ? 'not-allowed' : 'pointer' }}>
                     <Shuffle size={14} /> Something else
                   </button>
-                  <button onClick={() => window.open(current.url, '_blank', 'noopener,noreferrer')}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 20px', borderRadius: 50, border: 'none', backgroundColor: GOLD, color: '#0d2420', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    <ExternalLink size={14} /> Engage with this
-                  </button>
+                  {isVideo && !playing ? (
+                    <button onClick={() => setPlaying(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 20px', borderRadius: 50, border: 'none', backgroundColor: GOLD, color: '#0d2420', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      <Play size={14} style={{ marginLeft: 1 }} /> Play here
+                    </button>
+                  ) : (
+                    <button onClick={() => window.open(current.url, '_blank', 'noopener,noreferrer')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 20px', borderRadius: 50, border: 'none', backgroundColor: GOLD, color: '#0d2420', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      <ExternalLink size={14} /> {isVideo ? 'Open externally' : 'Engage with this'}
+                    </button>
+                  )}
                 </div>
+                </>
+                )
+                })()}
                 <button onClick={() => { setCategory(null); setCurrent(null) }}
                   style={{ marginTop: 16, background: 'none', border: 'none', color: 'rgba(245,240,232,0.5)', fontSize: 12, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <Undo2 size={12} /> Pick a different haven
