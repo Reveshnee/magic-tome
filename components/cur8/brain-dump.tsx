@@ -170,10 +170,13 @@ export default function BrainDump() {
 
   if (pathname?.includes('/sign-in') || pathname?.includes('/sign-up')) return null
 
+  // On haven category pages the toolbar button opens the panel — hide the floating pill
+  const isHavenPage = !!pathname && pathname.startsWith('/cur8/') && pathname !== '/cur8/'
+
   return (
     <>
-      {/* Floating trigger — bottom-left so it clears the sound player on the right */}
-      <motion.button
+      {/* Floating trigger — hidden on haven pages where the toolbar handles it */}
+      {!isHavenPage && <motion.button
         onClick={() => setOpen(true)}
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
@@ -186,7 +189,7 @@ export default function BrainDump() {
         }}
       >
         <Brain size={22} />
-      </motion.button>
+      </motion.button>}
 
       <AnimatePresence>
         {open && (

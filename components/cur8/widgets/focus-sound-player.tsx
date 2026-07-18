@@ -175,6 +175,10 @@ export default function FocusSoundPlayer() {
   // Hide on auth screens
   if (pathname?.includes('/sign-in') || pathname?.includes('/sign-up')) return null
 
+  // On haven category pages, the toolbar at the top handles opening focus sounds
+  // via the cur8:openFocusSounds event — we still render the panel + audio, just
+  // not the floating pill button.
+  const isHavenPage = !!pathname && pathname.startsWith('/cur8/') && pathname !== '/cur8/'
   const activeDef = SOUNDS.find((s) => s.id === active)!
 
   return (
@@ -244,8 +248,8 @@ export default function FocusSoundPlayer() {
         )}
       </AnimatePresence>
 
-      {/* Floating toggle button — always shows a label so it's easy to find */}
-      <motion.button
+      {/* Floating toggle button — hidden on haven pages (toolbar handles it there) */}
+      {!isHavenPage && <motion.button
         onClick={() => setOpen((o) => !o)}
         whileTap={{ scale: 0.92 }}
         aria-label="Focus sounds"
@@ -279,7 +283,7 @@ export default function FocusSoundPlayer() {
             <span style={{ fontSize: 12, fontWeight: 600, color: '#c9a84c', whiteSpace: 'nowrap' }}>Focus sounds</span>
           </>
         )}
-      </motion.button>
+      </motion.button>}
     </div>
   )
 }

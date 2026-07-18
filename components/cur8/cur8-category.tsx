@@ -16,7 +16,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
@@ -714,14 +714,15 @@ export default function Cur8Category({ category }: Props) {
     if (type === 'youtube') {
       const ytId = extractYouTubeId(item.url)
       if (!ytId) {
-        // Fallback: no ID could be extracted — show a poster + open button
+        // No extractable ID — show poster + open button with explanation
         const poster = getThumbnailFromUrl(item.url, item.thumbnail)
         return (
-          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
-            {poster && <img src={poster} alt={item.title} style={{ maxWidth: 260, maxHeight: '50%', borderRadius: 14, objectFit: 'cover' }} />}
-            <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300 }}>{item.title}</p>
-            <a href={item.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 50, backgroundColor: '#c85a40', color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
-              Open on YouTube
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
+            {poster && <img src={poster} alt={item.title} style={{ maxWidth: 260, maxHeight: '40%', borderRadius: 14, objectFit: 'cover' }} />}
+            <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0 }}>{item.title}</p>
+            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.5)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>This video cannot be played inside Cur8 — the channel has disabled embedding. Tap below to watch it on YouTube.</p>
+            <a href={item.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 22px', borderRadius: 50, backgroundColor: '#c85a40', color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
+              Watch on YouTube
             </a>
           </div>
         )
@@ -1017,7 +1018,16 @@ export default function Cur8Category({ category }: Props) {
 
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0d2420', color: '#f5f0e8', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
+      style={{
+        display: 'flex', flexDirection: 'column',
+        // Desktop: lock to viewport height for the 3-panel layout. Mobile: let content scroll naturally.
+        height: isMobile ? 'auto' : '100vh',
+        minHeight: '100vh',
+        backgroundColor: '#0d2420', color: '#f5f0e8',
+        fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif',
+        overflow: isMobile ? 'visible' : 'hidden',
+        position: 'relative',
+      }}
     >
 
       {/* ── Drag-and-drop overlay ── */}
@@ -1036,74 +1046,103 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
-      {/* ── Persistent back button — only on mobile when the video is fullscreen
-          and the banner is hidden, so the user always has a way to navigate back ── */}
+      {/* ── Media-focus overlay: fixed back buttons when video is fullscreen ── */}
       {mediaFocus && (
-        <Link
-          href="/cur8"
-          style={{
-            position: 'fixed', top: 12, left: 12, zIndex: 180,
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '7px 14px', borderRadius: 50,
-            fontSize: 12, fontWeight: 700, color: '#f5f0e8',
-            textDecoration: 'none',
-            backgroundColor: 'rgba(10,30,27,0.85)',
-            backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-          }}
-        >
-          <ArrowLeft size={12} /> All havens
-        </Link>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 180, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', backgroundColor: 'rgba(10,30,27,0.9)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          {/* Back to haven browse */}
+          <button
+            onClick={() => { setSelectedItem(null); setMobileTab('browse') }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
+          >
+            <ArrowLeft size={12} /> Back to {gardenName}
+          </button>
+          {/* Back to all havens */}
+          <Link
+            href="/cur8"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.65)', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.1)', textDecoration: 'none' }}
+          >
+            All havens
+          </Link>
+          {/* Selected item title */}
+          {selectedItem && <p style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedItem.title}</p>}
+        </div>
       )}
 
       {/* ── Banner ── */}
-      <div style={{ position: 'relative', height: 150, flexShrink: 0, overflow: 'hidden', display: mediaFocus ? 'none' : 'block' }}>
+      <div style={{ position: 'relative', height: 140, flexShrink: 0, overflow: 'hidden', display: mediaFocus ? 'none' : 'block' }}>
         <Image src={tileStyle.image} alt={category} fill className="object-cover object-center" priority sizes="100vw" />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,36,32,0.5) 0%, rgba(13,36,32,0.92) 100%)' }} />
-        {/* Nav */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,36,32,0.45) 0%, rgba(13,36,32,0.9) 100%)' }} />
+        {/* Back nav row */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px' }}>
           <Link href="/cur8" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', textDecoration: 'none', backgroundColor: 'rgba(245,240,232,0.12)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}>
             <ArrowLeft size={10} /> All havens
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={() => setShowReflections(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.12)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
-            >
-              <NotebookPen size={11} /> Reflect{reflections.length > 0 ? ` · ${reflections.length}` : ''}
-            </button>
-            <button
-              onClick={() => setShowAdd(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 16px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
-            >
-              <Plus size={11} /> Save link
-            </button>
-          </div>
+          <button
+            onClick={() => setShowAdd(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 16px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: '#0d2420', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+          >
+            <Plus size={11} /> Save
+          </button>
         </div>
         {/* Title */}
-        <div style={{ position: 'absolute', bottom: 12, left: 16, right: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-            <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 28, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{gardenName}</h1>
+        <div style={{ position: 'absolute', bottom: 10, left: 14, right: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+            <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 24, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{gardenName}</h1>
             <button
               onClick={openRename}
               aria-label="Rename this haven"
               title="Rename this haven"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 8, background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--c-cream)', cursor: 'pointer', backdropFilter: 'blur(8px)', flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 7, background: 'rgba(245,240,232,0.12)', border: '1px solid rgba(255,255,255,0.15)', color: '#f5f0e8', cursor: 'pointer', backdropFilter: 'blur(8px)', flexShrink: 0 }}
             >
-              <Pencil size={11} />
+              <Pencil size={10} />
             </button>
           </div>
-          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tileStyle.accent, margin: '0 0 5px' }}>{cat.area}</p>
-          <p style={{ fontSize: 9.5, color: 'rgba(245,240,232,0.5)', margin: 0 }}>{cat.description} · {catItems.length} saved</p>
+          <p style={{ fontSize: 9.5, color: 'rgba(245,240,232,0.5)', margin: 0 }}>{catItems.length} saved · {cat.area}</p>
         </div>
       </div>
+
+      {/* ── Haven Toolbar — Brain Dump · Reflections · Focus Sounds · Stats ── */}
+      {!mediaFocus && (
+        <div style={{
+          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+          padding: '7px 14px', overflowX: 'auto',
+          backgroundColor: '#0a1e1b',
+          borderBottom: '1px solid rgba(245,240,232,0.07)',
+        }}>
+          {/* Brain Dump */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('cur8:openBrainDump'))}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <Brain size={11} color="#c9a84c" /> Brain dump
+          </button>
+          {/* Reflections */}
+          <button
+            onClick={() => setShowReflections(true)}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: reflections.length > 0 ? `${tileStyle.accent}22` : 'rgba(245,240,232,0.08)', border: `1px solid ${reflections.length > 0 ? tileStyle.accent + '55' : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <NotebookPen size={11} color={reflections.length > 0 ? tileStyle.accent : undefined} />
+            Reflect{reflections.length > 0 ? ` · ${reflections.length}` : ''}
+          </button>
+          {/* Focus Sounds */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('cur8:openFocusSounds'))}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <Headphones size={11} color="#8ec8b4" /> Focus sounds
+          </button>
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+          {/* Quick count chip */}
+          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap' }}>{catItems.length} saved</span>
+        </div>
+      )}
 
       {/* ── Stats bar ── */}
       {!mediaFocus && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
 
       {/* ── Mobile tab switcher ── */}
-      {isMobile && (
+      {isMobile && !mediaFocus && (
         <div style={{ display: 'flex', flexShrink: 0, backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
           {([
             { id: 'browse' as const, label: 'Browse', icon: LayoutGrid },
@@ -1112,13 +1151,26 @@ export default function Cur8Category({ category }: Props) {
           ]).map((t) => {
             const TIcon = t.icon
             const on = mobileTab === t.id
+            // On the Preview tab, if something is selected, show "Back" to encourage deselection
+            const isPreviewWithItem = t.id === 'preview' && on && !!selectedItem
             return (
               <button
                 key={t.id}
-                onClick={() => setMobileTab(t.id)}
+                onClick={() => {
+                  if (isPreviewWithItem) {
+                    // Tap "Back" to deselect and return to browse
+                    setSelectedItem(null)
+                    setMobileTab('browse')
+                  } else {
+                    setMobileTab(t.id)
+                  }
+                }}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 4px', border: 'none', borderBottom: `2px solid ${on ? tileStyle.accent : 'transparent'}`, backgroundColor: 'transparent', cursor: 'pointer', color: on ? '#f5f0e8' : 'rgba(245,240,232,0.45)', fontSize: 12, fontWeight: 600 }}
               >
-                <TIcon size={14} color={on ? tileStyle.accent : 'rgba(245,240,232,0.45)'} /> {t.label}
+                {isPreviewWithItem
+                  ? <><ArrowLeft size={13} color={tileStyle.accent} /> Back</>
+                  : <><TIcon size={14} color={on ? tileStyle.accent : 'rgba(245,240,232,0.45)'} /> {t.label}</>
+                }
               </button>
             )
           })}
@@ -1170,7 +1222,7 @@ export default function Cur8Category({ category }: Props) {
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
 
         {/* ── Panel 1: Videos lane ── */}
         {/* On desktop: wraps in a collapsible motion.div. On mobile: standard tab display. */}
@@ -1204,15 +1256,15 @@ export default function Cur8Category({ category }: Props) {
         <motion.div
           animate={{ width: isMobile ? '100%' : (leftOpen ? 240 : 0) }}
           transition={{ type: 'spring', stiffness: 340, damping: 36 }}
-          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden', minHeight: 0 }}>
+          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
           <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Clapperboard size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Videos</span>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{videoItems.length}</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+          <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto', padding: 8, minHeight: isMobile ? 'auto' : 0 }}>
             {videoItems.length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center', padding: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
                 <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', lineHeight: 1.5 }}>No videos here yet. YouTube, TikTok, Instagram and uploaded clips land here.</p>
               </div>
             ) : (
@@ -1225,8 +1277,8 @@ export default function Cur8Category({ category }: Props) {
                       <div
                         role="button"
                         tabIndex={0}
-                        onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview') }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview') } }}
+                        onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
                         title={item.title}
                         style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', outline: isActive ? `2.5px solid ${tileStyle.accent}` : '2.5px solid transparent', outlineOffset: 1, transition: 'outline 0.15s' }}>
                         <div style={{ position: 'relative', width: '100%', height: isMobile ? 88 : 72, backgroundColor: tileStyle.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1259,9 +1311,20 @@ export default function Cur8Category({ category }: Props) {
         </motion.div>
 
         {/* ── Panel 2: Centre — preview / rotating moodboard / image gallery ── */}
-        <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#0d2420', minWidth: 0 }}>
+        <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: isMobile ? 'visible' : 'hidden', backgroundColor: '#0d2420', minWidth: 0, minHeight: isMobile ? 'auto' : 0 }}>
           {/* Centre tabs */}
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '8px 10px', borderBottom: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b' }}>
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderBottom: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b' }}>
+            {/* When a video/item is selected, show a back button first */}
+            {selectedItem && middleView === 'preview' && (
+              <button
+                onClick={() => setSelectedItem(null)}
+                title="Close preview"
+                aria-label="Close preview"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(245,240,232,0.15)', backgroundColor: 'rgba(245,240,232,0.07)', color: 'rgba(245,240,232,0.8)', marginRight: 2 }}
+              >
+                <X size={11} /> Close
+              </button>
+            )}
             <button onClick={() => setMiddleView('preview')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none', backgroundColor: middleView === 'preview' ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: middleView === 'preview' ? '#fff' : 'rgba(245,240,232,0.7)' }}>
               <Eye size={12} /> Preview
@@ -1270,6 +1333,10 @@ export default function Cur8Category({ category }: Props) {
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none', backgroundColor: middleView === 'gallery' ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: middleView === 'gallery' ? '#fff' : 'rgba(245,240,232,0.7)' }}>
               <ImageIcon size={12} /> Images <span style={{ opacity: 0.6 }}>{imageItems.length}</span>
             </button>
+            {/* Selected item title pill */}
+            {selectedItem && middleView === 'preview' && (
+              <span style={{ flex: 1, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>{selectedItem.title}</span>
+            )}
           </div>
 
           {middleView === 'gallery' ? (
@@ -1508,13 +1575,13 @@ export default function Cur8Category({ category }: Props) {
         <motion.div
           animate={{ width: isMobile ? '100%' : (rightOpen ? 260 : 0) }}
           transition={{ type: 'spring', stiffness: 340, damping: 36 }}
-          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden', minHeight: 0 }}>
+          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
           <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <FileText size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Docs &amp; Links</span>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{docItems.length}</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
+          <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto', padding: '8px 8px', minHeight: isMobile ? 'auto' : 0 }}>
             {docItems.length === 0 ? (
               <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.35)', textAlign: 'center', marginTop: 24, fontStyle: 'italic', lineHeight: 1.5 }}>No docs or links here yet. Articles, PDFs, Google Docs and web links land here.</p>
             ) : docItems.map((item) => {
@@ -1526,8 +1593,8 @@ export default function Cur8Category({ category }: Props) {
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview') }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview') } }}
+                    onClick={() => { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(isActive ? null : item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 8px', borderRadius: 12, cursor: 'pointer', border: isActive ? `1px solid ${tileStyle.accent}44` : '1px solid transparent', textAlign: 'left', backgroundColor: isActive ? 'rgba(245,240,232,0.07)' : 'transparent', marginBottom: 2, transition: 'background 0.12s' }}
                     onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'rgba(245,240,232,0.05)' }}
                     onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent' }}
