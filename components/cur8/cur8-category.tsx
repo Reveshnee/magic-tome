@@ -2210,8 +2210,9 @@ export default function Cur8Category({ category }: Props) {
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              transformTemplate={(_, generated) => `translate(-50%, -50%) ${generated}`}
               role="dialog" aria-label="Rename haven"
-              style={{ position: 'fixed', zIndex: 141, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(380px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+              style={{ position: 'fixed', zIndex: 141, top: '50%', left: '50%', width: 'min(380px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2306,8 +2307,9 @@ export default function Cur8Category({ category }: Props) {
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              transformTemplate={(_, generated) => `translate(-50%, -50%) ${generated}`}
               role="dialog" aria-label="Choose destination"
-              style={{ position: 'fixed', zIndex: 171, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(380px, 92vw)', maxHeight: '70vh', overflowY: 'auto', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 18, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+              style={{ position: 'fixed', zIndex: 171, top: '50%', left: '50%', width: 'min(380px, 92vw)', maxHeight: '70vh', overflowY: 'auto', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 18, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
             >
               <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 17, fontWeight: 700, color: '#f5f0e8', margin: '0 0 4px' }}>
                 {batchPicker === 'folder' ? 'Move to folder' : batchPicker === 'moveGarden' ? 'Move to another haven' : 'Copy to another haven'}
@@ -2352,8 +2354,9 @@ export default function Cur8Category({ category }: Props) {
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
               transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+              transformTemplate={(_, generated) => `translate(-50%, -50%) ${generated}`}
               role="dialog" aria-label="Edit item"
-              style={{ position: 'fixed', zIndex: 151, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'min(420px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+              style={{ position: 'fixed', zIndex: 151, top: '50%', left: '50%', width: 'min(420px, 92vw)', backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)', borderRadius: 18, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: `${tileStyle.accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

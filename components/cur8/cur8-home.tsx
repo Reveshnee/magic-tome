@@ -215,7 +215,8 @@ export default function Cur8Home() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              style={{ position: 'absolute', top: 68, left: '50%', transform: 'translateX(-50%)', width: '90%', maxWidth: 520, zIndex: 20 }}
+              transformTemplate={(_, generated) => `translateX(-50%) ${generated}`}
+              style={{ position: 'absolute', top: 68, left: '50%', width: '90%', maxWidth: 520, zIndex: 20 }}
             >
               <input
                 type="text"
