@@ -687,7 +687,7 @@ export default function Cur8Category({ category }: Props) {
           title: item.title,
           description: item.channelName ? `By ${item.channelName}` : '',
           thumbnail: item.thumbnail || '',
-          category: cat as unknown as Category,
+          category,
           folderId: selectedFolderForItem,
         })
         if (newItem) setAllItems((prev) => [newItem as Cur8Item, ...prev])
