@@ -8,7 +8,7 @@ import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
-  Play, ImageIcon, FileText, Send, ArrowRightLeft,
+  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -238,6 +238,9 @@ export default function Cur8Category({ category }: Props) {
   const [menuFolderId, setMenuFolderId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number } | null>(null)
   const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ x: number; y: number } | null>(null)
+  // Collapsible side panels — desktop only (mobile uses tab switcher instead)
+  const [leftOpen, setLeftOpen] = useState(true)
+  const [rightOpen, setRightOpen] = useState(true)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -1170,7 +1173,38 @@ export default function Cur8Category({ category }: Props) {
       <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', minHeight: 0 }}>
 
         {/* ── Panel 1: Videos lane ── */}
-        <div style={{ width: isMobile ? '100%' : 240, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
+        {/* On desktop: wraps in a collapsible motion.div. On mobile: standard tab display. */}
+        {isMobile ? null : (
+          /* Desktop toggle handle — sits just outside the left panel's right edge */
+          <div
+            onClick={() => setLeftOpen(o => !o)}
+            title={leftOpen ? 'Hide videos panel' : 'Show videos panel'}
+            style={{
+              position: 'relative', zIndex: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 16, flexShrink: 0, cursor: 'pointer',
+              backgroundColor: '#0a1e1b',
+              borderRight: '1px solid rgba(245,240,232,0.07)',
+              // Only show the handle tab, not the full strip, when panel is closed
+            }}
+          >
+            <div style={{
+              position: 'absolute', right: -8, top: '50%', transform: 'translateY(-50%)',
+              width: 16, height: 40, borderRadius: '0 6px 6px 0',
+              backgroundColor: '#122e29',
+              border: '1px solid rgba(245,240,232,0.1)',
+              borderLeft: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 11,
+            }}>
+              {leftOpen ? <ChevronLeft size={10} color="rgba(245,240,232,0.5)" /> : <ChevronRight size={10} color="rgba(245,240,232,0.5)" />}
+            </div>
+          </div>
+        )}
+        <motion.div
+          animate={{ width: isMobile ? '100%' : (leftOpen ? 240 : 0) }}
+          transition={{ type: 'spring', stiffness: 340, damping: 36 }}
+          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden', minHeight: 0 }}>
           <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Clapperboard size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Videos</span>
@@ -1222,7 +1256,7 @@ export default function Cur8Category({ category }: Props) {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* ── Panel 2: Centre — preview / rotating moodboard / image gallery ── */}
         <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#0d2420', minWidth: 0 }}>
@@ -1445,7 +1479,36 @@ export default function Cur8Category({ category }: Props) {
         </div>
 
         {/* ── Panel 3: Right — docs & links ── */}
-        <div style={{ width: isMobile ? '100%' : 260, flex: isMobile ? 1 : undefined, flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden' }}>
+        {/* Right-panel toggle handle — sits on its left edge */}
+        {!isMobile && (
+          <div
+            onClick={() => setRightOpen(o => !o)}
+            title={rightOpen ? 'Hide docs panel' : 'Show docs panel'}
+            style={{
+              position: 'relative', zIndex: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 16, flexShrink: 0, cursor: 'pointer',
+              backgroundColor: '#0a1e1b',
+              borderLeft: '1px solid rgba(245,240,232,0.07)',
+            }}
+          >
+            <div style={{
+              position: 'absolute', left: -8, top: '50%', transform: 'translateY(-50%)',
+              width: 16, height: 40, borderRadius: '6px 0 0 6px',
+              backgroundColor: '#122e29',
+              border: '1px solid rgba(245,240,232,0.1)',
+              borderRight: 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 11,
+            }}>
+              {rightOpen ? <ChevronRight size={10} color="rgba(245,240,232,0.5)" /> : <ChevronLeft size={10} color="rgba(245,240,232,0.5)" />}
+            </div>
+          </div>
+        )}
+        <motion.div
+          animate={{ width: isMobile ? '100%' : (rightOpen ? 260 : 0) }}
+          transition={{ type: 'spring', stiffness: 340, damping: 36 }}
+          style={{ flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: 'hidden', minHeight: 0 }}>
           <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <FileText size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Docs &amp; Links</span>
@@ -1494,7 +1557,7 @@ export default function Cur8Category({ category }: Props) {
               )
             })}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Add link modal ── */}
