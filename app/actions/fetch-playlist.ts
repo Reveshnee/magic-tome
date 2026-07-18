@@ -37,20 +37,39 @@ async function fetchYouTubePlaylist(playlistId: string): Promise<PlaylistResult>
   const res = await fetch(pageUrl, {
     signal: AbortSignal.timeout(15000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; Cur8Bot/1.0)',
-      'Accept-Language': 'en-US,en',
+      // Must look like a real browser — YouTube returns a bot-limited page for non-browser UAs
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     },
   })
   if (!res.ok) throw new Error(`YouTube returned ${res.status}`)
   const html = await res.text()
 
-  // YouTube embeds all page data in window["ytInitialData"] = {...}
-  const match = html.match(/var ytInitialData\s*=\s*(\{.+?\});\s*<\/script>/)
-    ?? html.match(/window\["ytInitialData"\]\s*=\s*(\{.+?\});\s*<\/script>/)
-  if (!match) throw new Error('Could not read playlist data from YouTube')
+  // YouTube embeds all page data in ytInitialData = {...}
+  // We must extract the full JSON blob — simple regexes cut off too early on large payloads.
+  // Strategy: find the start of the object, then walk forward counting braces until balanced.
+  function extractYtInitialData(src: string): Record<string, unknown> | null {
+    // Match any variant of the assignment
+    const assignRx = /(?:var\s+ytInitialData|window\["ytInitialData"\]|ytInitialData)\s*=\s*(\{)/
+    const m = assignRx.exec(src)
+    if (!m || m.index === -1) return null
+    const start = m.index + m[0].length - 1 // position of the opening `{`
+    let depth = 0
+    let i = start
+    const len = src.length
+    while (i < len) {
+      const ch = src[i]
+      if (ch === '{') depth++
+      else if (ch === '}') { depth--; if (depth === 0) break }
+      i++
+    }
+    const jsonStr = src.slice(start, i + 1)
+    try { return JSON.parse(jsonStr) as Record<string, unknown> } catch { return null }
+  }
 
-  let data: Record<string, unknown>
-  try { data = JSON.parse(match[1]) } catch { throw new Error('Malformed YouTube data') }
+  const data = extractYtInitialData(html)
+  if (!data) throw new Error('Could not read playlist data from YouTube')
 
   // Walk the deeply nested structure to find video renderers
   const items: PlaylistItem[] = []

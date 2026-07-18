@@ -49,6 +49,15 @@ export default function BrainDump() {
     return () => window.removeEventListener('cur8:openBrainDump', handleOpenEvent)
   }, [])
 
+  // Close on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false) }
+    }
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     setLoading(true)
