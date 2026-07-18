@@ -201,6 +201,7 @@ export default function Cur8Category({ category }: Props) {
   const [playlistSaving, setPlaylistSaving] = useState(false)
   const [playlistResult, setPlaylistResult] = useState<{ title: string; items: (PlaylistItem & { selected: boolean })[] } | null>(null)
   const [playlistError, setPlaylistError] = useState('')
+  const [playlistNeedsApiKey, setPlaylistNeedsApiKey] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [showNewFolder, setShowNewFolder] = useState(false)
   const [selectedFolderForItem, setSelectedFolderForItem] = useState<string | undefined>(undefined)
@@ -659,8 +660,10 @@ export default function Cur8Category({ category }: Props) {
     setPlaylistFetching(true)
     setPlaylistError('')
     setPlaylistResult(null)
+    setPlaylistNeedsApiKey(false)
     try {
       const result = await fetchPlaylist(input)
+      if (result.needsApiKey) { setPlaylistNeedsApiKey(true); setPlaylistError(result.error ?? ''); return }
       if (result.error) { setPlaylistError(result.error); return }
       setPlaylistResult({ title: result.title, items: result.items.map((i) => ({ ...i, selected: true })) })
     } catch (e) {
@@ -1708,7 +1711,22 @@ export default function Cur8Category({ category }: Props) {
                     </button>
                   </div>
 
-                  {playlistError && <p style={{ fontSize: 12, color: '#e8b4a0', marginTop: 8 }}>{playlistError}</p>}
+                  {playlistNeedsApiKey && (
+                    <div style={{ marginTop: 10, borderRadius: 12, backgroundColor: 'rgba(200,150,80,0.12)', border: '1px solid rgba(200,150,80,0.25)', padding: '12px 14px' }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: '#c9a84c', margin: '0 0 4px' }}>YouTube API key needed</p>
+                      <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.6)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                        Playlist import uses the free YouTube Data API. Set it up in 2 minutes:
+                      </p>
+                      <ol style={{ margin: '0 0 10px', paddingLeft: 16, fontSize: 11, color: 'rgba(245,240,232,0.6)', lineHeight: 1.8 }}>
+                        <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" style={{ color: '#c9a84c' }}>Google Cloud Console</a></li>
+                        <li>Create a project → Enable &quot;YouTube Data API v3&quot;</li>
+                        <li>Create an API Key → copy it</li>
+                        <li>In Cur8 Settings (top right) → Vars → add <code style={{ background: 'rgba(245,240,232,0.1)', padding: '1px 4px', borderRadius: 4 }}>YOUTUBE_API_KEY</code></li>
+                      </ol>
+                      <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', margin: 0 }}>Free quota: 10,000 requests/day — more than enough for personal use.</p>
+                    </div>
+                  )}
+                  {!playlistNeedsApiKey && playlistError && <p style={{ fontSize: 12, color: '#e8b4a0', marginTop: 8 }}>{playlistError}</p>}
 
                   {playlistResult && (
                     <div style={{ marginTop: 14 }}>

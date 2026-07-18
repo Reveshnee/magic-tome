@@ -2,11 +2,12 @@
 
 /**
  * fetch-playlist.ts
- * Extracts video URLs from a YouTube playlist page without needing an API key.
- * Works by scraping the initial page JSON that YouTube embeds in the HTML.
  *
- * TikTok has no public playlist API — we accept a block of pasted TikTok URLs
- * (one per line) and normalise them, returning them as-is for the multi-save flow.
+ * YouTube playlists: uses the YouTube Data API v3 (YOUTUBE_API_KEY env var).
+ *   - Free quota: 10,000 units/day. Reading a playlist costs ~1 unit per 50 videos.
+ *   - Without the key, returns a clear message asking the user to add one.
+ *
+ * TikTok: no public playlist API — accepts pasted URLs (one per line).
  */
 
 export interface PlaylistItem {
@@ -21,6 +22,7 @@ export interface PlaylistResult {
   title: string
   items: PlaylistItem[]
   error?: string
+  needsApiKey?: boolean
 }
 
 // ── YouTube ────────────────────────────────────────────────────────────────
@@ -33,85 +35,87 @@ function extractYouTubePlaylistId(input: string): string | null {
 }
 
 async function fetchYouTubePlaylist(playlistId: string): Promise<PlaylistResult> {
-  const pageUrl = `https://www.youtube.com/playlist?list=${playlistId}`
-  const res = await fetch(pageUrl, {
-    signal: AbortSignal.timeout(15000),
-    headers: {
-      // Must look like a real browser — YouTube returns a bot-limited page for non-browser UAs
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-    },
-  })
-  if (!res.ok) throw new Error(`YouTube returned ${res.status}`)
-  const html = await res.text()
-
-  // YouTube embeds all page data in ytInitialData = {...}
-  // We must extract the full JSON blob — simple regexes cut off too early on large payloads.
-  // Strategy: find the start of the object, then walk forward counting braces until balanced.
-  function extractYtInitialData(src: string): Record<string, unknown> | null {
-    // Match any variant of the assignment
-    const assignRx = /(?:var\s+ytInitialData|window\["ytInitialData"\]|ytInitialData)\s*=\s*(\{)/
-    const m = assignRx.exec(src)
-    if (!m || m.index === -1) return null
-    const start = m.index + m[0].length - 1 // position of the opening `{`
-    let depth = 0
-    let i = start
-    const len = src.length
-    while (i < len) {
-      const ch = src[i]
-      if (ch === '{') depth++
-      else if (ch === '}') { depth--; if (depth === 0) break }
-      i++
+  const apiKey = process.env.YOUTUBE_API_KEY
+  if (!apiKey) {
+    return {
+      platform: 'youtube',
+      title: '',
+      items: [],
+      needsApiKey: true,
+      error: 'A YouTube API key is required to import playlists. Add YOUTUBE_API_KEY in your project settings (Settings → Vars), then try again.',
     }
-    const jsonStr = src.slice(start, i + 1)
-    try { return JSON.parse(jsonStr) as Record<string, unknown> } catch { return null }
   }
 
-  const data = extractYtInitialData(html)
-  if (!data) throw new Error('Could not read playlist data from YouTube')
-
-  // Walk the deeply nested structure to find video renderers
   const items: PlaylistItem[] = []
-  const playlistTitle = extractDeep(data, 'title', 'metadata') as string | undefined
+  let playlistTitle = 'YouTube Playlist'
+  let pageToken: string | undefined
 
-  function walk(obj: unknown) {
-    if (!obj || typeof obj !== 'object') return
-    if (Array.isArray(obj)) { obj.forEach(walk); return }
-    const o = obj as Record<string, unknown>
-    if ('playlistVideoRenderer' in o) {
-      const r = o['playlistVideoRenderer'] as Record<string, unknown>
-      const videoId = r['videoId'] as string | undefined
-      if (!videoId) return
-      const titleRuns = (r['title'] as Record<string, unknown>)?.['runs'] as Array<{ text: string }> | undefined
-      const title = titleRuns?.[0]?.text ?? videoId
-      const thumb = ((r['thumbnail'] as Record<string, unknown>)?.['thumbnails'] as Array<{ url: string }>)?.[0]?.url
+  // First, get the playlist title
+  try {
+    const metaRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${encodeURIComponent(playlistId)}&key=${apiKey}`,
+      { signal: AbortSignal.timeout(10000) }
+    )
+    if (metaRes.ok) {
+      const meta = await metaRes.json() as { items?: Array<{ snippet?: { title?: string } }> }
+      const title = meta.items?.[0]?.snippet?.title
+      if (title) playlistTitle = title
+    }
+  } catch { /* title stays as default */ }
+
+  // Paginate through playlist items (max 50 per page)
+  do {
+    const url = new URL('https://www.googleapis.com/youtube/v3/playlistItems')
+    url.searchParams.set('part', 'snippet')
+    url.searchParams.set('playlistId', playlistId)
+    url.searchParams.set('maxResults', '50')
+    url.searchParams.set('key', apiKey)
+    if (pageToken) url.searchParams.set('pageToken', pageToken)
+
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: { message?: string } }
+      throw new Error(err?.error?.message ?? `YouTube API error ${res.status}`)
+    }
+
+    const data = await res.json() as {
+      nextPageToken?: string
+      items?: Array<{
+        snippet?: {
+          title?: string
+          resourceId?: { videoId?: string }
+          thumbnails?: { medium?: { url?: string }; default?: { url?: string } }
+          videoOwnerChannelTitle?: string
+        }
+      }>
+    }
+
+    for (const item of data.items ?? []) {
+      const s = item.snippet
+      const videoId = s?.resourceId?.videoId
+      if (!videoId || videoId === 'deleted video') continue
+      const thumb = s?.thumbnails?.medium?.url ?? s?.thumbnails?.default?.url
       items.push({
         url: `https://www.youtube.com/watch?v=${videoId}`,
-        title,
-        thumbnail: thumb ? thumb.replace(/=w\d+-h\d+.*$/, '=w320-h180-c-k-c0x00ffffff-no-rj') : undefined,
+        title: s?.title ?? videoId,
+        thumbnail: thumb,
+        channelName: s?.videoOwnerChannelTitle,
       })
-      return
     }
-    Object.values(o).forEach(walk)
+
+    pageToken = data.nextPageToken
+  } while (pageToken && items.length < 200) // cap at 200
+
+  if (items.length === 0) {
+    return {
+      platform: 'youtube',
+      title: playlistTitle,
+      items: [],
+      error: 'No videos found in this playlist — it may be private, empty, or the URL is incorrect.',
+    }
   }
-  walk(data)
 
-  if (items.length === 0) throw new Error('No videos found in this playlist — it may be private or empty.')
-
-  return {
-    platform: 'youtube',
-    title: (playlistTitle as string) || 'YouTube Playlist',
-    items: items.slice(0, 200), // cap at 200 to avoid runaway saves
-  }
-}
-
-// Small helper — not a full deep search, just for the playlist title
-function extractDeep(obj: unknown, ...keys: string[]): unknown {
-  if (!obj || typeof obj !== 'object') return undefined
-  const o = obj as Record<string, unknown>
-  for (const k of keys) { if (k in o) return (o[k] as Record<string, unknown>)?.['simpleText'] ?? extractDeep(o[k], ...keys.slice(1)) }
-  return undefined
+  return { platform: 'youtube', title: playlistTitle, items }
 }
 
 // ── TikTok ─────────────────────────────────────────────────────────────────
@@ -130,7 +134,7 @@ function parseTikTokUrls(raw: string): PlaylistItem[] {
 export async function fetchPlaylist(input: string): Promise<PlaylistResult> {
   const trimmed = input.trim()
 
-  // TikTok bulk-paste mode: multiple lines containing tiktok.com
+  // TikTok bulk-paste mode
   const tiktokUrls = parseTikTokUrls(trimmed)
   if (tiktokUrls.length > 0) {
     return { platform: 'tiktok', title: `${tiktokUrls.length} TikTok videos`, items: tiktokUrls }
