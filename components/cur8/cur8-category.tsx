@@ -9,7 +9,7 @@ import {
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
   Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, Pin,
-  Mail, MessageCircle, Download,
+  Mail, MessageCircle, Download, Share2,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -51,7 +51,7 @@ import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
 import CategoryReflections from '@/components/cur8/category-reflections'
 import ShareMenu from '@/components/cur8/share-menu'
-import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile } from '@/lib/cur8-share'
+import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile, shareToDevice, deviceShareSupported } from '@/lib/cur8-share'
 
 const ICON_MAP: Record<string, React.ElementType> = {
   'graduation-cap': GraduationCap, briefcase: Briefcase, shirt: Shirt, heart: Heart,
@@ -239,6 +239,7 @@ export default function Cur8Category({ category }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [batchPicker, setBatchPicker] = useState<null | 'folder' | 'moveGarden' | 'copyGarden'>(null)
   const [batchBusy, setBatchBusy] = useState(false)
+  const [batchNote, setBatchNote] = useState('')
   const [connections, setConnections] = useState<{ item: { id: string; title: string; category: string; url: string }; reason: string }[]>([])
   const [connectionsLoading, setConnectionsLoading] = useState(false)
   const [fetchError, setFetchError] = useState('')
@@ -422,6 +423,35 @@ export default function Cur8Category({ category }: Props) {
     for (const id of ids) await deleteItemAction(id).catch(() => {})
     setBatchBusy(false)
     exitSelectMode()
+  }
+  // Share the selected items together. Uses the device share sheet when available
+  // (one message with all the links), otherwise copies them to the clipboard.
+  async function batchShare() {
+    const chosen = catItems.filter((i) => selectedIds.has(i.id))
+    if (chosen.length === 0) return
+    const lines = chosen.map((i) => `${i.title}\n${i.url}`).join('\n\n')
+    const title = `${chosen.length} saved item${chosen.length === 1 ? '' : 's'} from Cur8`
+    if (deviceShareSupported()) {
+      await shareToDevice(title, lines).catch(() => {})
+    } else {
+      try {
+        await navigator.clipboard.writeText(lines)
+        setBatchNote('Links copied')
+      } catch {
+        setBatchNote('Could not share')
+      }
+      setTimeout(() => setBatchNote(''), 2200)
+    }
+  }
+  // Download / save each selected item (files download; links are saved).
+  async function batchDownload() {
+    const chosen = catItems.filter((i) => selectedIds.has(i.id))
+    if (chosen.length === 0) return
+    setBatchBusy(true)
+    for (const i of chosen) await saveOrDownload(i.title, i.url).catch(() => {})
+    setBatchBusy(false)
+    setBatchNote('Saved')
+    setTimeout(() => setBatchNote(''), 2200)
   }
 
   // On mobile, jump to the preview tab whenever an item is opened
@@ -1363,13 +1393,6 @@ export default function Cur8Category({ category }: Props) {
           >
             <Headphones size={11} color="#8ec8b4" /> Focus sounds
           </button>
-          {/* Select multiple */}
-          <button
-            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
-            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
-          </button>
           {/* Spacer — desktop only; on mobile the row wraps so no spacer needed */}
           <div style={{ flex: 1, display: isMobile ? 'none' : 'block' }} />
           {/* Quick count chip */}
@@ -1472,6 +1495,14 @@ export default function Cur8Category({ category }: Props) {
             <FolderPlus size={11} /> New
           </button>
         )}
+        {/* Select multiple — sits at the right of the folder bar, beside New folder */}
+        <button
+          onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
+          title={selectMode ? 'Finish selecting' : 'Select multiple items'}
+          style={{ flexShrink: 0, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
+          <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
+        </button>
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
@@ -2228,11 +2259,12 @@ export default function Cur8Category({ category }: Props) {
           <motion.div
             initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-            style={{ position: 'fixed', left: '50%', bottom: 16, transform: 'translateX(-50%)', zIndex: 160, width: 'min(560px, calc(100vw - 24px))', backgroundColor: '#0a1e1b', border: `1px solid ${tileStyle.accent}55`, borderRadius: 16, boxShadow: '0 16px 50px rgba(0,0,0,0.55)', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
+            style={{ position: 'fixed', left: 12, right: 12, marginLeft: 'auto', marginRight: 'auto', bottom: 16, zIndex: 160, maxWidth: 560, backgroundColor: '#0a1e1b', border: `1px solid ${tileStyle.accent}55`, borderRadius: 16, boxShadow: '0 16px 50px rgba(0,0,0,0.55)', padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}
           >
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#f5f0e8', whiteSpace: 'nowrap' }}>{selectedIds.size} selected</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#f5f0e8', whiteSpace: 'nowrap' }}>
+              {batchNote || `${selectedIds.size} selected`}
+            </span>
             <button onClick={selectAllVisible} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)', background: 'none', border: '1px solid rgba(245,240,232,0.15)', borderRadius: 50, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>Select all</button>
-            <div style={{ flex: 1 }} />
             <button disabled={selectedIds.size === 0 || batchBusy} onClick={() => setBatchPicker('folder')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
               <FolderInput size={13} /> Folder
@@ -2244,6 +2276,14 @@ export default function Cur8Category({ category }: Props) {
             <button disabled={selectedIds.size === 0 || batchBusy} onClick={() => setBatchPicker('copyGarden')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
               <Copy size={13} /> Copy
+            </button>
+            <button disabled={selectedIds.size === 0 || batchBusy} onClick={batchShare}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+              <Share2 size={13} /> Share
+            </button>
+            <button disabled={selectedIds.size === 0 || batchBusy} onClick={batchDownload}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#f5f0e8' : 'rgba(245,240,232,0.3)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+              {batchBusy ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Save
             </button>
             <button disabled={selectedIds.size === 0 || batchBusy} onClick={batchDelete}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, color: selectedIds.size ? '#e8927c' : 'rgba(245,240,232,0.3)', backgroundColor: selectedIds.size ? 'rgba(200,90,64,0.14)' : 'rgba(245,240,232,0.08)', border: 'none', borderRadius: 50, padding: '7px 12px', cursor: selectedIds.size ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
