@@ -13,6 +13,7 @@ export interface PlaylistItem {
   url: string
   title: string
   thumbnail?: string
+  channelName?: string
 }
 
 export interface PlaylistResult {

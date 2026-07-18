@@ -16,7 +16,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
@@ -671,7 +671,7 @@ export default function Cur8Category({ category }: Props) {
     if (!playlistResult) return
     const selected = playlistResult.items.filter((i) => i.selected)
     if (selected.length === 0) return
-    setSaving(true)
+    setPlaylistSaving(true)
     for (const item of selected) {
       try {
         // Reuse the existing fetch-meta flow to get proper metadata
@@ -686,13 +686,13 @@ export default function Cur8Category({ category }: Props) {
           title: meta?.title || item.title,
           description: meta?.description || '',
           thumbnail: meta?.thumbnail || item.thumbnail || '',
-          category: cat as Category,
+          category: cat as unknown as Category,
           folderId: selectedFolderForItem,
         })
         if (newItem) setAllItems((prev) => [newItem as Cur8Item, ...prev])
       } catch { /* skip failed items */ }
     }
-    setSaving(false)
+    setPlaylistSaving(false)
     closeModal()
   }
 
@@ -1488,127 +1488,205 @@ export default function Cur8Category({ category }: Props) {
             onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}>
             <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
               style={{ width: '100%', maxWidth: 440, borderRadius: 20, backgroundColor: '#122e29', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(245,240,232,0.1)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              {/* Modal header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8' }}>Save to {gardenName}</h2>
                 <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.4)', display: 'flex' }}><X size={17} /></button>
               </div>
 
-              <div style={{ display: 'flex', gap: 8 }}>
-                <textarea value={url} onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) { e.preventDefault(); handleFetch() } }}
-                  placeholder="Paste one or more links — one per line&#10;YouTube, TikTok, articles, Google Docs, any URL..."
-                  rows={3}
-                  style={{ flex: 1, resize: 'none', borderRadius: 12, border: '1.5px solid rgba(245,240,232,0.12)', padding: '10px 14px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#f5f0e8', lineHeight: 1.5, backgroundColor: 'rgba(245,240,232,0.07)' }}
-                  autoFocus />
-                <button onClick={() => handleFetch()} disabled={fetching || !url.trim()}
-                  style={{ flexShrink: 0, alignSelf: 'stretch', borderRadius: 12, padding: '0 16px', fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', opacity: (fetching || !url.trim()) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {fetching ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Fetch'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                <button onClick={pasteFromClipboard}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.1)', border: 'none', cursor: 'pointer' }}>
-                  <ClipboardPaste size={13} /> Paste link from clipboard
-                </button>
-              </div>
-              <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', marginTop: 6 }}>Copy a link in YouTube, TikTok, Instagram or any app, then tap Paste — it fetches automatically. Works with articles, Google Docs, images, and any webpage too.</p>
-
-              {/* File upload divider */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
-                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(245,240,232,0.1)' }} />
-                <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.35)', flexShrink: 0 }}>or upload a file</span>
-                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(245,240,232,0.1)' }} />
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.mov,.webm,.mkv,.avi,.m4v,.3gp"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files?.length) {
-                    handleFileDrop(e.target.files)
-                  }
-                }}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 12, fontSize: 13, fontWeight: 600, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.07)', border: '1.5px dashed rgba(245,240,232,0.2)', cursor: 'pointer' }}
-              >
-                <Paperclip size={14} /> Choose files from your device
-              </button>
-
-              {fetchError && <p style={{ fontSize: 12, color: '#c9a84c', marginTop: 8 }}>{fetchError}</p>}
-
-              {/* Folder picker */}
-              {folders.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.5)', marginBottom: 6 }}>Save to folder (optional)</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    <button onClick={() => setSelectedFolderForItem(undefined)}
-                      style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', backgroundColor: selectedFolderForItem === undefined ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-                      No folder
-                    </button>
-                    {folders.map((f) => (
-                      <button key={f.id} onClick={() => setSelectedFolderForItem(f.id)}
-                        style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', backgroundColor: selectedFolderForItem === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-                        {f.name} <span style={{ opacity: 0.6 }}>{catItems.filter((i) => i.folderId === f.id).length}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Multi-preview list */}
-              {multiPreviews.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#6b8884', marginBottom: 8 }}>
-                    {multiPreviews.filter(p => p.selected).length} of {multiPreviews.length} selected — tap to deselect
-                  </p>
-                  <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {multiPreviews.map((p, i) => (
-                      <button key={i} onClick={() => setMultiPreviews(prev => prev.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, border: `1.5px solid ${p.selected ? '#5a9e84' : 'rgba(13,61,58,0.10)'}`, backgroundColor: p.selected ? '#f0f7f4' : '#fafafa', opacity: p.selected ? 1 : 0.5, cursor: 'pointer', textAlign: 'left' }}>
-                        {p.thumbnail ? (
-                          <img src={p.thumbnail} alt="" style={{ width: 52, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: 52, height: 36, borderRadius: 8, backgroundColor: '#eef2ee', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <Globe size={14} color="#5a9e84" />
-                          </div>
-                        )}
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <p style={{ fontSize: 12, fontWeight: 600, color: '#1a2e2b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || p.url}</p>
-                          <p style={{ fontSize: 10, color: '#6b8884', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(p.url ?? '').replace(/^https?:\/\//, '')}</p>
-                        </div>
-                        <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: p.selected ? '#5a9e84' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Check size={10} color="white" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={handleSave}
-                    style={{ marginTop: 10, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
-                    Save {multiPreviews.filter(p => p.selected).length} links to {gardenName}
+              {/* Tab switcher: Links | Playlist */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 16, backgroundColor: 'rgba(245,240,232,0.06)', borderRadius: 12, padding: 4 }}>
+                {(['links', 'playlist'] as const).map((tab) => (
+                  <button key={tab} onClick={() => setSaveTab(tab)}
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 9, fontSize: 12.5, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.15s', backgroundColor: saveTab === tab ? tileStyle.accent : 'transparent', color: saveTab === tab ? '#0d2420' : 'rgba(245,240,232,0.55)' }}>
+                    {tab === 'links' ? 'Links / Files' : 'Import Playlist'}
                   </button>
-                </div>
-              )}
+                ))}
+              </div>
 
-              {/* Single preview */}
-              {preview && (
+              {saveTab === 'links' ? (
                 <>
-                  <div style={{ marginTop: 14, borderRadius: 12, overflow: 'hidden', border: '1.5px solid rgba(13,61,58,0.10)' }}>
-                    {preview.thumbnail && <img src={preview.thumbnail} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />}
-                    <div style={{ padding: '10px 12px', backgroundColor: '#eef2ee' }}>
-                      <input value={preview.title || ''} onChange={(e) => setPreview({ ...preview, title: e.target.value })} placeholder="Title"
-                        style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 13, fontWeight: 600, color: '#1a2e2b', outline: 'none', boxSizing: 'border-box' }} />
-                      <input value={preview.description || ''} onChange={(e) => setPreview({ ...preview, description: e.target.value })} placeholder="Description (optional)"
-                        style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 11, color: '#6b8884', outline: 'none', marginTop: 4, boxSizing: 'border-box' }} />
-                    </div>
+                  {/* ── Links tab ── */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <textarea value={url} onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) { e.preventDefault(); handleFetch() } }}
+                      placeholder="Paste one or more links — one per line&#10;YouTube, TikTok, articles, Google Docs, any URL..."
+                      rows={3}
+                      style={{ flex: 1, resize: 'none', borderRadius: 12, border: '1.5px solid rgba(245,240,232,0.12)', padding: '10px 14px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#f5f0e8', lineHeight: 1.5, backgroundColor: 'rgba(245,240,232,0.07)' }}
+                      autoFocus />
+                    <button onClick={() => handleFetch()} disabled={fetching || !url.trim()}
+                      style={{ flexShrink: 0, alignSelf: 'stretch', borderRadius: 12, padding: '0 16px', fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer', opacity: (fetching || !url.trim()) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {fetching ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Fetch'}
+                    </button>
                   </div>
-                  <button onClick={handleSave}
-                    style={{ marginTop: 12, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
-                    Save to {gardenName}{selectedFolderForItem ? ` · ${folders.find((f) => f.id === selectedFolderForItem)?.name}` : ''}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    <button onClick={pasteFromClipboard}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.1)', border: 'none', cursor: 'pointer' }}>
+                      <ClipboardPaste size={13} /> Paste link from clipboard
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.4)', marginTop: 6 }}>Copy a link in YouTube, TikTok, Instagram or any app, then tap Paste — it fetches automatically. Works with articles, Google Docs, images, and any webpage too.</p>
+                </>
+              ) : (
+                <>
+                  {/* ── Playlist tab ── */}
+                  <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.55)', marginBottom: 10 }}>
+                    Paste a YouTube playlist URL and Cur8 will load every video so you can pick which ones to save. TikTok playlists are not public — paste multiple TikTok links one per line in the Links tab instead.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={playlistInput}
+                      onChange={(e) => setPlaylistInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleFetchPlaylist() } }}
+                      placeholder="https://www.youtube.com/playlist?list=..."
+                      style={{ flex: 1, borderRadius: 12, border: '1.5px solid rgba(245,240,232,0.12)', padding: '10px 14px', fontSize: 13, outline: 'none', fontFamily: 'inherit', color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.07)' }}
+                      autoFocus
+                    />
+                    <button onClick={handleFetchPlaylist} disabled={playlistFetching || !playlistInput.trim()}
+                      style={{ flexShrink: 0, borderRadius: 12, padding: '0 16px', fontSize: 13, fontWeight: 700, color: '#0d2420', backgroundColor: tileStyle.accent, border: 'none', cursor: playlistFetching || !playlistInput.trim() ? 'not-allowed' : 'pointer', opacity: playlistFetching || !playlistInput.trim() ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {playlistFetching ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : 'Load'}
+                    </button>
+                  </div>
+
+                  {playlistError && <p style={{ fontSize: 12, color: '#e8b4a0', marginTop: 8 }}>{playlistError}</p>}
+
+                  {playlistResult && (
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#f5f0e8', margin: 0 }}>{playlistResult.title}</p>
+                        <button onClick={() => setPlaylistResult((r) => r ? { ...r, items: r.items.map((i) => ({ ...i, selected: !r.items.every((x) => x.selected) })) } : r)}
+                          style={{ fontSize: 11, color: tileStyle.accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                          {playlistResult.items.every((i) => i.selected) ? 'Deselect all' : 'Select all'}
+                        </button>
+                      </div>
+                      <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {playlistResult.items.map((item, idx) => (
+                          <button key={idx}
+                            onClick={() => setPlaylistResult((r) => r ? { ...r, items: r.items.map((x, i) => i === idx ? { ...x, selected: !x.selected } : x) } : r)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 12, border: `1.5px solid ${item.selected ? tileStyle.accent + '88' : 'rgba(245,240,232,0.1)'}`, backgroundColor: item.selected ? 'rgba(245,240,232,0.06)' : 'transparent', cursor: 'pointer', textAlign: 'left', opacity: item.selected ? 1 : 0.45 }}>
+                            {item.thumbnail ? (
+                              <img src={item.thumbnail} alt="" style={{ width: 56, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 56, height: 36, borderRadius: 8, backgroundColor: 'rgba(245,240,232,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <PlayCircle size={14} color={tileStyle.accent} />
+                              </div>
+                            )}
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: '#f5f0e8', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</p>
+                              {item.channelName && <p style={{ fontSize: 10, color: 'rgba(245,240,232,0.45)', margin: '2px 0 0' }}>{item.channelName}</p>}
+                            </div>
+                            <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, backgroundColor: item.selected ? tileStyle.accent : 'rgba(245,240,232,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Check size={10} color={item.selected ? '#0d2420' : 'transparent'} />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={handleSavePlaylist} disabled={playlistSaving || playlistResult.items.every((i) => !i.selected)}
+                        style={{ marginTop: 12, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#0d2420', backgroundColor: tileStyle.accent, border: 'none', cursor: playlistSaving ? 'not-allowed' : 'pointer', opacity: playlistSaving || playlistResult.items.every((i) => !i.selected) ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        {playlistSaving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : `Save ${playlistResult.items.filter((i) => i.selected).length} videos to ${gardenName}`}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* File upload, previews — only on the Links tab */}
+              {saveTab === 'links' && (
+                <>
+                  {/* File upload divider */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '14px 0 10px' }}>
+                    <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(245,240,232,0.1)' }} />
+                    <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.35)', flexShrink: 0 }}>or upload a file</span>
+                    <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(245,240,232,0.1)' }} />
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.mov,.webm,.mkv,.avi,.m4v,.3gp"
+                    style={{ display: 'none' }}
+                    onChange={(e) => { if (e.target.files?.length) handleFileDrop(e.target.files) }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', borderRadius: 12, fontSize: 13, fontWeight: 600, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.07)', border: '1.5px dashed rgba(245,240,232,0.2)', cursor: 'pointer' }}
+                  >
+                    <Paperclip size={14} /> Choose files from your device
                   </button>
+
+                  {fetchError && <p style={{ fontSize: 12, color: '#c9a84c', marginTop: 8 }}>{fetchError}</p>}
+
+                  {/* Folder picker */}
+                  {folders.length > 0 && (
+                    <div style={{ marginTop: 14 }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.5)', marginBottom: 6 }}>Save to folder (optional)</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        <button onClick={() => setSelectedFolderForItem(undefined)}
+                          style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', backgroundColor: selectedFolderForItem === undefined ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
+                          No folder
+                        </button>
+                        {folders.map((f) => (
+                          <button key={f.id} onClick={() => setSelectedFolderForItem(f.id)}
+                            style={{ fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', backgroundColor: selectedFolderForItem === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
+                            {f.name} <span style={{ opacity: 0.6 }}>{catItems.filter((i) => i.folderId === f.id).length}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Multi-preview list */}
+                  {multiPreviews.length > 0 && (
+                    <div style={{ marginTop: 14 }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#6b8884', marginBottom: 8 }}>
+                        {multiPreviews.filter(p => p.selected).length} of {multiPreviews.length} selected — tap to deselect
+                      </p>
+                      <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {multiPreviews.map((p, i) => (
+                          <button key={i} onClick={() => setMultiPreviews(prev => prev.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, border: `1.5px solid ${p.selected ? '#5a9e84' : 'rgba(13,61,58,0.10)'}`, backgroundColor: p.selected ? '#f0f7f4' : '#fafafa', opacity: p.selected ? 1 : 0.5, cursor: 'pointer', textAlign: 'left' }}>
+                            {p.thumbnail ? (
+                              <img src={p.thumbnail} alt="" style={{ width: 52, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 52, height: 36, borderRadius: 8, backgroundColor: '#eef2ee', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <Globe size={14} color="#5a9e84" />
+                              </div>
+                            )}
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: '#1a2e2b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || p.url}</p>
+                              <p style={{ fontSize: 10, color: '#6b8884', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(p.url ?? '').replace(/^https?:\/\//, '')}</p>
+                            </div>
+                            <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: p.selected ? '#5a9e84' : '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <Check size={10} color="white" />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={handleSave}
+                        style={{ marginTop: 10, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
+                        Save {multiPreviews.filter(p => p.selected).length} links to {gardenName}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Single preview */}
+                  {preview && (
+                    <>
+                      <div style={{ marginTop: 14, borderRadius: 12, overflow: 'hidden', border: '1.5px solid rgba(13,61,58,0.10)' }}>
+                        {preview.thumbnail && <img src={preview.thumbnail} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />}
+                        <div style={{ padding: '10px 12px', backgroundColor: '#eef2ee' }}>
+                          <input value={preview.title || ''} onChange={(e) => setPreview({ ...preview, title: e.target.value })} placeholder="Title"
+                            style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 13, fontWeight: 600, color: '#1a2e2b', outline: 'none', boxSizing: 'border-box' }} />
+                          <input value={preview.description || ''} onChange={(e) => setPreview({ ...preview, description: e.target.value })} placeholder="Description (optional)"
+                            style={{ width: '100%', background: 'transparent', border: 'none', fontSize: 11, color: '#6b8884', outline: 'none', marginTop: 4, boxSizing: 'border-box' }} />
+                        </div>
+                      </div>
+                      <button onClick={handleSave}
+                        style={{ marginTop: 12, width: '100%', borderRadius: 12, padding: '11px 0', fontSize: 14, fontWeight: 700, color: '#fff', backgroundColor: '#0d3d3a', border: 'none', cursor: 'pointer' }}>
+                        Save to {gardenName}{selectedFolderForItem ? ` · ${folders.find((f) => f.id === selectedFolderForItem)?.name}` : ''}
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </motion.div>
