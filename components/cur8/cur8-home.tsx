@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -81,6 +82,23 @@ export default function Cur8Home() {
   const [searching, setSearching] = useState(false)
   const [calm, setCalm] = useCalmMode()
   const { displayName } = useGardenNames()
+  // Horizontal scroll for the haven tab bar — arrows nudge it left/right and we
+  // track whether more tabs exist off each edge so the arrows only show when useful.
+  const tabScrollRef = useRef<HTMLDivElement>(null)
+  const [tabScroll, setTabScroll] = useState({ left: false, right: false })
+  function updateTabArrows() {
+    const el = tabScrollRef.current
+    if (!el) return
+    setTabScroll({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
+  }
+  useEffect(() => {
+    updateTabArrows()
+    window.addEventListener('resize', updateTabArrows)
+    return () => window.removeEventListener('resize', updateTabArrows)
+  }, [])
+  function scrollTabs(dir: 1 | -1) {
+    tabScrollRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' })
+  }
   // Koi leap: when a haven is chosen, an orange koi leaps into it (splash), then
   // we navigate. Skipped when calm mode is on (respects reduced-motion intent).
   const [leap, setLeap] = useState<{ href: string; x: number; y: number } | null>(null)
@@ -338,7 +356,40 @@ export default function Cur8Home() {
 
       {/* ── STICKY GARDEN TAB BAR ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 40, backgroundColor: 'rgba(13,36,32,0.97)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(245,240,232,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '0 24px' }}>
+        <div style={{ position: 'relative' }}>
+          {/* Left arrow — appears once you've scrolled right */}
+          <AnimatePresence>
+            {tabScroll.left && (
+              <motion.button
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => scrollTabs(-1)}
+                aria-label="Scroll havens left"
+                style={{ position: 'absolute', left: 0, top: 0, bottom: 0, zIndex: 3, width: 44, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 6, border: 'none', cursor: 'pointer', color: '#f5f0e8', background: 'linear-gradient(to right, rgba(13,36,32,0.98) 40%, transparent)' }}
+              >
+                <ChevronLeft size={20} />
+              </motion.button>
+            )}
+          </AnimatePresence>
+          {/* Right arrow — a gently nudging chevron that signals "more havens this way" */}
+          <AnimatePresence>
+            {tabScroll.right && (
+              <motion.button
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => scrollTabs(1)}
+                aria-label="Scroll havens right — more this way"
+                style={{ position: 'absolute', right: 0, top: 0, bottom: 0, zIndex: 3, width: 52, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 6, border: 'none', cursor: 'pointer', color: 'var(--c-gold)', background: 'linear-gradient(to left, rgba(13,36,32,0.98) 40%, transparent)' }}
+              >
+                <motion.span
+                  animate={calm ? undefined : { x: [0, 4, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.4, ease: 'easeInOut' }}
+                  style={{ display: 'flex' }}
+                >
+                  <ChevronRight size={22} />
+                </motion.span>
+              </motion.button>
+            )}
+          </AnimatePresence>
+        <div ref={tabScrollRef} onScroll={updateTabArrows} style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '0 24px' }}>
           {CATEGORIES.map((cat) => {
             const Icon = ICON_MAP[cat.lucideIcon]
             const count = items.filter((i) => i.category === cat.name).length
