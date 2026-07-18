@@ -1222,45 +1222,47 @@ export default function Cur8Category({ category }: Props) {
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0, position: 'relative' }}>
 
         {/* ── Panel 1: Videos lane ── */}
-        {/* On desktop: wraps in a collapsible motion.div. On mobile: standard tab display. */}
-        {isMobile ? null : (
-          /* Desktop toggle handle — sits just outside the left panel's right edge */
-          <div
-            onClick={() => setLeftOpen(o => !o)}
-            title={leftOpen ? 'Hide videos panel' : 'Show videos panel'}
+        {/* Desktop: collapsible. Mobile: tab-switched. */}
+        {/* When left panel is collapsed on desktop, show a floating re-open tab on the left edge */}
+        {!isMobile && !leftOpen && (
+          <button
+            onClick={() => setLeftOpen(true)}
+            title="Show videos panel"
+            aria-label="Show videos panel"
             style={{
-              position: 'relative', zIndex: 10,
+              position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 20, width: 20, height: 56, borderRadius: '0 8px 8px 0',
+              backgroundColor: '#122e29', border: '1px solid rgba(245,240,232,0.12)',
+              borderLeft: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 16, flexShrink: 0, cursor: 'pointer',
-              backgroundColor: '#0a1e1b',
-              borderRight: '1px solid rgba(245,240,232,0.07)',
-              // Only show the handle tab, not the full strip, when panel is closed
+              color: 'rgba(245,240,232,0.6)',
             }}
           >
-            <div style={{
-              position: 'absolute', right: -8, top: '50%', transform: 'translateY(-50%)',
-              width: 16, height: 40, borderRadius: '0 6px 6px 0',
-              backgroundColor: '#122e29',
-              border: '1px solid rgba(245,240,232,0.1)',
-              borderLeft: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 11,
-            }}>
-              {leftOpen ? <ChevronLeft size={10} color="rgba(245,240,232,0.5)" /> : <ChevronRight size={10} color="rgba(245,240,232,0.5)" />}
-            </div>
-          </div>
+            <ChevronRight size={12} />
+          </button>
         )}
         <motion.div
           animate={{ width: isMobile ? '100%' : (leftOpen ? 240 : 0) }}
           transition={{ type: 'spring', stiffness: 340, damping: 36 }}
           style={{ flexShrink: 0, display: isMobile && mobileTab !== 'browse' ? 'none' : 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
-          <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Clapperboard size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Videos</span>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{videoItems.length}</span>
+            {/* Desktop collapse — hide panel */}
+            {!isMobile && (
+              <button
+                onClick={() => setLeftOpen(false)}
+                title="Hide videos panel"
+                aria-label="Hide videos panel"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6, background: 'rgba(245,240,232,0.07)', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.45)', flexShrink: 0 }}
+              >
+                <ChevronLeft size={12} />
+              </button>
+            )}
           </div>
           <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto', padding: 8, minHeight: isMobile ? 'auto' : 0 }}>
             {videoItems.length === 0 ? (
@@ -1546,37 +1548,40 @@ export default function Cur8Category({ category }: Props) {
         </div>
 
         {/* ── Panel 3: Right — docs & links ── */}
-        {/* Right-panel toggle handle — sits on its left edge */}
-        {!isMobile && (
-          <div
-            onClick={() => setRightOpen(o => !o)}
-            title={rightOpen ? 'Hide docs panel' : 'Show docs panel'}
+        {/* When right panel is collapsed on desktop, show a floating re-open tab on the right edge */}
+        {!isMobile && !rightOpen && (
+          <button
+            onClick={() => setRightOpen(true)}
+            title="Show docs panel"
+            aria-label="Show docs panel"
             style={{
-              position: 'relative', zIndex: 10,
+              position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+              zIndex: 20, width: 20, height: 56, borderRadius: '8px 0 0 8px',
+              backgroundColor: '#122e29', border: '1px solid rgba(245,240,232,0.12)',
+              borderRight: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 16, flexShrink: 0, cursor: 'pointer',
-              backgroundColor: '#0a1e1b',
-              borderLeft: '1px solid rgba(245,240,232,0.07)',
+              color: 'rgba(245,240,232,0.6)',
             }}
           >
-            <div style={{
-              position: 'absolute', left: -8, top: '50%', transform: 'translateY(-50%)',
-              width: 16, height: 40, borderRadius: '6px 0 0 6px',
-              backgroundColor: '#122e29',
-              border: '1px solid rgba(245,240,232,0.1)',
-              borderRight: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 11,
-            }}>
-              {rightOpen ? <ChevronRight size={10} color="rgba(245,240,232,0.5)" /> : <ChevronLeft size={10} color="rgba(245,240,232,0.5)" />}
-            </div>
-          </div>
+            <ChevronLeft size={12} />
+          </button>
         )}
         <motion.div
           animate={{ width: isMobile ? '100%' : (rightOpen ? 260 : 0) }}
           transition={{ type: 'spring', stiffness: 340, damping: 36 }}
           style={{ flexShrink: 0, display: isMobile && mobileTab !== 'links' ? 'none' : 'flex', flexDirection: 'column', borderLeft: isMobile ? 'none' : '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0 }}>
-          <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Desktop collapse — hide panel (chevron first so it's on the left edge) */}
+            {!isMobile && (
+              <button
+                onClick={() => setRightOpen(false)}
+                title="Hide docs panel"
+                aria-label="Hide docs panel"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6, background: 'rgba(245,240,232,0.07)', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.45)', flexShrink: 0 }}
+              >
+                <ChevronRight size={12} />
+              </button>
+            )}
             <FileText size={13} color={tileStyle.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Docs &amp; Links</span>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{docItems.length}</span>
