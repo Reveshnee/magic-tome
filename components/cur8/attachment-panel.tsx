@@ -273,8 +273,8 @@ export function AttachmentPicker({
             })}
           </div>
 
-          {/* Search (for cur8 + note tabs) */}
-          {tab !== 'device' && (
+          {/* Search (for cur8 + note tabs only — not record or device) */}
+          {tab !== 'device' && tab !== 'record' && (
             <div style={{ padding: '12px 16px 6px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: '#0a1e1b', border: '1px solid rgba(245,240,232,0.12)' }}>
                 <Search size={14} color="rgba(245,240,232,0.4)" />

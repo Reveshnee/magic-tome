@@ -8,13 +8,30 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 export function useReadAloud() {
   const [speaking, setSpeaking] = useState(false)
   const [supported, setSupported] = useState(false)
+  // Cache the preferred voice so it's ready when speak() is called.
+  // Chrome/Android loads voices asynchronously — getVoices() returns [] on first
+  // call, which is why the fix worked in testing but not on real devices: the
+  // fallback default voice still has the watchdog duplication bug.
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null)
 
   useEffect(() => {
-    setSupported(typeof window !== 'undefined' && 'speechSynthesis' in window)
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    setSupported(true)
+
+    const pickVoice = () => {
+      const voices = window.speechSynthesis.getVoices()
+      if (!voices.length) return
+      voiceRef.current =
+        voices.find((v) => /en(-|_)?(GB|US|ZA)/i.test(v.lang) && /female|samantha|karen|natural|google/i.test(v.name)) ||
+        voices.find((v) => /^en/i.test(v.lang)) ||
+        voices[0]
+    }
+    pickVoice()
+    window.speechSynthesis.onvoiceschanged = pickVoice
+
     return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-      }
+      window.speechSynthesis.onvoiceschanged = null
+      window.speechSynthesis.cancel()
     }
   }, [])
 
@@ -24,31 +41,24 @@ export function useReadAloud() {
     const clean = text.replace(/\s+/g, ' ').trim()
     if (!clean) return
 
-    // Chrome (desktop + Android) has a long-standing bug: any single utterance
-    // that plays for more than ~15s triggers an internal watchdog that pauses
-    // then resumes the engine — and on resume it RE-READS part of the current
-    // sentence, which is why words/phrases were being duplicated. The reliable
-    // fix is to never hand it one long utterance: we split the text into short
-    // sentence-sized chunks and queue them, so each utterance finishes well
-    // under the watchdog window and nothing gets repeated.
+    // Chrome/Android watchdog bug: a single long utterance gets paused and
+    // partially re-read after ~15s, duplicating words. Fix: split into short
+    // sentence-sized chunks (<160 chars) so each utterance finishes fast.
     const chunks = clean.match(/[^.!?;:]+[.!?;:]*/g)?.reduce<string[]>((acc, part) => {
       const piece = part.trim()
       if (!piece) return acc
       const last = acc[acc.length - 1]
-      // Merge tiny fragments into the previous chunk, but keep chunks short.
       if (last && (last.length + piece.length) < 160) acc[acc.length - 1] = `${last} ${piece}`
       else acc.push(piece)
       return acc
     }, []) ?? [clean]
 
-    const voices = window.speechSynthesis.getVoices()
-    const preferred = voices.find((v) => /en(-|_)?(GB|US|ZA)/i.test(v.lang) && /female|samantha|karen|natural|google/i.test(v.name))
-
     chunks.forEach((chunk, i) => {
       const u = new SpeechSynthesisUtterance(chunk)
       u.rate = rate
       u.pitch = 1
-      if (preferred) u.voice = preferred
+      // Use the pre-loaded voice — don't call getVoices() here or it may be empty.
+      if (voiceRef.current) u.voice = voiceRef.current
       if (i === 0) u.onstart = () => setSpeaking(true)
       if (i === chunks.length - 1) u.onend = () => setSpeaking(false)
       u.onerror = () => setSpeaking(false)
