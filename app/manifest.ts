@@ -15,8 +15,10 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: '#0e2e2b',
     theme_color: '#0e2e2b',
     icons: [
-      { src: '/cur8/app-icon.png', sizes: '1024x1024', type: 'image/png', purpose: 'any' },
-      { src: '/cur8/app-icon.png', sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
+      // The ?v=2 tag forces phones to re-download the icon after an update
+      // (PWA home-screen icons are cached very aggressively, especially on Android).
+      { src: '/cur8/app-icon.png?v=2', sizes: '1024x1024', type: 'image/png', purpose: 'any' },
+      { src: '/cur8/app-icon.png?v=2', sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
     ],
     share_target: {
       action: '/cur8/share',
