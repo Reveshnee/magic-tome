@@ -898,6 +898,10 @@ export default function Cur8Category({ category }: Props) {
     setGardenPickItemId(null)
   }
 
+  // When previewing a media item on mobile, collapse the banner/stats/folder
+  // chrome so the video (esp. tall TikTok embeds) gets nearly the full screen.
+  const mediaFocus = isMobile && !!selectedItem && middleView === 'preview'
+
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#0d2420', color: '#f5f0e8', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif', overflow: 'hidden', position: 'relative' }}
@@ -920,7 +924,7 @@ export default function Cur8Category({ category }: Props) {
       )}
 
       {/* ── Banner ── */}
-      <div style={{ position: 'relative', height: 150, flexShrink: 0, overflow: 'hidden' }}>
+      <div style={{ position: 'relative', height: 150, flexShrink: 0, overflow: 'hidden', display: mediaFocus ? 'none' : 'block' }}>
         <Image src={tileStyle.image} alt={category} fill className="object-cover object-center" priority sizes="100vw" />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(13,36,32,0.5) 0%, rgba(13,36,32,0.92) 100%)' }} />
         {/* Nav */}
@@ -962,7 +966,7 @@ export default function Cur8Category({ category }: Props) {
       </div>
 
       {/* ── Stats bar ── */}
-      <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />
+      {!mediaFocus && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
 
       {/* ── Mobile tab switcher ── */}
       {isMobile && (
@@ -988,7 +992,7 @@ export default function Cur8Category({ category }: Props) {
       )}
 
       {/* ── Full-width folder filter bar (filters all three lanes) ── */}
-      <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
+      <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: mediaFocus ? 'none' : 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
         <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', flexShrink: 0 }}>Folders</span>
         <button onClick={() => setActiveFolder(null)}
           style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
