@@ -720,10 +720,13 @@ export default function Cur8Category({ category }: Props) {
           <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
             {poster && <img src={poster} alt={item.title} style={{ maxWidth: 260, maxHeight: '40%', borderRadius: 14, objectFit: 'cover' }} />}
             <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0 }}>{item.title}</p>
-            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.5)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>This video cannot be played inside Cur8 — the channel has disabled embedding. Tap below to watch it on YouTube.</p>
-            <a href={item.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 22px', borderRadius: 50, backgroundColor: '#c85a40', color: '#fff', textDecoration: 'none', fontSize: 13, fontWeight: 700 }}>
-              Watch on YouTube
-            </a>
+            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.5)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>This video has embedding disabled by the channel. Tap below to open it in YouTube — your Cur8 session stays open.</p>
+            <button
+              onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 22px', borderRadius: 50, backgroundColor: '#c85a40', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+            >
+              <ExternalLink size={14} /> Watch on YouTube
+            </button>
           </div>
         )
       }
@@ -765,10 +768,11 @@ export default function Cur8Category({ category }: Props) {
             <img src={poster} alt={item.title} style={{ maxWidth: 220, maxHeight: '55%', borderRadius: 14, objectFit: 'cover' }} />
           ) : null}
           <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300 }}>{item.title}</p>
-          <a href={item.url} target="_blank" rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, textDecoration: 'none' }}>
+          <button
+            onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer' }}>
             <Play size={13} /> Play on TikTok
-          </a>
+          </button>
         </div>
       )
     }
@@ -1020,12 +1024,14 @@ export default function Cur8Category({ category }: Props) {
     <div
       style={{
         display: 'flex', flexDirection: 'column',
-        // Desktop: lock to viewport height for the 3-panel layout. Mobile: let content scroll naturally.
-        height: isMobile ? 'auto' : '100vh',
+        // mediaFocus on mobile: lock to 100vh so the video iframe has a real height to fill.
+        // Normal mobile: auto-height so the page scrolls naturally.
+        // Desktop: always locked to viewport height for the 3-panel layout.
+        height: (isMobile && !mediaFocus) ? 'auto' : '100vh',
         minHeight: '100vh',
         backgroundColor: '#0d2420', color: '#f5f0e8',
         fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif',
-        overflow: isMobile ? 'visible' : 'hidden',
+        overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden',
         position: 'relative',
       }}
     >
@@ -1222,7 +1228,8 @@ export default function Cur8Category({ category }: Props) {
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: isMobile ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0, position: 'relative' }}>
+      {/* paddingTop clears the fixed mediaFocus overlay bar (~56px) on mobile */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0, position: 'relative', paddingTop: mediaFocus ? 56 : 0 }}>
 
         {/* ── Panel 1: Videos lane ── */}
         {/* Desktop: collapsible. Mobile: tab-switched. */}
@@ -1313,9 +1320,10 @@ export default function Cur8Category({ category }: Props) {
         </motion.div>
 
         {/* ── Panel 2: Centre — preview / rotating moodboard / image gallery ── */}
-        <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: isMobile ? 'visible' : 'hidden', backgroundColor: '#0d2420', minWidth: 0, minHeight: isMobile ? 'auto' : 0 }}>
-          {/* Centre tabs */}
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderBottom: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b' }}>
+        {/* In mediaFocus mode overflow must be hidden so the iframe has a real height to fill */}
+        <div style={{ flex: 1, display: isMobile && mobileTab !== 'preview' ? 'none' : 'flex', flexDirection: 'column', overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden', backgroundColor: '#0d2420', minWidth: 0, minHeight: (isMobile && !mediaFocus) ? 'auto' : 0 }}>
+          {/* Centre tabs — hidden during mediaFocus so the iframe gets all available height */}
+          <div style={{ flexShrink: 0, display: mediaFocus ? 'none' : 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderBottom: '1px solid rgba(245,240,232,0.07)', backgroundColor: '#0a1e1b' }}>
             {/* When a video/item is selected, show a back button first */}
             {selectedItem && middleView === 'preview' && (
               <button
