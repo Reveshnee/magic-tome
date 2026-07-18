@@ -106,11 +106,15 @@ async function fetchYouTubePlaylist(playlistId: string): Promise<PlaylistResult>
     for (const item of data.items ?? []) {
       const s = item.snippet
       const videoId = s?.resourceId?.videoId
-      if (!videoId || videoId === 'deleted video') continue
+      if (!videoId) continue
+      // Skip removed videos — YouTube keeps them in the playlist as
+      // "Deleted video" / "Private video" with no usable thumbnail.
+      const title = s?.title ?? ''
+      if (title === 'Deleted video' || title === 'Private video') continue
       const thumb = s?.thumbnails?.medium?.url ?? s?.thumbnails?.default?.url
       items.push({
         url: `https://www.youtube.com/watch?v=${videoId}`,
-        title: s?.title ?? videoId,
+        title: title || videoId,
         thumbnail: thumb,
         channelName: s?.videoOwnerChannelTitle,
       })
