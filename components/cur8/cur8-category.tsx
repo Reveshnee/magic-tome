@@ -1335,7 +1335,9 @@ export default function Cur8Category({ category }: Props) {
       {!mediaFocus && (
         <div style={{
           flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-          padding: '7px 14px', overflowX: 'auto',
+          padding: '7px 14px',
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          overflowX: isMobile ? 'visible' : 'auto',
           backgroundColor: '#0a1e1b',
           borderBottom: '1px solid rgba(245,240,232,0.07)',
         }}>
@@ -1368,10 +1370,10 @@ export default function Cur8Category({ category }: Props) {
           >
             <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
           </button>
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
+          {/* Spacer — desktop only; on mobile the row wraps so no spacer needed */}
+          <div style={{ flex: 1, display: isMobile ? 'none' : 'block' }} />
           {/* Quick count chip */}
-          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap' }}>{catItems.length} saved</span>
+          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap', marginLeft: isMobile ? 'auto' : 0 }}>{catItems.length} saved</span>
         </div>
       )}
 
