@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, Music2, VolumeX, MoreHorizontal,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, MoreHorizontal,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, slugFromCategory, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -327,10 +327,8 @@ export default function Cur8Home() {
   const [activeWord,  setActiveWord]  = useState<string | null>(null)
   const [leap,        setLeap]        = useState<{ href: string; origin: DOMRect } | null>(null)
   const [tabScroll,     setTabScroll]     = useState({ left: false, right: false })
-  const [naturePlaying, setNaturePlaying] = useState(false)
   const [moreOpen,      setMoreOpen]      = useState(false)
   const tabScrollRef  = useRef<HTMLDivElement>(null)
-  const natureCtxRef  = useRef<{ ctx: AudioContext; src: AudioBufferSourceNode; gain: GainNode } | null>(null)
 
   const pad    = isMobile ? 16 : isTablet ? 32 : 60
   const bentoCols  = isMobile ? '1fr' : '1fr 1fr'
@@ -400,117 +398,41 @@ export default function Cur8Home() {
     setLeap({ href, origin: rect })
   }
 
-  // ── Nature sounds (synthesised rain — no external file needed) ────────────
-  function buildRainAudio(): { ctx: AudioContext; src: AudioBufferSourceNode; gain: GainNode } | null {
+  // ── Hero pond tap — one-shot 5s water sound when the user touches the hero image ──
+  function playHeroTap() {
     const AC = (window.AudioContext || (window as unknown as Record<string, unknown>).webkitAudioContext) as typeof AudioContext | undefined
-    if (!AC) return null
+    if (!AC) return
     const ctx = new AC()
     const sr = ctx.sampleRate
-    const masterGain = ctx.createGain(); masterGain.gain.value = 0
-    masterGain.connect(ctx.destination)
-
-    // ── Pond ambient — very quiet brown rumble underneath ──
-    const ambientBuf = ctx.createBuffer(1, sr * 4, sr)
-    const ambData = ambientBuf.getChannelData(0)
-    let last = 0
-    for (let i = 0; i < ambData.length; i++) {
-      const w = Math.random() * 2 - 1; last = (last + 0.01 * w) / 1.01; ambData[i] = last * 1.2
-    }
-    const ambSrc = ctx.createBufferSource(); ambSrc.buffer = ambientBuf; ambSrc.loop = true
-    const ambLp = ctx.createBiquadFilter(); ambLp.type = 'lowpass'; ambLp.frequency.value = 320
-    const ambGain = ctx.createGain(); ambGain.gain.value = 0.08
-    ambSrc.connect(ambLp); ambLp.connect(ambGain); ambGain.connect(masterGain)
-    ambSrc.start()
-
-    // ── Water drop impulse generator ──
-    // Each drop: short white-noise burst through a resonant bandpass (sounds like "plink")
-    function scheduleDrop(when: number, freq: number, vol: number) {
-      const dropBuf = ctx.createBuffer(1, Math.floor(sr * 0.06), sr)
-      const d = dropBuf.getChannelData(0)
-      for (let i = 0; i < d.length; i++) {
-        // Exponential decay envelope * noise
-        d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sr * 0.012))
-      }
-      const dropSrc = ctx.createBufferSource(); dropSrc.buffer = dropBuf
+    const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination)
+    // Fade in quickly, fade out after 4.5s
+    master.gain.setTargetAtTime(0.32, ctx.currentTime, 0.18)
+    master.gain.setTargetAtTime(0, ctx.currentTime + 3.8, 0.55)
+    // Ambient rumble
+    const ambBuf = ctx.createBuffer(1, sr * 3, sr)
+    const amb = ambBuf.getChannelData(0); let lv = 0
+    for (let i = 0; i < amb.length; i++) { const w = Math.random() * 2 - 1; lv = (lv + 0.01 * w) / 1.01; amb[i] = lv * 1.0 }
+    const ambSrc = ctx.createBufferSource(); ambSrc.buffer = ambBuf; ambSrc.loop = true
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 350
+    const ag = ctx.createGain(); ag.gain.value = 0.12
+    ambSrc.connect(lp); lp.connect(ag); ag.connect(master); ambSrc.start()
+    // 3–5 water drops over 4s
+    const count = 3 + Math.floor(Math.random() * 3)
+    for (let d = 0; d < count; d++) {
+      const when = ctx.currentTime + 0.2 + d * (3.5 / count) + Math.random() * 0.4
+      const freq = 900 + Math.random() * 1200
+      const dropBuf = ctx.createBuffer(1, Math.floor(sr * 0.065), sr)
+      const dd = dropBuf.getChannelData(0)
+      for (let i = 0; i < dd.length; i++) dd[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sr * 0.013))
+      const dSrc = ctx.createBufferSource(); dSrc.buffer = dropBuf
       const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 18
-      const tail = ctx.createBiquadFilter(); tail.type = 'peaking'; tail.frequency.value = freq * 0.7; tail.gain.value = 6; tail.Q.value = 8
-      const g = ctx.createGain(); g.gain.value = vol
-      dropSrc.connect(bp); bp.connect(tail); tail.connect(g); g.connect(masterGain)
-      dropSrc.start(when)
+      const dg = ctx.createGain(); dg.gain.value = 0.32 + Math.random() * 0.2
+      dSrc.connect(bp); bp.connect(dg); dg.connect(master); dSrc.start(when)
     }
-
-    // Schedule drops for ~30s then reschedule via recursion on an interval
-    function scheduleDrops(startTime: number, duration: number) {
-      let t = startTime
-      while (t < startTime + duration) {
-        // Random gap between drops: 0.4s–2.8s (feels like sparse pond drips)
-        const gap = 0.4 + Math.random() * 2.4
-        t += gap
-        const freq = 800 + Math.random() * 1400   // 800–2200 Hz plonk
-        const vol = 0.18 + Math.random() * 0.28
-        scheduleDrop(t, freq, vol)
-        // Occasional second smaller ripple drop ~80ms after
-        if (Math.random() < 0.3) scheduleDrop(t + 0.06 + Math.random() * 0.1, freq * 0.8, vol * 0.4)
-      }
-    }
-
-    // Schedule in rolling 30s windows
-    scheduleDrops(ctx.currentTime + 0.3, 30)
-    const intervalId = setInterval(() => {
-      if (ctx.state === 'closed') { clearInterval(intervalId); return }
-      scheduleDrops(ctx.currentTime + 28, 30)
-    }, 26000)
-
-    // Fake "src" ref so stopNature can call src.stop() — we just return the ambSrc
-    const gain = masterGain
-    masterGain.gain.setTargetAtTime(0.28, ctx.currentTime, 1.0)
-
-    // Store interval so we can clear it on stop
-    ;(ctx as unknown as Record<string, unknown>).__dropInterval = intervalId
-
-    return { ctx, src: ambSrc, gain }
+    setTimeout(() => { try { ambSrc.stop(); ctx.close() } catch {} }, 6200)
   }
-
-  function startNature() {
-    if (natureCtxRef.current) return // already running
-    const audio = buildRainAudio()
-    if (!audio) return
-    natureCtxRef.current = audio
-    setNaturePlaying(true)
-  }
-
-  function stopNature() {
-    const a = natureCtxRef.current
-    if (!a) return
-    // Clear scheduled drop interval if present
-    const id = (a.ctx as unknown as Record<string, unknown>).__dropInterval
-    if (id) clearInterval(id as ReturnType<typeof setInterval>)
-    a.gain.gain.setTargetAtTime(0, a.ctx.currentTime, 0.5)
-    setTimeout(() => { try { a.src.stop(); a.ctx.close() } catch {} }, 1400)
-    natureCtxRef.current = null
-    setNaturePlaying(false)
-  }
-
-  function toggleNature() {
-    if (naturePlaying) { stopNature() } else { startNature() }
-  }
-
-  // Auto-start on first user gesture (browsers require it)
-  useEffect(() => {
-    function onFirstGesture() {
-      startNature()
-      window.removeEventListener('pointerdown', onFirstGesture)
-    }
-    window.addEventListener('pointerdown', onFirstGesture, { passive: true })
-    return () => {
-      window.removeEventListener('pointerdown', onFirstGesture)
-      stopNature()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   async function handleSignOut() {
-    stopNature()
     await authClient.signOut()
     router.push('/cur8/sign-in')
   }
@@ -529,7 +451,8 @@ export default function Cur8Home() {
       {/* ══════════════════════════════════════════════════════════════════════
           HERO — full-viewport koi pond image
       ══════════════════════════════════════════════════════════════════════ */}
-      <div style={{ position: 'relative', height: '100svh', minHeight: 520, overflow: 'hidden' }}>
+      {/* Tap anywhere on the hero pond image to hear a brief water sound */}
+      <div onPointerDown={playHeroTap} style={{ position: 'relative', height: '100svh', minHeight: 520, overflow: 'hidden', cursor: 'default' }}>
         {/* Background image */}
           <Image src="/cur8/koi-pond.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
         {/* Layered dark overlay — richer depth */}
@@ -599,16 +522,6 @@ export default function Cur8Home() {
                   {calm ? 'Calm on' : 'Calm'}
                 </button>
 
-                <button
-                  onClick={toggleNature}
-                  aria-pressed={naturePlaying}
-                  title={naturePlaying ? 'Turn off nature sounds' : 'Nature sounds (soft rain)'}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: naturePlaying ? BG : SAGE, background: naturePlaying ? SAGE : 'rgba(90,158,132,0.12)', border: `1px solid ${naturePlaying ? SAGE : 'rgba(90,158,132,0.35)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', transition: 'all 0.2s' }}
-                >
-                  {naturePlaying ? <Music2 size={13} /> : <VolumeX size={13} />}
-                  {naturePlaying ? 'Sounds on' : 'Nature sounds'}
-                </button>
-
                 <Link
                   href="/cur8/guide"
                   title="How to use Cur8"
@@ -649,14 +562,6 @@ export default function Cur8Home() {
                           <Wind size={14} />
                           {calm ? 'Calm mode: on' : 'Calm mode'}
                           {calm && <span style={{ marginLeft: 'auto', fontSize: 10, color: SAGE, fontWeight: 700 }}>ON</span>}
-                        </button>
-                        <button
-                          onClick={() => { toggleNature(); setMoreOpen(false) }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '13px 16px', background: 'none', border: 'none', cursor: 'pointer', color: naturePlaying ? SAGE : CREAM, fontSize: 13, fontWeight: 500, textAlign: 'left', borderBottom: `1px solid ${BORDER}` }}
-                        >
-                          {naturePlaying ? <Music2 size={14} /> : <VolumeX size={14} />}
-                          {naturePlaying ? 'Nature sounds: on' : 'Nature sounds'}
-                          {naturePlaying && <span style={{ marginLeft: 'auto', fontSize: 10, color: SAGE, fontWeight: 700 }}>ON</span>}
                         </button>
                         <Link
                           href="/cur8/guide"
