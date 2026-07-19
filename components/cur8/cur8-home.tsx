@@ -184,7 +184,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
     const orbRect = buttonEl.getBoundingClientRect()
     const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : orbRect.width / 2
     setFish({ id: item.id, color: item.color, x })
-    setTimeout(() => { setFish(null); setActive(item.id) }, 680)
+    setTimeout(() => { setFish(null); setActive(item.id) }, 1100)
   }
 
   return (
@@ -224,20 +224,20 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
           {fish && !calm && (
             <motion.div
               key={`fish-${fish.id}`}
-              initial={{ y: pondH * 0.52, opacity: 0, scale: 0.5, rotate: 0 }}
+              initial={{ y: pondH * 0.52, opacity: 0, scale: 0.6, rotate: 0 }}
               animate={{
-                y:       [pondH * 0.52, -52, pondH + 20],
+                y:       [pondH * 0.52, -220, pondH + 40],
                 opacity: [0, 1, 1, 0],
-                scale:   [0.5, 1.05, 0.85],
-                // 0° = nose up (correct launch). Hold through ascent, tip forward on descent only.
-                rotate:  [0, 0, 12, 55],
+                scale:   [0.6, 1.15, 0.9],
+                // Nose up through ascent, tips forward only on descent
+                rotate:  [0, 0, 18, 65],
               }}
               transition={{
-                duration: 0.72,
-                ease: [0.35, 0, 0.45, 1],
-                times: [0, 0.42, 1],
-                opacity: { duration: 0.72, times: [0, 0.1, 0.72, 1] },
-                rotate:  { duration: 0.72, ease: 'easeIn', times: [0, 0.42, 0.6, 1] },
+                duration: 1.35,
+                ease: [0.25, 0, 0.4, 1],
+                times: [0, 0.44, 1],
+                opacity: { duration: 1.35, times: [0, 0.08, 0.78, 1] },
+                rotate:  { duration: 1.35, ease: 'easeIn', times: [0, 0.44, 0.62, 1] },
               }}
               transformTemplate={(_, generated) => `translateX(-50%) scaleY(-1) ${generated}`}
               style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
@@ -299,7 +299,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
         </div>
       </div>
 
-      {/* Open widget — slides in below the pond */}
+      {/* Open widget �� slides in below the pond */}
       <AnimatePresence>
         {active && (
           <motion.div
