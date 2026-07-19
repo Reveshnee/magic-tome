@@ -16,6 +16,32 @@ function fmt(s: number) {
   return `${m}:${sec}`
 }
 
+// Soft singing-bowl chime — same as breathwork widget
+function playChime() {
+  const AC = (window.AudioContext || (window as unknown as Record<string, unknown>).webkitAudioContext) as typeof AudioContext | undefined
+  if (!AC) return
+  const ctx = new AC()
+  const tones = [
+    { freq: 528, vol: 0.22, delay: 0 },
+    { freq: 792, vol: 0.14, delay: 0.06 },
+    { freq: 1056, vol: 0.09, delay: 0.12 },
+  ]
+  tones.forEach(({ freq, vol, delay }) => {
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0, ctx.currentTime + delay)
+    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + delay + 0.03)
+    gain.gain.setTargetAtTime(0, ctx.currentTime + delay + 0.15, 0.8)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start(ctx.currentTime + delay)
+    osc.stop(ctx.currentTime + delay + 4.5)
+  })
+  setTimeout(() => { try { ctx.close() } catch {} }, 6000)
+}
+
 export default function FocusTimerWidget() {
   const [presetIdx, setPresetIdx] = useState(2) // default 25 min
   const [remaining, setRemaining] = useState(PRESETS[2].seconds)
@@ -51,6 +77,7 @@ export default function FocusTimerWidget() {
           if (r <= 1) {
             setRunning(false)
             setDone(true)
+            playChime()
             return 0
           }
           return r - 1
