@@ -35,7 +35,7 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function AiHub({ items = [] }: { items?: Pick<Cur8Item, 'id' | 'title' | 'description'>[] }) {
+export default function AiHub({ items = [], hideHeader = false }: { items?: Pick<Cur8Item, 'id' | 'title' | 'description'>[]; hideHeader?: boolean }) {
   const [tab, setTab] = useState<Tab>('discover')
 
   const [discovery, setDiscovery] = useState<DiscoveryResult | null>(null)
@@ -90,16 +90,18 @@ export default function AiHub({ items = [] }: { items?: Pick<Cur8Item, 'id' | 't
     <div style={{ borderRadius: 20, overflow: 'hidden', border: `1px solid ${GOLD}33`, backgroundColor: SURFACE }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Sparkles size={15} style={{ color: GOLD, flexShrink: 0 }} />
-        <span style={{ fontWeight: 800, fontSize: 14, color: CREAM, letterSpacing: '-0.01em' }}>Know Yourself</span>
-        <span style={{ fontSize: 11, color: `${CREAM}44`, fontStyle: 'italic', marginLeft: 2 }}>
-          AI insights from your library
-        </span>
-      </div>
+      {!hideHeader && (
+        <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sparkles size={15} style={{ color: GOLD, flexShrink: 0 }} />
+          <span style={{ fontWeight: 800, fontSize: 14, color: CREAM, letterSpacing: '-0.01em' }}>Know Yourself</span>
+          <span style={{ fontSize: 11, color: `${CREAM}44`, fontStyle: 'italic', marginLeft: 2 }}>
+            AI insights from your library
+          </span>
+        </div>
+      )}
 
       {/* ── Tab bar ── */}
-      <div style={{ display: 'flex', gap: 0, marginTop: 14, borderBottom: `1px solid rgba(245,240,232,0.07)`, paddingLeft: 8, paddingRight: 8, overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 0, marginTop: hideHeader ? 4 : 14, borderBottom: `1px solid rgba(245,240,232,0.07)`, paddingLeft: 8, paddingRight: 8, overflowX: 'auto' }}>
         {TABS.map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => handleTab(key)}
             style={{

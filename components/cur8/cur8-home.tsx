@@ -308,7 +308,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
   )
 }
 
-// ─── Main hub component ───────────────────────────────────────────────────────
+// ─── Main hub component ───────────────────────────────────────────────���───────
 export default function Cur8Home() {
   const router = useRouter()
   const { isMobile, isTablet } = useViewport()
@@ -662,7 +662,7 @@ export default function Cur8Home() {
           description="Your AI companion reads everything you have saved and helps you see patterns, ask questions, and deepen understanding — across your whole library."
           padX={pad}
         >
-          <AiHub items={items} />
+          <AiHub items={items} hideHeader />
         </CollapsibleSection>
 
         {/* ── THE POND — rituals ── */}
