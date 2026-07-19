@@ -2,7 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { cur8Item, cur8Folder, cur8Reflection, cur8GardenName, cur8Attachment, cur8Note } from '@/lib/db/schema'
+import { cur8Item, cur8Folder, cur8Reflection, cur8GardenName, cur8Attachment, cur8Note, cur8Discussion } from '@/lib/db/schema'
 import { and, desc, eq, or, ilike, inArray } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { randomUUID } from 'crypto'
@@ -501,6 +501,110 @@ export async function updateReflection(id: string, body: string): Promise<Reflec
 export async function deleteReflection(id: string) {
   const userId = await getUserId()
   await db.delete(cur8Reflection).where(and(eq(cur8Reflection.id, id), eq(cur8Reflection.userId, userId)))
+}
+
+// ─── Discussions (auto-saved AI Q&A conversations) ───
+export interface DiscussionMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface DiscussionDTO {
+  id: string
+  itemId: string | null
+  category: string | null
+  title: string
+  messages: DiscussionMessage[]
+  createdAt: string
+  updatedAt: string
+}
+
+function rowToDiscussion(r: typeof cur8Discussion.$inferSelect): DiscussionDTO {
+  let messages: DiscussionMessage[] = []
+  try {
+    const parsed = JSON.parse(r.messages)
+    if (Array.isArray(parsed)) messages = parsed
+  } catch {
+    messages = []
+  }
+  return {
+    id: r.id,
+    itemId: r.itemId ?? null,
+    category: r.category ?? null,
+    title: r.title,
+    messages,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }
+}
+
+// Upsert a conversation. Called after each answer so nothing is ever lost.
+// Pass an existing id to keep appending to the same conversation.
+export async function saveDiscussion(input: {
+  id?: string | null
+  itemId?: string | null
+  category?: string | null
+  messages: DiscussionMessage[]
+}): Promise<DiscussionDTO | null> {
+  const userId = await getUserId()
+  const messages = (input.messages || []).filter((m) => m && m.content && m.content.trim())
+  if (messages.length === 0) return null
+
+  // Seed a short title from the first user question.
+  const firstQ = messages.find((m) => m.role === 'user')?.content?.trim() || 'Conversation'
+  const title = firstQ.length > 70 ? firstQ.slice(0, 67).trimEnd() + '…' : firstQ
+  const messagesJson = JSON.stringify(messages)
+  const now = new Date()
+
+  if (input.id) {
+    // Update existing — scoped to owner.
+    await db
+      .update(cur8Discussion)
+      .set({ messages: messagesJson, title, updatedAt: now })
+      .where(and(eq(cur8Discussion.id, input.id), eq(cur8Discussion.userId, userId)))
+    const [row] = await db
+      .select()
+      .from(cur8Discussion)
+      .where(and(eq(cur8Discussion.id, input.id), eq(cur8Discussion.userId, userId)))
+    return row ? rowToDiscussion(row) : null
+  }
+
+  const id = randomUUID()
+  await db.insert(cur8Discussion).values({
+    id,
+    userId,
+    itemId: input.itemId ?? null,
+    category: input.category ?? null,
+    title,
+    messages: messagesJson,
+    createdAt: now,
+    updatedAt: now,
+  })
+  const [row] = await db.select().from(cur8Discussion).where(eq(cur8Discussion.id, id))
+  return row ? rowToDiscussion(row) : null
+}
+
+// All discussions for the current user, newest first. Optionally scoped to a
+// haven (category) or a specific item.
+export async function getDiscussions(opts?: {
+  category?: string
+  itemId?: string
+}): Promise<DiscussionDTO[]> {
+  const userId = await getUserId()
+  const conditions = [eq(cur8Discussion.userId, userId)]
+  if (opts?.category) conditions.push(eq(cur8Discussion.category, opts.category))
+  if (opts?.itemId) conditions.push(eq(cur8Discussion.itemId, opts.itemId))
+  const rows = await db
+    .select()
+    .from(cur8Discussion)
+    .where(and(...conditions))
+    .orderBy(desc(cur8Discussion.updatedAt))
+  return rows.map(rowToDiscussion)
+}
+
+export async function deleteDiscussion(id: string) {
+  const userId = await getUserId()
+  await db.delete(cur8Discussion).where(and(eq(cur8Discussion.id, id), eq(cur8Discussion.userId, userId)))
 }
 
 // ─── Custom garden names ───

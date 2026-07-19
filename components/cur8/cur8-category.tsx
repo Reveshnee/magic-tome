@@ -8,7 +8,7 @@ import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
-  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pin,
+  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pin, MessageSquare,
   Mail, MessageCircle, Download, Share2,
 } from 'lucide-react'
 import {
@@ -52,6 +52,8 @@ import CategoryStatsBar from '@/components/cur8/category-stats-bar'
 import HavenTypeStats from '@/components/cur8/haven-type-stats'
 import CategoryReflections from '@/components/cur8/category-reflections'
 import ShareMenu from '@/components/cur8/share-menu'
+import { ItemCompanion } from '@/components/cur8/item-companion'
+import { DiscussionList } from '@/components/cur8/ai-hub'
 import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile, shareToDevice, deviceShareSupported } from '@/lib/cur8-share'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -270,6 +272,7 @@ export default function Cur8Category({ category }: Props) {
   const [mobileTab, setMobileTab] = useState<'browse' | 'preview' | 'links'>('browse')
   const [reflections, setReflections] = useState<ReflectionDTO[]>([])
   const [showReflections, setShowReflections] = useState(false)
+  const [showDiscussions, setShowDiscussions] = useState(false)
   const { displayName, defaultName, isCustom, rename, reset } = useGardenNames()
   const gardenName = displayName(category)
   const [renaming, setRenaming] = useState(false)
@@ -299,6 +302,8 @@ export default function Cur8Category({ category }: Props) {
   // Desktop "full page" preview — hides both side panels + all chrome so the
   // media fills the whole window (the mobile experience, brought to laptop).
   const [expandedPreview, setExpandedPreview] = useState(false)
+  // Companion panel (Notes + Ask AI) docked beside the playing item.
+  const [companionOpen, setCompanionOpen] = useState(false)
   // Active content-type filter (videos / images / documents / sounds) driven by
   // the tappable mini-stats. null = show everything.
   const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
@@ -1468,6 +1473,13 @@ export default function Cur8Category({ category }: Props) {
           >
             <Headphones size={11} color="#8ec8b4" /> Focus sounds
           </button>
+          {/* Discussions — this haven's saved AI Q&A conversations */}
+          <button
+            onClick={() => setShowDiscussions(true)}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <MessageSquare size={11} color={tileStyle.accent} /> Discussions
+          </button>
           {/* Spacer — desktop only; on mobile the row wraps so no spacer needed */}
           <div style={{ flex: 1, display: isMobile ? 'none' : 'block' }} />
           {/* Collapse the overview rows to hand the board more room */}
@@ -1801,9 +1813,29 @@ export default function Cur8Category({ category }: Props) {
             </div>
           ) : selectedItem ? (
             <>
-              {/* Preview — always takes 100% of the available space, never shrunk */}
-              <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
-                {renderPreview(selectedItem)}
+              {/* Preview + optional companion sit side by side so the media keeps
+                  playing while you take notes / ask AI (all three at once). On mobile
+                  the companion stacks below; on desktop it docks to the right. */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0, position: 'relative' }}>
+                <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden', minHeight: isMobile ? 200 : 0, minWidth: 0 }}>
+                  {renderPreview(selectedItem)}
+                </div>
+                {companionOpen && (
+                  <div style={{ position: 'relative', flexShrink: 0, width: isMobile ? '100%' : 360, height: isMobile ? 340 : 'auto', borderTop: isMobile ? '1px solid rgba(245,240,232,0.12)' : 'none' }}>
+                    <ItemCompanion
+                      itemId={selectedItem.id}
+                      itemTitle={selectedItem.title}
+                      category={category}
+                      initialNote={selectedItem.description ?? ''}
+                      accent={tileStyle.accent}
+                      onClose={() => setCompanionOpen(false)}
+                      onNoteSaved={(note) => {
+                        setAllItems((prev) => prev.map((it) => (it.id === selectedItem.id ? { ...it, description: note } : it)))
+                        setSelectedItem((cur) => (cur && cur.id === selectedItem.id ? { ...cur, description: note } : cur))
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* ── Summary: slides in from the RIGHT edge as a full-height panel.
@@ -1927,6 +1959,11 @@ export default function Cur8Category({ category }: Props) {
                     {speaking ? <Square size={11} /> : <Volume2 size={11} />} {!isMobile && (speaking ? 'Stop' : 'Listen')}
                   </button>
                 )}
+                <button onClick={() => setCompanionOpen((o) => !o)}
+                  title="Ask AI & take notes while this plays"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: companionOpen ? '#0d2420' : 'rgba(245,240,232,0.8)', backgroundColor: companionOpen ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                  <MessageSquare size={11} /> {!isMobile && 'Ask AI'}
+                </button>
                 <button onClick={() => setEditItem({ id: selectedItem.id, title: selectedItem.title, description: selectedItem.description ?? '', whySaved: selectedItem.whySaved ?? '' })}
                   title="Edit title, note & why you saved it"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
@@ -2417,6 +2454,38 @@ export default function Cur8Category({ category }: Props) {
         onDelete={removeReflection}
         onEdit={editReflection}
       />
+
+      {/* ── Discussions drawer — this haven's saved AI Q&A conversations ── */}
+      <AnimatePresence>
+        {showDiscussions && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowDiscussions(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 300, backgroundColor: 'rgba(6,18,16,0.5)', backdropFilter: 'blur(1px)' }}
+            />
+            <motion.div
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 301, width: isMobile ? '100%' : 400, maxWidth: '100%', backgroundColor: '#0b2b28', borderLeft: '1px solid rgba(245,240,232,0.12)', display: 'flex', flexDirection: 'column' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 18px', borderBottom: '1px solid rgba(245,240,232,0.1)', flexShrink: 0 }}>
+                <MessageSquare size={16} style={{ color: tileStyle.accent }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.5)' }}>Discussions</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#f5f0e8' }}>{gardenName}</p>
+                </div>
+                <button onClick={() => setShowDiscussions(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}>
+                  <X size={13} /> Close
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+                <DiscussionList category={category} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Rename garden modal ── */}
       <AnimatePresence>

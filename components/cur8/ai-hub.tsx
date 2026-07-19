@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, Brain, BookOpen, Loader2, RotateCcw, Zap,
-  User, Send, MessageSquare, ExternalLink,
+  User, Send, MessageSquare, ExternalLink, MessagesSquare, Trash2, Copy, Check,
 } from 'lucide-react'
 import {
   discoverPatterns, generateWeeklyDigest, getMemories, updateMemory, discoverYou,
   type DiscoveryResult, type DigestResult, type YouResult,
 } from '@/app/actions/ai-features'
+import { getDiscussions, deleteDiscussion, type DiscussionDTO } from '@/app/actions/cur8'
+import { copyToClipboard } from '@/lib/cur8-share'
 import WordMap from '@/components/cur8/word-map'
 import type { Cur8Item } from '@/lib/cur8-store'
 
@@ -20,14 +22,15 @@ const BG     = '#0a1e1b'
 const SURFACE = '#122e29'
 const CREAM  = '#f5f0e8'
 
-type Tab = 'discover' | 'digest' | 'memory' | 'you' | 'ask'
+type Tab = 'discover' | 'digest' | 'memory' | 'you' | 'ask' | 'discussions'
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
-  { key: 'discover', label: 'Discover',  icon: Zap },
-  { key: 'digest',   label: 'Digest',    icon: BookOpen },
-  { key: 'memory',   label: 'Memory',    icon: Brain },
-  { key: 'you',      label: 'You',       icon: User },
-  { key: 'ask',      label: 'Ask',       icon: MessageSquare },
+  { key: 'discover',    label: 'Discover',    icon: Zap },
+  { key: 'digest',      label: 'Digest',      icon: BookOpen },
+  { key: 'memory',      label: 'Memory',      icon: Brain },
+  { key: 'you',         label: 'You',         icon: User },
+  { key: 'ask',         label: 'Ask',         icon: MessageSquare },
+  { key: 'discussions', label: 'Discussions', icon: MessagesSquare },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -144,6 +147,8 @@ export default function AiHub({ items = [] }: { items?: Pick<Cur8Item, 'id' | 't
           )}
 
           {tab === 'ask' && <AskBody />}
+
+          {tab === 'discussions' && <DiscussionsBody />}
 
         </motion.div>
       </AnimatePresence>
@@ -279,6 +284,92 @@ function YouBody({ you, onRefresh, loading, items }: { you: YouResult; onRefresh
       )}
 
       <RefreshBtn onClick={onRefresh} loading={loading} label="Rebuild profile" />
+    </div>
+  )
+}
+
+// ─── DISCUSSIONS ─────────────────────────────────────────────────────────────
+// A browsable list of every auto-saved AI Q&A conversation. Reusable so a haven
+// page can show just that haven's discussions by passing a `category`.
+
+function DiscussionsBody() {
+  return <DiscussionList />
+}
+
+export function DiscussionList({ category, itemId }: { category?: string; itemId?: string }) {
+  const [items, setItems] = useState<DiscussionDTO[]>([])
+  const [loading, setLoading] = useState(true)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    getDiscussions({ category, itemId })
+      .then((d) => { if (alive) setItems(d) })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [category, itemId])
+
+  async function remove(id: string) {
+    await deleteDiscussion(id).catch(() => {})
+    setItems((prev) => prev.filter((d) => d.id !== id))
+    if (openId === id) setOpenId(null)
+  }
+
+  async function copyConvo(d: DiscussionDTO) {
+    const text = d.messages.map((m) => `${m.role === 'user' ? 'Q' : 'A'}: ${m.content}`).join('\n\n')
+    const ok = await copyToClipboard(text)
+    if (ok) { setCopiedId(d.id); setTimeout(() => setCopiedId(null), 1600) }
+  }
+
+  if (loading) return <Loader label="Gathering your conversations..." />
+  if (items.length === 0) {
+    return (
+      <p style={{ margin: 0, fontSize: 12.5, color: `${CREAM}66`, lineHeight: 1.6 }}>
+        No saved conversations yet. Open any item and tap <strong style={{ color: CREAM }}>Ask AI</strong> — every chat is saved here automatically so nothing disappears.
+      </p>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {items.map((d) => {
+        const open = openId === d.id
+        return (
+          <div key={d.id} style={{ borderRadius: 12, backgroundColor: `${CREAM}06`, border: `1px solid ${CREAM}10`, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 13px' }}>
+              <button onClick={() => setOpenId(open ? null : d.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: CREAM }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.title}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 10.5, color: `${CREAM}50` }}>
+                  {d.messages.length} messages · {new Date(d.updatedAt).toLocaleDateString()}
+                </p>
+              </button>
+              <button onClick={() => copyConvo(d)} title="Copy conversation" style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: `${CREAM}55`, padding: 4 }}>
+                {copiedId === d.id ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+              <button onClick={() => remove(d.id)} title="Delete" style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', color: `${CREAM}55`, padding: 4 }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+            {open && (
+              <div style={{ padding: '4px 13px 13px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: `1px solid ${CREAM}0a` }}>
+                {d.messages.map((m, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                    <div style={{
+                      maxWidth: '90%', padding: '8px 12px', borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                      backgroundColor: m.role === 'user' ? `${GOLD}22` : `${CREAM}08`,
+                      border: `1px solid ${m.role === 'user' ? `${GOLD}33` : `${CREAM}12`}`,
+                      fontSize: 12.5, lineHeight: 1.6, color: m.role === 'user' ? CREAM : `${CREAM}DD`, whiteSpace: 'pre-wrap',
+                    }}>{m.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
