@@ -398,17 +398,30 @@ export default function Cur8Home() {
     setLeap({ href, origin: rect })
   }
 
-  // ── Hero pond tap — one-shot 5s water sound when the user touches the hero image ──
-  function playHeroTap() {
+  // ── Hero pond ripples ──────────────────────────────────────────────────────
+  type PondRipple = { id: number; x: number; y: number }
+  const [pondRipples, setPondRipples] = useState<PondRipple[]>([])
+  const rippleIdRef = useRef(0)
+
+  // ── Hero pond tap — ripple visual + one-shot 5s water sound ───────────────
+  function playHeroTap(e: React.PointerEvent<HTMLDivElement>) {
+    // Ripple at tap position
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const id = ++rippleIdRef.current
+    setPondRipples(r => [...r, { id, x, y }])
+    // Remove after animation completes (1.8s)
+    setTimeout(() => setPondRipples(r => r.filter(rp => rp.id !== id)), 1800)
+
+    // Sound
     const AC = (window.AudioContext || (window as unknown as Record<string, unknown>).webkitAudioContext) as typeof AudioContext | undefined
     if (!AC) return
     const ctx = new AC()
     const sr = ctx.sampleRate
     const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination)
-    // Fade in quickly, fade out after 4.5s
     master.gain.setTargetAtTime(0.32, ctx.currentTime, 0.18)
     master.gain.setTargetAtTime(0, ctx.currentTime + 3.8, 0.55)
-    // Ambient rumble
     const ambBuf = ctx.createBuffer(1, sr * 3, sr)
     const amb = ambBuf.getChannelData(0); let lv = 0
     for (let i = 0; i < amb.length; i++) { const w = Math.random() * 2 - 1; lv = (lv + 0.01 * w) / 1.01; amb[i] = lv * 1.0 }
@@ -416,7 +429,6 @@ export default function Cur8Home() {
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 350
     const ag = ctx.createGain(); ag.gain.value = 0.12
     ambSrc.connect(lp); lp.connect(ag); ag.connect(master); ambSrc.start()
-    // 3–5 water drops over 4s
     const count = 3 + Math.floor(Math.random() * 3)
     for (let d = 0; d < count; d++) {
       const when = ctx.currentTime + 0.2 + d * (3.5 / count) + Math.random() * 0.4
@@ -451,8 +463,32 @@ export default function Cur8Home() {
       {/* ══════════════════════════════════════════════════════════════════════
           HERO — full-viewport koi pond image
       ══════════════════════════════════════════════════════════════════════ */}
+      {/* Ripple keyframe — injected once */}
+      <style>{`
+        @keyframes pondRipple {
+          0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0.55; }
+          60%  { opacity: 0.22; }
+          100% { transform: translate(-50%,-50%) scale(4.5); opacity: 0; }
+        }
+        @keyframes pondRipple2 {
+          0%   { transform: translate(-50%,-50%) scale(0);   opacity: 0.32; }
+          100% { transform: translate(-50%,-50%) scale(3);   opacity: 0; }
+        }
+      `}</style>
+
       {/* Tap anywhere on the hero pond image to hear a brief water sound */}
       <div onPointerDown={playHeroTap} style={{ position: 'relative', height: '100svh', minHeight: 520, overflow: 'hidden', cursor: 'default' }}>
+        {/* Ripple circles rendered at tap position */}
+        {pondRipples.map(rp => (
+          <div key={rp.id} style={{ position: 'absolute', left: rp.x, top: rp.y, pointerEvents: 'none', zIndex: 10 }}>
+            {/* Outer ring — slow wide expand */}
+            <div style={{ position: 'absolute', width: 120, height: 120, borderRadius: '50%', border: '1.5px solid rgba(180,240,220,0.7)', animation: 'pondRipple 1.6s ease-out forwards' }} />
+            {/* Middle ring — slightly delayed */}
+            <div style={{ position: 'absolute', width: 80, height: 80, borderRadius: '50%', border: '1px solid rgba(160,230,210,0.55)', animation: 'pondRipple 1.3s ease-out 0.12s forwards' }} />
+            {/* Inner ring — fast tight */}
+            <div style={{ position: 'absolute', width: 40, height: 40, borderRadius: '50%', border: '1px solid rgba(200,248,236,0.8)', animation: 'pondRipple2 0.8s ease-out forwards' }} />
+          </div>
+        ))}
         {/* Background image */}
           <Image src="/cur8/koi-pond.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
         {/* Layered dark overlay — richer depth */}
