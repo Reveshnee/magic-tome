@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Headphones, Play, Pause, Volume2, VolumeX, X, Waves, Radio, Zap, Wind, CloudRain, Droplets, TreePine } from 'lucide-react'
+import { Headphones, Play, Pause, Volume2, VolumeX, X, Waves, Radio, Zap, CloudRain, TreePine } from 'lucide-react'
 
-type SoundId = 'rain' | 'ocean' | 'forest' | 'stream' | 'binaural18' | 'binaural40' | 'brown'
+type SoundId = 'rain' | 'ocean' | 'forest' | 'binaural18' | 'binaural40'
 
 interface SoundDef {
   id: SoundId
@@ -16,13 +16,11 @@ interface SoundDef {
 }
 
 const SOUNDS: SoundDef[] = [
-  { id: 'rain',       label: 'Rain',           hint: 'Soft steady rainfall',          icon: CloudRain, color: '#6bb7dd' },
-  { id: 'ocean',      label: 'Ocean',          hint: 'Gentle waves on shore',         icon: Waves,     color: '#5a9e84' },
-  { id: 'forest',     label: 'Forest',         hint: 'Wind through leaves',           icon: TreePine,  color: '#7ab87a' },
-  { id: 'stream',     label: 'Stream',         hint: 'Babbling brook',                icon: Droplets,  color: '#8ec8b4' },
-  { id: 'binaural18', label: '18Hz beta',      hint: 'Focus beat · headphones',      icon: Radio,     color: '#c9a84c' },
-  { id: 'binaural40', label: '40Hz gamma',     hint: 'Clarity beat · headphones',    icon: Zap,       color: '#e6a94f' },
-  { id: 'brown',      label: 'Brown noise',    hint: 'Deep calming rumble',           icon: Wind,      color: '#c85a40' },
+  { id: 'rain',       label: 'Rain',           hint: 'Drops on a surface',            icon: CloudRain, color: '#6bb7dd' },
+  { id: 'ocean',      label: 'Ocean',          hint: 'Waves building and crashing',   icon: Waves,     color: '#5a9e84' },
+  { id: 'forest',     label: 'Forest',         hint: 'Wind, leaves & crickets',       icon: TreePine,  color: '#7ab87a' },
+  { id: 'binaural18', label: '18Hz beta',      hint: 'Focus beat · headphones',       icon: Radio,     color: '#c9a84c' },
+  { id: 'binaural40', label: '40Hz gamma',     hint: 'Clarity beat · headphones',     icon: Zap,       color: '#e6a94f' },
 ]
 
 export default function FocusSoundPlayer() {
@@ -101,19 +99,6 @@ export default function FocusSoundPlayer() {
           b6 = w * 0.115926
         }
 
-      } else if (type === 'stream') {
-        // White noise with gentle undulation
-        for (let i = 0; i < length; i++) {
-          data[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i * 0.00018))
-        }
-
-      } else if (type === 'brown') {
-        let last = 0
-        for (let i = 0; i < length; i++) {
-          const w = Math.random() * 2 - 1
-          last = (last + 0.02 * w) / 1.02
-          data[i] = last * 3.5
-        }
       }
     }
     return buffer
@@ -140,15 +125,6 @@ export default function FocusSoundPlayer() {
       const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2200; peak.gain.value = 5; peak.Q.value = 1.0
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6000
       return [peak, lp]
-    }
-    if (type === 'stream') {
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.4
-      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 5000; hs.gain.value = 5
-      return [bp, hs]
-    }
-    if (type === 'brown') {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700
-      return [lp]
     }
     return []
   }

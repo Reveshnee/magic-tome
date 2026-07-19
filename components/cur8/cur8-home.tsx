@@ -177,12 +177,12 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
   const pondRef = useRef<HTMLDivElement>(null)
   const pondH = isMobile ? POND_H_MOBILE : POND_H_DESKTOP
 
-  function handleOrb(item: PondItem, e: React.MouseEvent) {
+  function handleOrb(item: PondItem, buttonEl: HTMLElement) {
     if (active === item.id) { setActive(null); return }
     if (calm) { setActive(item.id); return }
     const pondRect = pondRef.current?.getBoundingClientRect()
-    const orbRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : 0
+    const orbRect = buttonEl.getBoundingClientRect()
+    const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : orbRect.width / 2
     setFish({ id: item.id, color: item.color, x })
     setTimeout(() => { setFish(null); setActive(item.id) }, 680)
   }
@@ -257,7 +257,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
                       />
                     )}
                     <motion.button
-                      onClick={(e) => handleOrb(item, e)}
+                      onPointerDown={(e) => handleOrb(item, e.currentTarget as HTMLElement)}
                       animate={calm ? undefined : isActive ? { scale: 1.1 } : { y: [0, -4, 0] }}
                       transition={isActive ? { type: 'spring', stiffness: 300 } : { repeat: Infinity, duration: 3 + i * 0.35, ease: 'easeInOut' }}
                       style={{
