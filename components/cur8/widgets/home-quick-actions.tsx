@@ -1,9 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { PenLine, Lightbulb, Headphones } from 'lucide-react'
-
-const ACCENT = '#c9a84c'
+import { PenLine, Headphones } from 'lucide-react'
 
 export default function HomeQuickActions() {
   return (
@@ -39,7 +37,8 @@ export default function HomeQuickActions() {
             color: '#f5f0e8', fontSize: 13, fontWeight: 700,
           }}
         >
-          <Lightbulb size={15} color={ACCENT} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/cur8/reflect-icon.png" alt="" width={16} height={16} style={{ objectFit: 'contain', filter: 'invert(72%) sepia(40%) saturate(600%) hue-rotate(10deg) brightness(1.1)' }} />
           Reflect
         </motion.button>
 

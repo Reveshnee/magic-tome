@@ -34,6 +34,7 @@ export interface Cur8Item {
 
 export const CATEGORIES: {
   name: Category
+  slug: string         // URL slug — garden-name based (e.g. "koi-pond")
   displayName: string  // garden name shown large on the tile
   area: string         // life area shown below the garden name
   lucideIcon: string
@@ -48,6 +49,7 @@ export const CATEGORIES: {
 }[] = [
   {
     name: 'YouTube',
+    slug: 'koi-pond',
     displayName: 'The Koi Pond',
     area: 'SACAP',
     lucideIcon: 'graduation-cap',
@@ -62,6 +64,7 @@ export const CATEGORIES: {
   },
   {
     name: 'TikTok',
+    slug: 'the-current',
     displayName: 'The Current',
     area: 'Work',
     lucideIcon: 'briefcase',
@@ -76,6 +79,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Instagram',
+    slug: 'greenhouse',
     displayName: 'The Greenhouse',
     area: 'Fashion & Style',
     lucideIcon: 'shirt',
@@ -90,6 +94,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Facebook',
+    slug: 'sanctuary',
     displayName: 'Sanctuary',
     area: 'Wellness',
     lucideIcon: 'heart',
@@ -104,6 +109,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Articles',
+    slug: 'the-grove',
     displayName: 'The Grove',
     area: 'Psychology',
     lucideIcon: 'brain',
@@ -118,6 +124,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Images',
+    slug: 'ember',
     displayName: 'Ember',
     area: 'Inspiration',
     lucideIcon: 'sparkles',
@@ -132,6 +139,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Documents',
+    slug: 'bloom',
     displayName: 'Bloom',
     area: 'Entertainment',
     lucideIcon: 'clapperboard',
@@ -146,6 +154,7 @@ export const CATEGORIES: {
   },
   {
     name: 'Web',
+    slug: 'the-tide',
     displayName: 'The Tide',
     area: 'Document Hub',
     lucideIcon: 'folder-open',
@@ -159,6 +168,16 @@ export const CATEGORIES: {
     hexAccent: '#c9843c',
   },
 ]
+
+/** Get the URL slug for a given category DB name (e.g. 'Instagram' → 'greenhouse') */
+export function slugFromCategory(category: string): string {
+  return CATEGORIES.find((c) => c.name === category)?.slug ?? category.toLowerCase()
+}
+
+/** Get the Category DB name from a URL slug (e.g. 'greenhouse' → 'Instagram') */
+export function categoryFromSlug(slug: string): Category | undefined {
+  return CATEGORIES.find((c) => c.slug === slug)?.name
+}
 
 export const SEED_ITEMS: Cur8Item[] = []
 export const SEED_FOLDERS: Cur8Folder[] = []
