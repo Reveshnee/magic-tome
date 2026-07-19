@@ -224,20 +224,21 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
           {fish && !calm && (
             <motion.div
               key={`fish-${fish.id}`}
-              initial={{ y: pondH * 0.52, opacity: 0, scale: 0.6, rotate: 0 }}
+              // Parabolic arc: 8 keyframes along a true curve
+              // x drifts slightly right so the path feels natural, not vertical
+              // y follows a smooth parabola — rises quickly, hangs at peak, falls
               animate={{
-                y:       [pondH * 0.52, -220, pondH + 40],
-                opacity: [0, 1, 1, 0],
-                scale:   [0.6, 1.15, 0.9],
-                // Nose up through ascent, tips forward only on descent
-                rotate:  [0, 0, 18, 65],
+                x:       [0, 10, 22, 34, 40, 36, 22, 0],
+                y:       [pondH * 0.52, pondH * 0.1, -80, -140, -155, -100, -20, pondH * 0.6],
+                opacity: [0, 1,   1,   1,    1,    1,   1,   0],
+                scale:   [0.6, 0.85, 1.0, 1.1, 1.12, 1.05, 0.95, 0.85],
+                rotate:  [0,   0,   2,   5,   10,   22,  42,   65],
               }}
               transition={{
-                duration: 1.35,
-                ease: [0.25, 0, 0.4, 1],
-                times: [0, 0.44, 1],
-                opacity: { duration: 1.35, times: [0, 0.08, 0.78, 1] },
-                rotate:  { duration: 1.35, ease: 'easeIn', times: [0, 0.44, 0.62, 1] },
+                duration: 1.3,
+                ease: 'linear',
+                times: [0, 0.1, 0.22, 0.35, 0.44, 0.58, 0.74, 1],
+                opacity: { duration: 1.3, ease: 'linear', times: [0, 0.08, 0.15, 0.35, 0.44, 0.58, 0.8, 1] },
               }}
               transformTemplate={(_, generated) => `translateX(-50%) scaleY(-1) ${generated}`}
               style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
@@ -476,7 +477,7 @@ export default function Cur8Home() {
 
       {/* ══════════════════════════════════════════════════════════════════════
           HERO — full-viewport koi pond image
-      ══════════════════════════════════════════════════════════════════════ */}
+      ═════════════════════════════════════════��════════════════════════════ */}
       {/* Ripple keyframe — injected once */}
       <style>{`
         @keyframes pondRipple {
@@ -838,7 +839,7 @@ export default function Cur8Home() {
           <AiHub items={items} hideHeader />
         </CollapsibleSection>
 
-        {/* ── THE POND — rituals ── */}
+        {/* ── THE POND — rituals ─��� */}
         <CollapsibleSection title="The Pond" icon={Leaf} meta="your daily rituals" padX={pad}>
           <KoiPond calm={calm} isMobile={isMobile} />
         </CollapsibleSection>
@@ -945,7 +946,7 @@ export default function Cur8Home() {
           </div>
         </CollapsibleSection>
 
-        {/* ── WORD MAP ── collapsible */}
+        {/* ���─ WORD MAP ── collapsible */}
         {items.length >= 3 && (
           <CollapsibleSection title="Word map" meta="tap a word to filter across all havens" padX={pad} defaultOpen={false}>
             <WordMap items={items} onFilter={setActiveWord} activeWord={activeWord} />
