@@ -49,7 +49,6 @@ import {
 } from '@/app/actions/cur8'
 import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
-import WordMap from '@/components/cur8/word-map'
 import CategoryReflections from '@/components/cur8/category-reflections'
 import ShareMenu from '@/components/cur8/share-menu'
 import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile, shareToDevice, deviceShareSupported } from '@/lib/cur8-share'
@@ -284,8 +283,9 @@ export default function Cur8Category({ category }: Props) {
   // Desktop "full page" preview — hides both side panels + all chrome so the
   // media fills the whole window (the mobile experience, brought to laptop).
   const [expandedPreview, setExpandedPreview] = useState(false)
-  // Word map filter — tap a word in the compact cloud to narrow visible items
-  const [havenWordFilter, setHavenWordFilter] = useState<string | null>(null)
+  // Active content-type filter (videos / images / documents / sounds) driven by
+  // the tappable mini-stats. null = show everything.
+  const [typeFilter, setTypeFilter] = useState<ContentKind | 'audio' | null>(null)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -507,9 +507,7 @@ export default function Cur8Category({ category }: Props) {
 
   const catItems = allItems.filter((i) => i.category === category)
   const folderItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
-  const visibleItems = havenWordFilter
-    ? folderItems.filter((i) => `${i.title ?? ''} ${i.description ?? ''}`.toLowerCase().includes(havenWordFilter))
-    : folderItems
+  const visibleItems = folderItems
 
   // Auto-sorted lanes
   const videoItems = visibleItems.filter((i) => getContentKind(i) === 'video')
@@ -1594,12 +1592,6 @@ export default function Cur8Category({ category }: Props) {
               </button>
             )}
           </div>
-          {/* Compact word map — keyword filter for this haven */}
-          {catItems.length >= 3 && (
-            <div style={{ padding: '8px 8px 4px' }}>
-              <WordMap items={catItems} onFilter={setHavenWordFilter} activeWord={havenWordFilter} compact />
-            </div>
-          )}
           <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto', padding: 8, minHeight: isMobile ? 'auto' : 0 }}>
             {videoItems.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
@@ -1875,6 +1867,41 @@ export default function Cur8Category({ category }: Props) {
                 </button>
               </div>
             </>
+          ) : videoItems.length > 0 ? (
+            /* ── Idle: video grid so a video-only haven/folder is instantly
+                 playable from the big centre panel (not just the narrow left lane) ── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+              <p style={{ margin: '0 0 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
+                {videoItems.length} {videoItems.length === 1 ? 'video' : 'videos'} · tap to play
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
+                {videoItems.map((item) => {
+                  const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+                  return (
+                    <div
+                      key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
+                      title={item.title}
+                      style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '16 / 10', backgroundColor: tileStyle.accentLight }}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                      ) : (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clapperboard size={26} style={{ color: tileStyle.accent }} /></div>
+                      )}
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Play size={18} color="#fff" style={{ marginLeft: 2 }} />
+                      </div>
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.8) 0%, transparent 55%)' }} />
+                      <p style={{ position: 'absolute', bottom: 6, left: 8, right: 8, fontSize: 11, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           ) : moodImages.length > 0 ? (
             /* ── Idle: rotating moodboard of saved images ── */
             <button

@@ -19,7 +19,27 @@ const STOP = new Set([
   'out','off','up','down','over','under','again','then','once','here',
   'there','s','t','re','ve','ll','d','m','www','com','https','http',
   'watch','video','like','make','get','also','new','one','two','three',
+  // File extensions & MIME-type fragments that leak in from uploaded filenames
+  'mp4','mov','webm','avi','mkv','m4v','3gp','mp3','wav','ogg','m4a','aac',
+  'pdf','doc','docx','xls','xlsx','ppt','pptx','txt','csv','md','jpg','jpeg',
+  'png','gif','webp','avif','heic','heif','svg',
+  'vnd','openxmlformats','officedocument','wordprocessingml','spreadsheetml',
+  'presentationml','application','msword','document','sheet','presentation',
+  'octet','stream','binary','mimetype','x-msvideo','quicktime','matroska',
+  'untitled','copy','final','draft','version','file','files','download','downloads',
 ])
+
+// Strip file-name / MIME noise before tokenising: trailing extensions, blob
+// hash suffixes (name-AbC123.pdf), and slash/dot separated MIME strings.
+function cleanText(raw: string): string {
+  return raw
+    // remove MIME types like application/vnd.openxmlformats-officedocument...
+    .replace(/[a-z]+\/[a-z0-9.\-+]+/gi, ' ')
+    // remove file extensions at word boundaries (.docx .pdf .mp4 etc.)
+    .replace(/\.(mp4|mov|webm|avi|mkv|m4v|3gp|mp3|wav|ogg|m4a|aac|pdf|docx?|xlsx?|pptx?|txt|csv|md|jpe?g|png|gif|webp|avif|heic|heif|svg)\b/gi, ' ')
+    // remove blob hash suffixes: -a1B2c3D4e5 (10+ mixed alnum) appended to names
+    .replace(/-[a-z0-9]{8,}\b/gi, ' ')
+}
 
 interface WordEntry {
   word: string
@@ -34,13 +54,14 @@ const COLORS = ['#c9a84c', '#5a9e84', '#8ec8b4', '#c85a40', '#f5f0e8', '#c9a84c8
 function extractWords(items: Pick<Cur8Item, 'title' | 'description'>[]): WordEntry[] {
   const freq: Record<string, number> = {}
   for (const item of items) {
-    const text = `${item.title ?? ''} ${item.description ?? ''}`
+    const text = cleanText(`${item.title ?? ''} ${item.description ?? ''}`)
     const words = text
       .toLowerCase()
       .replace(/[^a-z0-9\s'-]/g, ' ')
       .split(/\s+/)
       .map((w) => w.replace(/^['-]+|['-]+$/g, ''))
-      .filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w))
+      // require at least one vowel so technical/hash tokens (e.g. "xqz") drop out
+      .filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w) && /[aeiou]/.test(w))
     for (const w of words) {
       freq[w] = (freq[w] ?? 0) + 1
     }
