@@ -7,6 +7,7 @@ interface Props {
   url: string
   filename: string
   accent: string
+  itemId?: string // optional — if provided, triggers background text extraction for AI
 }
 
 type DocKind = 'pdf' | 'word' | 'sheet' | 'text' | 'unsupported'
@@ -46,8 +47,19 @@ function RecoveryBar({ url, filename, accent }: { url: string; filename: string;
   )
 }
 
-export default function DocumentViewer({ url, filename, accent }: Props) {
+export default function DocumentViewer({ url, filename, accent, itemId }: Props) {
   const kind: DocKind = kindFromString(filename) ?? kindFromString(url) ?? 'unsupported'
+
+  // Silently trigger text extraction in the background when a doc is first opened.
+  // The extracted text is stored in the DB and used by the AI to read your documents.
+  useEffect(() => {
+    if (!itemId) return
+    fetch('/api/cur8/extract-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
+    }).catch(() => { /* silent — non-critical */ })
+  }, [itemId])
   const downloadUrl = `${url}${url.includes('?') ? '&' : '?'}download=1`
 
   if (kind === 'pdf') return <PdfViewer url={url} filename={filename} accent={accent} />
@@ -291,7 +303,7 @@ function OfficeViewer({ url, filename, accent, kind }: { url: string; filename: 
   )
 }
 
-// ── Plain text viewer ─────────────────────────────────────────────────────
+// ── Plain text viewer ───────────────────────��─────────────────────────────
 function TextViewer({ url, filename, accent }: { url: string; filename: string; accent: string }) {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)

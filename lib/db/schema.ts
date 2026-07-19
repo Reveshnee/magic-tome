@@ -81,6 +81,7 @@ export const cur8Item = pgTable('cur8_item', {
   favicon: text('favicon'),
   summary: text('summary'), // AI-generated warm summary, cached after first request
   whySaved: text('whySaved'), // future-you context: "why I saved this"
+  fileText: text('fileText'), // extracted plain text from uploaded PDF / Word docs
   savedAt: timestamp('savedAt').notNull().defaultNow(),
   openedAt: timestamp('openedAt'),
 })

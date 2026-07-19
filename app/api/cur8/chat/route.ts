@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   // Build a concise context snapshot of the user's library
   const [items, notes] = await Promise.all([
-    db.select({ title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description })
+    db.select({ title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description, fileText: cur8Item.fileText, url: cur8Item.url })
       .from(cur8Item).where(eq(cur8Item.userId, userId)).orderBy(desc(cur8Item.savedAt)).limit(80),
     db.select({ content: cur8Note.body })
       .from(cur8Note).where(eq(cur8Note.userId, userId)).orderBy(desc(cur8Note.createdAt)).limit(20),
@@ -37,7 +37,16 @@ export async function POST(req: Request) {
 
   const libraryContext = items.length > 0
     ? `Here is a snapshot of everything Reveshnee has saved across her havens (most recent first):\n` +
-      items.map((it) => `[${it.category}] "${it.title}"${it.summary ? ` — ${it.summary}` : it.description ? ` — ${it.description.slice(0, 80)}` : ''}`).join('\n') +
+      items.map((it) => {
+        const base = `[${it.category}] "${it.title}"`
+        // If we have extracted file text, include a meaningful excerpt so the AI can read the actual content
+        if (it.fileText) {
+          return `${base}\n  Document content excerpt: ${it.fileText.slice(0, 600)}`
+        }
+        if (it.summary) return `${base} — ${it.summary}`
+        if (it.description) return `${base} — ${it.description.slice(0, 80)}`
+        return base
+      }).join('\n') +
       (notes.length > 0 ? `\n\nHer recent brain-dump notes:\n${notes.map((n) => `"${n.content.slice(0, 120)}"`).join('\n')}` : '')
     : 'She has not saved anything yet.'
 

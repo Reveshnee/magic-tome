@@ -1012,6 +1012,7 @@ export default function Cur8Category({ category }: Props) {
           url={item.url}
           filename={filenameFromUrl(item.url, item.title)}
           accent={tileStyle.accent}
+          itemId={item.id}
         />
       )
     }
@@ -1026,6 +1027,7 @@ export default function Cur8Category({ category }: Props) {
             url={item.url}
             filename={item.title ?? 'document.pdf'}
             accent={tileStyle.accent}
+            itemId={item.id}
           />
         )
       }
