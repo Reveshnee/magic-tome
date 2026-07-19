@@ -45,18 +45,19 @@ export default function FloatingParticles({ disabled = false }: { disabled?: boo
     window.addEventListener('resize', resize)
 
     function spawnParticle(): Particle {
-      // Tiny, calm motes only — no large leaf shapes (they read as distracting).
-      const type = Math.random() < 0.7 ? 'drop' : 'spark'
-      const maxLife = randBetween(160, 340)
+      // Small motes — drops and sparks, slightly larger/faster than before so
+      // they are visible over the hero image without being distracting.
+      const type = Math.random() < 0.65 ? 'drop' : 'spark'
+      const maxLife = randBetween(140, 300)
       return {
         x: randBetween(0, W),
-        y: randBetween(-40, H * 0.3),
-        vx: randBetween(-0.15, 0.15),
-        vy: randBetween(0.08, 0.28),
-        size: type === 'drop' ? randBetween(1.2, 2.6) : randBetween(1, 2),
+        y: randBetween(-40, H * 0.4),
+        vx: randBetween(-0.2, 0.2),
+        vy: randBetween(0.12, 0.38),
+        size: type === 'drop' ? randBetween(1.8, 3.4) : randBetween(1.4, 2.6),
         opacity: 0,
         rotation: randBetween(0, Math.PI * 2),
-        rotationSpeed: randBetween(-0.006, 0.006),
+        rotationSpeed: randBetween(-0.008, 0.008),
         type,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         life: 0,
@@ -64,8 +65,8 @@ export default function FloatingParticles({ disabled = false }: { disabled?: boo
       }
     }
 
-    // Seed initial particles — few and far between, just gentle ambiance.
-    for (let i = 0; i < 12; i++) {
+    // More particles so the hero feels alive.
+    for (let i = 0; i < 18; i++) {
       const p = spawnParticle()
       p.y = randBetween(0, H)
       p.life = randBetween(0, p.maxLife * 0.6)
@@ -129,7 +130,7 @@ export default function FloatingParticles({ disabled = false }: { disabled?: boo
         // Fade in / out
         const fadeIn = 40
         const fadeOut = 50
-        const peak = 0.22
+        const peak = 0.44
         if (p.life < fadeIn) {
           p.opacity = (p.life / fadeIn) * peak
         } else if (p.life > p.maxLife - fadeOut) {

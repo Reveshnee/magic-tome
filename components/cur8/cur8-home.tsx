@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, Music2, VolumeX,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -308,7 +308,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
   )
 }
 
-// ─── Main hub component ───────────────────────────────────────────────���───────
+// ─── Main hub component ───────────────────────────────────────────────�����───────
 export default function Cur8Home() {
   const router = useRouter()
   const { isMobile, isTablet } = useViewport()
@@ -323,8 +323,10 @@ export default function Cur8Home() {
   const [searchOpen,  setSearchOpen]  = useState(false)
   const [activeWord,  setActiveWord]  = useState<string | null>(null)
   const [leap,        setLeap]        = useState<{ href: string; origin: DOMRect } | null>(null)
-  const [tabScroll,   setTabScroll]   = useState({ left: false, right: false })
-  const tabScrollRef = useRef<HTMLDivElement>(null)
+  const [tabScroll,     setTabScroll]     = useState({ left: false, right: false })
+  const [naturePlaying, setNaturePlaying] = useState(false)
+  const tabScrollRef  = useRef<HTMLDivElement>(null)
+  const natureCtxRef  = useRef<{ ctx: AudioContext; src: AudioBufferSourceNode; gain: GainNode } | null>(null)
 
   const pad    = isTablet ? 32 : 60
   const bentoCols  = isMobile ? '1fr' : '1fr 1fr'
@@ -394,7 +396,71 @@ export default function Cur8Home() {
     setLeap({ href, origin: rect })
   }
 
+  // ── Nature sounds (synthesised rain — no external file needed) ────────────
+  function buildRainAudio(): { ctx: AudioContext; src: AudioBufferSourceNode; gain: GainNode } | null {
+    const AC = (window.AudioContext || (window as unknown as Record<string, unknown>).webkitAudioContext) as typeof AudioContext | undefined
+    if (!AC) return null
+    const ctx = new AC()
+    const sr = ctx.sampleRate
+    const seconds = 5
+    const buf = ctx.createBuffer(1, sr * seconds, sr)
+    const data = buf.getChannelData(0)
+    // Brown-tinted noise (rain body) with a light high-shelf for drop sparkle
+    let last = 0
+    for (let i = 0; i < data.length; i++) {
+      const w = Math.random() * 2 - 1
+      last = (last + 0.015 * w) / 1.015
+      data[i] = last * 3.2
+    }
+    const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 4000; hs.gain.value = 10
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000
+    const gain = ctx.createGain(); gain.gain.value = 0
+    const src = ctx.createBufferSource()
+    src.buffer = buf; src.loop = true
+    src.connect(hs); hs.connect(lp); lp.connect(gain); gain.connect(ctx.destination)
+    src.start()
+    // Fade in gently over ~2s
+    gain.gain.setTargetAtTime(0.30, ctx.currentTime, 0.8)
+    return { ctx, src, gain }
+  }
+
+  function startNature() {
+    if (natureCtxRef.current) return // already running
+    const audio = buildRainAudio()
+    if (!audio) return
+    natureCtxRef.current = audio
+    setNaturePlaying(true)
+  }
+
+  function stopNature() {
+    const a = natureCtxRef.current
+    if (!a) return
+    a.gain.gain.setTargetAtTime(0, a.ctx.currentTime, 0.5)
+    setTimeout(() => { try { a.src.stop(); a.ctx.close() } catch {} }, 1400)
+    natureCtxRef.current = null
+    setNaturePlaying(false)
+  }
+
+  function toggleNature() {
+    if (naturePlaying) { stopNature() } else { startNature() }
+  }
+
+  // Auto-start on first user gesture (browsers require it)
+  useEffect(() => {
+    function onFirstGesture() {
+      startNature()
+      window.removeEventListener('pointerdown', onFirstGesture)
+    }
+    window.addEventListener('pointerdown', onFirstGesture, { passive: true })
+    return () => {
+      window.removeEventListener('pointerdown', onFirstGesture)
+      stopNature()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function handleSignOut() {
+    stopNature()
     await authClient.signOut()
     router.push('/cur8/sign-in')
   }
@@ -418,6 +484,27 @@ export default function Cur8Home() {
           <Image src="/cur8/koi-pond.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
         {/* Layered dark overlay — richer depth */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(6,18,16,0.55) 0%, rgba(6,18,16,0.35) 40%, rgba(6,18,16,0.82) 80%, rgba(10,30,27,1) 100%)' }} />
+
+        {/* Water movement — soft light bands drifting across the pond surface */}
+        {!calm && (
+          <>
+            <motion.div
+              animate={{ x: ['-100%', '130%'] }}
+              transition={{ repeat: Infinity, duration: 15, ease: 'linear', delay: 0 }}
+              style={{ position: 'absolute', top: '36%', left: 0, width: '38%', height: 2, background: 'linear-gradient(to right, transparent, rgba(160,230,210,0.22), transparent)', pointerEvents: 'none', zIndex: 1 }}
+            />
+            <motion.div
+              animate={{ x: ['-100%', '130%'] }}
+              transition={{ repeat: Infinity, duration: 21, ease: 'linear', delay: 5 }}
+              style={{ position: 'absolute', top: '50%', left: 0, width: '26%', height: 1.5, background: 'linear-gradient(to right, transparent, rgba(140,210,200,0.17), transparent)', pointerEvents: 'none', zIndex: 1 }}
+            />
+            <motion.div
+              animate={{ x: ['130%', '-100%'] }}
+              transition={{ repeat: Infinity, duration: 25, ease: 'linear', delay: 2 }}
+              style={{ position: 'absolute', top: '60%', left: 0, width: '30%', height: 1, background: 'linear-gradient(to right, transparent, rgba(180,240,220,0.14), transparent)', pointerEvents: 'none', zIndex: 1 }}
+            />
+          </>
+        )}
 
         {/* ── NAV BAR ── */}
         <header style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '18px 20px' : '20px 36px' }}>
@@ -447,6 +534,17 @@ export default function Cur8Home() {
             >
               <Wind size={13} />
               {!isMobile && (calm ? 'Calm on' : 'Calm')}
+            </button>
+
+            {/* Nature sounds toggle */}
+            <button
+              onClick={toggleNature}
+              aria-pressed={naturePlaying}
+              title={naturePlaying ? 'Turn off nature sounds' : 'Turn on nature sounds (soft rain)'}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: naturePlaying ? BG : SAGE, background: naturePlaying ? SAGE : 'rgba(90,158,132,0.12)', border: `1px solid ${naturePlaying ? SAGE : 'rgba(90,158,132,0.35)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', transition: 'all 0.2s' }}
+            >
+              {naturePlaying ? <Music2 size={13} /> : <VolumeX size={13} />}
+              {!isMobile && (naturePlaying ? 'Sounds on' : 'Nature sounds')}
             </button>
 
             <Link

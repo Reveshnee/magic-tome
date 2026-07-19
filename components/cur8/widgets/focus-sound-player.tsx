@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Headphones, Play, Pause, Volume2, VolumeX, X, Waves, Radio, Zap, Wind, CloudRain, Droplets } from 'lucide-react'
+import { Headphones, Play, Pause, Volume2, VolumeX, X, Waves, Radio, Zap, Wind, CloudRain, Droplets, TreePine } from 'lucide-react'
 
-type SoundId = 'brown' | 'pink' | 'white' | 'green' | 'binaural' | 'gamma'
+type SoundId = 'rain' | 'ocean' | 'forest' | 'stream' | 'binaural18' | 'binaural40' | 'brown'
 
 interface SoundDef {
   id: SoundId
@@ -16,19 +16,20 @@ interface SoundDef {
 }
 
 const SOUNDS: SoundDef[] = [
-  { id: 'brown', label: 'Brown noise', hint: 'Deep, calming rumble', icon: Wind, color: '#c85a40' },
-  { id: 'green', label: 'Green noise', hint: 'Like a calm river', icon: Droplets, color: '#5a9e84' },
-  { id: 'pink', label: 'Pink noise', hint: 'Soft, balanced static', icon: CloudRain, color: '#c97a7a' },
-  { id: 'white', label: 'White noise', hint: 'Bright, masks noise', icon: Waves, color: '#8ec8b4' },
-  { id: 'binaural', label: 'Binaural 10Hz', hint: 'Alpha calm · headphones', icon: Radio, color: '#c9a84c' },
-  { id: 'gamma', label: '40Hz gamma', hint: 'Focus · headphones', icon: Zap, color: '#c9a84c' },
+  { id: 'rain',       label: 'Rain',           hint: 'Soft steady rainfall',          icon: CloudRain, color: '#6bb7dd' },
+  { id: 'ocean',      label: 'Ocean',          hint: 'Gentle waves on shore',         icon: Waves,     color: '#5a9e84' },
+  { id: 'forest',     label: 'Forest',         hint: 'Wind through leaves',           icon: TreePine,  color: '#7ab87a' },
+  { id: 'stream',     label: 'Stream',         hint: 'Babbling brook',                icon: Droplets,  color: '#8ec8b4' },
+  { id: 'binaural18', label: '18Hz beta',      hint: 'Focus beat · headphones',      icon: Radio,     color: '#c9a84c' },
+  { id: 'binaural40', label: '40Hz gamma',     hint: 'Clarity beat · headphones',    icon: Zap,       color: '#e6a94f' },
+  { id: 'brown',      label: 'Brown noise',    hint: 'Deep calming rumble',           icon: Wind,      color: '#c85a40' },
 ]
 
 export default function FocusSoundPlayer() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [playing, setPlaying] = useState(false)
-  const [active, setActive] = useState<SoundId>('brown')
+  const [active, setActive] = useState<SoundId>('rain')
   const [volume, setVolume] = useState(0.5)
 
   // Allow other components (e.g. HomeQuickActions) to open the panel via a custom event
@@ -57,38 +58,72 @@ export default function FocusSoundPlayer() {
     return ctxRef.current
   }
 
-  // Build a looping noise buffer of the given type
+  // Build a looping noise buffer shaped for each nature sound
   function makeNoiseBuffer(ctx: AudioContext, type: SoundId): AudioBuffer {
-    const seconds = 3
+    const seconds = 5
     const length = ctx.sampleRate * seconds
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
-    const data = buffer.getChannelData(0)
+    const channels = (type === 'ocean' || type === 'forest') ? 2 : 1
+    const buffer = ctx.createBuffer(channels, length, ctx.sampleRate)
 
-    if (type === 'white' || type === 'green') {
-      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
-    } else if (type === 'pink') {
-      // Paul Kellet's pink noise filter
-      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0
-      for (let i = 0; i < length; i++) {
-        const w = Math.random() * 2 - 1
-        b0 = 0.99886 * b0 + w * 0.0555179
-        b1 = 0.99332 * b1 + w * 0.0750759
-        b2 = 0.969 * b2 + w * 0.153852
-        b3 = 0.8665 * b3 + w * 0.3104856
-        b4 = 0.55 * b4 + w * 0.5329522
-        b5 = -0.7616 * b5 - w * 0.016898
-        data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11
-        b6 = w * 0.115926
-      }
-    } else if (type === 'brown') {
-      let last = 0
-      for (let i = 0; i < length; i++) {
-        const w = Math.random() * 2 - 1
-        last = (last + 0.02 * w) / 1.02
-        data[i] = last * 3.5
+    for (let ch = 0; ch < channels; ch++) {
+      const data = buffer.getChannelData(ch)
+      if (type === 'rain' || type === 'stream') {
+        for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+      } else if (type === 'ocean') {
+        let last = 0
+        for (let i = 0; i < length; i++) {
+          const w = Math.random() * 2 - 1
+          last = (last + 0.018 * w) / 1.018
+          data[i] = (last + (ch === 1 ? Math.sin(i * 0.0003) * 0.04 : 0)) * 3.8
+        }
+      } else if (type === 'forest') {
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0
+        for (let i = 0; i < length; i++) {
+          const w = Math.random() * 2 - 1
+          b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759
+          b2 = 0.969 * b2 + w * 0.153852;    b3 = 0.8665 * b3 + w * 0.3104856
+          b4 = 0.55 * b4 + w * 0.5329522;    b5 = -0.7616 * b5 - w * 0.016898
+          data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11
+          b6 = w * 0.115926
+        }
+      } else if (type === 'brown') {
+        let last = 0
+        for (let i = 0; i < length; i++) {
+          const w = Math.random() * 2 - 1
+          last = (last + 0.02 * w) / 1.02
+          data[i] = last * 3.5
+        }
       }
     }
     return buffer
+  }
+
+  // Build filter chain that shapes noise into each nature texture
+  function buildFilters(ctx: AudioContext, type: SoundId): BiquadFilterNode[] {
+    if (type === 'rain') {
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.6
+      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 8000; hs.gain.value = -5
+      return [bp, hs]
+    }
+    if (type === 'ocean') {
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.4
+      return [lp]
+    }
+    if (type === 'forest') {
+      const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 1800; peak.gain.value = 4; peak.Q.value = 1.2
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5500
+      return [peak, lp]
+    }
+    if (type === 'stream') {
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = 0.5
+      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 4500; hs.gain.value = 3
+      return [bp, hs]
+    }
+    if (type === 'brown') {
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 800
+      return [lp]
+    }
+    return []
   }
 
   // Tear down all currently playing nodes
@@ -109,47 +144,30 @@ export default function FocusSoundPlayer() {
     if (ctx.state === 'suspended') ctx.resume()
     stopNodes()
 
-    if (id === 'binaural' || id === 'gamma') {
-      // Two detuned oscillators panned hard L/R create the beat
+    if (id === 'binaural18' || id === 'binaural40') {
       const carrier = 200
-      const beat = id === 'gamma' ? 40 : 10
-      const oscL = ctx.createOscillator()
-      const oscR = ctx.createOscillator()
-      oscL.type = 'sine'
-      oscR.type = 'sine'
-      oscL.frequency.value = carrier
-      oscR.frequency.value = carrier + beat
-      const panL = ctx.createStereoPanner()
-      const panR = ctx.createStereoPanner()
-      panL.pan.value = -1
-      panR.pan.value = 1
-      const toneGain = ctx.createGain()
-      toneGain.gain.value = 0.35 // tones feel louder than noise, keep lower
+      const beat = id === 'binaural40' ? 40 : 18
+      const oscL = ctx.createOscillator(); oscL.type = 'sine'; oscL.frequency.value = carrier
+      const oscR = ctx.createOscillator(); oscR.type = 'sine'; oscR.frequency.value = carrier + beat
+      const panL = ctx.createStereoPanner(); panL.pan.value = -1
+      const panR = ctx.createStereoPanner(); panR.pan.value = 1
+      const toneGain = ctx.createGain(); toneGain.gain.value = 0.32
       oscL.connect(panL).connect(toneGain)
       oscR.connect(panR).connect(toneGain)
       toneGain.connect(masterRef.current)
-      oscL.start()
-      oscR.start()
+      oscL.start(); oscR.start()
       nodesRef.current = [oscL, oscR, panL, panR, toneGain]
     } else {
       const src = ctx.createBufferSource()
       src.buffer = makeNoiseBuffer(ctx, id)
       src.loop = true
+      const filters = buildFilters(ctx, id)
       let tail: AudioNode = src
-      if (id === 'green') {
-        // Bandpass white noise around 500Hz for the "green" river feel
-        const bp = ctx.createBiquadFilter()
-        bp.type = 'bandpass'
-        bp.frequency.value = 500
-        bp.Q.value = 0.8
-        src.connect(bp)
-        tail = bp
-        nodesRef.current = [src, bp]
-      } else {
-        nodesRef.current = [src]
-      }
+      const all: AudioNode[] = [src]
+      filters.forEach((f) => { tail.connect(f); tail = f; all.push(f) })
       tail.connect(masterRef.current)
       src.start()
+      nodesRef.current = all
     }
   }, [stopNodes, volume])
 
