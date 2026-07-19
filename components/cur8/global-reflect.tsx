@@ -8,6 +8,22 @@ import { useDictation } from '@/hooks/use-speech'
 import { getReflections, createReflection, deleteReflection, type ReflectionDTO } from '@/app/actions/cur8'
 import { getSettings, type Cur8Settings } from '@/app/actions/notes'
 
+// Clean inline SVG — a side-profile head with a small mirror held up, in gold.
+// Using SVG avoids all PNG transparency / filter issues across browsers.
+function ReflectIcon({ size = 20, color = ACCENT }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden xmlns="http://www.w3.org/2000/svg">
+      {/* Head silhouette */}
+      <circle cx="9" cy="7.5" r="3.5" stroke={color} strokeWidth="1.6" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      {/* Mirror — small rectangle held up on the right */}
+      <rect x="15.5" y="5" width="5" height="7" rx="1" stroke={color} strokeWidth="1.5" />
+      {/* Mirror reflection sparkle */}
+      <line x1="17" y1="7" x2="19.5" y2="10" stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+    </svg>
+  )
+}
+
 const HOME_CATEGORY = 'General'
 const ACCENT = '#c9a84c'
 
@@ -116,8 +132,7 @@ export default function GlobalReflect() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cur8/reflect-icon.png" alt="" width={22} height={22} style={{ objectFit: 'contain', opacity: 0.9 }} />
+          <ReflectIcon size={20} />
         </motion.button>
       )}
 
@@ -146,8 +161,7 @@ export default function GlobalReflect() {
               {/* Header */}
               <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '18px 18px 14px', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${ACCENT}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/cur8/reflect-icon.png" alt="" width={18} height={18} style={{ objectFit: 'contain' }} />
+                  <ReflectIcon size={16} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>Reflections</h3>
@@ -161,8 +175,7 @@ export default function GlobalReflect() {
               <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {/* Prompt hint */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: `${ACCENT}11`, border: `1px solid ${ACCENT}22` }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/cur8/reflect-icon.png" alt="" width={14} height={14} style={{ objectFit: 'contain', flexShrink: 0 }} />
+                  <ReflectIcon size={13} />
                   <span style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.7)', fontStyle: 'italic' }}>{prompt}</span>
                 </div>
 
