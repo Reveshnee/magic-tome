@@ -405,6 +405,8 @@ export default function Cur8Home() {
 
   // ── Hero pond tap — ripple visual + one-shot 5s water sound ───────────────
   function playHeroTap(e: React.PointerEvent<HTMLDivElement>) {
+    // Don't intercept clicks on nav buttons, links, or any interactive element
+    if ((e.target as HTMLElement).closest('button, a, input, [role="button"]')) return
     // Ripple at tap position
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
     const x = e.clientX - rect.left
