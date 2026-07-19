@@ -8,7 +8,7 @@ import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
-  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, Pin,
+  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pin,
   Mail, MessageCircle, Download, Share2,
 } from 'lucide-react'
 import {
@@ -299,6 +299,9 @@ export default function Cur8Category({ category }: Props) {
   // Active content-type filter (videos / images / documents / sounds) driven by
   // the tappable mini-stats. null = show everything.
   const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
+  // Collapsible "overview" rows (stats cards + type pills + recently opened).
+  // Hiding them hands the video/docs board much more room without scrolling.
+  const [overviewOpen, setOverviewOpen] = useState(true)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -1345,14 +1348,15 @@ export default function Cur8Category({ category }: Props) {
     <div
       style={{
         display: 'flex', flexDirection: 'column',
-        // mediaFocus on mobile: lock to 100vh so the video iframe has a real height to fill.
-        // Normal mobile: auto-height so the page scrolls naturally.
-        // Desktop: always locked to viewport height for the 3-panel layout.
-        height: (isMobile && !mediaFocus) ? 'auto' : '100vh',
+        // mediaFocus: lock to 100vh so the video iframe has a real height to fill.
+        // Otherwise (desktop AND mobile): auto-height so the WHOLE page scrolls
+        // naturally — the video/docs board is no longer trapped in a tiny strip.
+        height: mediaFocus ? '100vh' : 'auto',
         minHeight: '100vh',
         backgroundColor: '#0d2420', color: '#f5f0e8',
         fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif',
-        overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden',
+        overflowY: mediaFocus ? 'hidden' : 'auto',
+        overflowX: 'hidden',
         position: 'relative',
       }}
     >
@@ -1463,14 +1467,22 @@ export default function Cur8Category({ category }: Props) {
           </button>
           {/* Spacer — desktop only; on mobile the row wraps so no spacer needed */}
           <div style={{ flex: 1, display: isMobile ? 'none' : 'block' }} />
+          {/* Collapse the overview rows to hand the board more room */}
+          <button
+            onClick={() => setOverviewOpen((o) => !o)}
+            title={overviewOpen ? 'Hide the overview and see more of your board' : 'Show the overview'}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: 50, fontSize: 10.5, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: isMobile ? 'auto' : 0 }}
+          >
+            {overviewOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {overviewOpen ? 'Hide overview' : 'Show overview'}
+          </button>
           {/* Quick count chip */}
-          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap', marginLeft: isMobile ? 'auto' : 0 }}>{catItems.length} saved</span>
+          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap' }}>{catItems.length} saved</span>
         </div>
       )}
 
-      {/* ── Stats bar ── */}
-      {!mediaFocus && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
-      {!mediaFocus && (
+      {/* ── Stats bar (part of the collapsible overview) ── */}
+      {!mediaFocus && overviewOpen && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
+      {!mediaFocus && overviewOpen && (
         <HavenTypeStats
           items={folderItems}
           counts={typeCounts}
@@ -1600,8 +1612,20 @@ export default function Cur8Category({ category }: Props) {
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
-      {/* paddingTop clears the fixed mediaFocus overlay bar (~56px) on mobile */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0, position: 'relative', paddingTop: mediaFocus ? 56 : 0 }}>
+      {/* paddingTop clears the fixed mediaFocus overlay bar (~56px) on mobile.
+          Desktop: a tall, fixed board height (near-full viewport) so the video
+          and docs columns are roomy — the page itself scrolls to reach it, and
+          the top overview can be collapsed for even more room. */}
+      <div style={{
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden',
+        position: 'relative', paddingTop: mediaFocus ? 56 : 0,
+        ...(mediaFocus
+          ? { flex: 1, minHeight: 0 }
+          : isMobile
+            ? { minHeight: 'auto' }
+            : { height: 'calc(100vh - 44px)', minHeight: 460 }),
+      }}>
 
         {/* ── Panel 1: Videos lane ── */}
         {/* Desktop: collapsible. Mobile: tab-switched. */}
