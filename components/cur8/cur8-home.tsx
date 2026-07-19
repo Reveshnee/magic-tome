@@ -236,8 +236,12 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
         </AnimatePresence>
 
         {/* Orbs overlay (not clipped, so the fish can leap past the edge) */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: isMobile ? '10px 14px' : '12px 22px', width: '100%', maxWidth: isMobile ? 260 : 320 }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', gap: isMobile ? 10 : 16 }}>
+          {/* "Tap a ritual" — rotated label to the left of the orb grid */}
+          <p style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', margin: 0, fontSize: 8.5, color: 'rgba(230,245,248,0.65)', letterSpacing: '0.16em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.6)', flexShrink: 0, userSelect: 'none' }}>
+            tap a ritual to begin
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: isMobile ? '10px 14px' : '12px 22px', width: '100%', maxWidth: isMobile ? 240 : 300 }}>
             {POND_ITEMS.map((item, i) => {
               const Icon = item.icon
               const isActive = active === item.id
@@ -280,9 +284,6 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
               )
             })}
           </div>
-          <p style={{ textAlign: 'center', margin: '14px 0 0', fontSize: 9.5, color: 'rgba(230,245,248,0.7)', letterSpacing: '0.16em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
-            tap a ritual to begin
-          </p>
         </div>
       </div>
 
@@ -405,26 +406,69 @@ export default function Cur8Home() {
     if (!AC) return null
     const ctx = new AC()
     const sr = ctx.sampleRate
-    const seconds = 5
-    const buf = ctx.createBuffer(1, sr * seconds, sr)
-    const data = buf.getChannelData(0)
-    // Brown-tinted noise (rain body) with a light high-shelf for drop sparkle
+    const masterGain = ctx.createGain(); masterGain.gain.value = 0
+    masterGain.connect(ctx.destination)
+
+    // ── Pond ambient — very quiet brown rumble underneath ──
+    const ambientBuf = ctx.createBuffer(1, sr * 4, sr)
+    const ambData = ambientBuf.getChannelData(0)
     let last = 0
-    for (let i = 0; i < data.length; i++) {
-      const w = Math.random() * 2 - 1
-      last = (last + 0.015 * w) / 1.015
-      data[i] = last * 3.2
+    for (let i = 0; i < ambData.length; i++) {
+      const w = Math.random() * 2 - 1; last = (last + 0.01 * w) / 1.01; ambData[i] = last * 1.2
     }
-    const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 4000; hs.gain.value = 10
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000
-    const gain = ctx.createGain(); gain.gain.value = 0
-    const src = ctx.createBufferSource()
-    src.buffer = buf; src.loop = true
-    src.connect(hs); hs.connect(lp); lp.connect(gain); gain.connect(ctx.destination)
-    src.start()
-    // Fade in gently over ~2s
-    gain.gain.setTargetAtTime(0.30, ctx.currentTime, 0.8)
-    return { ctx, src, gain }
+    const ambSrc = ctx.createBufferSource(); ambSrc.buffer = ambientBuf; ambSrc.loop = true
+    const ambLp = ctx.createBiquadFilter(); ambLp.type = 'lowpass'; ambLp.frequency.value = 320
+    const ambGain = ctx.createGain(); ambGain.gain.value = 0.08
+    ambSrc.connect(ambLp); ambLp.connect(ambGain); ambGain.connect(masterGain)
+    ambSrc.start()
+
+    // ── Water drop impulse generator ──
+    // Each drop: short white-noise burst through a resonant bandpass (sounds like "plink")
+    function scheduleDrop(when: number, freq: number, vol: number) {
+      const dropBuf = ctx.createBuffer(1, Math.floor(sr * 0.06), sr)
+      const d = dropBuf.getChannelData(0)
+      for (let i = 0; i < d.length; i++) {
+        // Exponential decay envelope * noise
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sr * 0.012))
+      }
+      const dropSrc = ctx.createBufferSource(); dropSrc.buffer = dropBuf
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 18
+      const tail = ctx.createBiquadFilter(); tail.type = 'peaking'; tail.frequency.value = freq * 0.7; tail.gain.value = 6; tail.Q.value = 8
+      const g = ctx.createGain(); g.gain.value = vol
+      dropSrc.connect(bp); bp.connect(tail); tail.connect(g); g.connect(masterGain)
+      dropSrc.start(when)
+    }
+
+    // Schedule drops for ~30s then reschedule via recursion on an interval
+    function scheduleDrops(startTime: number, duration: number) {
+      let t = startTime
+      while (t < startTime + duration) {
+        // Random gap between drops: 0.4s–2.8s (feels like sparse pond drips)
+        const gap = 0.4 + Math.random() * 2.4
+        t += gap
+        const freq = 800 + Math.random() * 1400   // 800–2200 Hz plonk
+        const vol = 0.18 + Math.random() * 0.28
+        scheduleDrop(t, freq, vol)
+        // Occasional second smaller ripple drop ~80ms after
+        if (Math.random() < 0.3) scheduleDrop(t + 0.06 + Math.random() * 0.1, freq * 0.8, vol * 0.4)
+      }
+    }
+
+    // Schedule in rolling 30s windows
+    scheduleDrops(ctx.currentTime + 0.3, 30)
+    const intervalId = setInterval(() => {
+      if (ctx.state === 'closed') { clearInterval(intervalId); return }
+      scheduleDrops(ctx.currentTime + 28, 30)
+    }, 26000)
+
+    // Fake "src" ref so stopNature can call src.stop() — we just return the ambSrc
+    const gain = masterGain
+    masterGain.gain.setTargetAtTime(0.28, ctx.currentTime, 1.0)
+
+    // Store interval so we can clear it on stop
+    ;(ctx as unknown as Record<string, unknown>).__dropInterval = intervalId
+
+    return { ctx, src: ambSrc, gain }
   }
 
   function startNature() {
@@ -438,6 +482,9 @@ export default function Cur8Home() {
   function stopNature() {
     const a = natureCtxRef.current
     if (!a) return
+    // Clear scheduled drop interval if present
+    const id = (a.ctx as unknown as Record<string, unknown>).__dropInterval
+    if (id) clearInterval(id as ReturnType<typeof setInterval>)
     a.gain.gain.setTargetAtTime(0, a.ctx.currentTime, 0.5)
     setTimeout(() => { try { a.src.stop(); a.ctx.close() } catch {} }, 1400)
     natureCtxRef.current = null

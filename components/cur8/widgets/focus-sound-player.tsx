@@ -60,32 +60,49 @@ export default function FocusSoundPlayer() {
 
   // Build a looping noise buffer shaped for each nature sound
   function makeNoiseBuffer(ctx: AudioContext, type: SoundId): AudioBuffer {
-    const seconds = 5
+    const seconds = type === 'ocean' ? 12 : 6   // ocean needs longer loop for wave cycle
     const length = ctx.sampleRate * seconds
     const channels = (type === 'ocean' || type === 'forest') ? 2 : 1
     const buffer = ctx.createBuffer(channels, length, ctx.sampleRate)
+    const sr = ctx.sampleRate
 
     for (let ch = 0; ch < channels; ch++) {
       const data = buffer.getChannelData(ch)
-      if (type === 'rain' || type === 'stream') {
+
+      if (type === 'rain') {
+        // White noise base — the hiss of rain on a surface
         for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+
       } else if (type === 'ocean') {
+        // Brown noise base with a slow LFO swell — each "wave" takes ~4-6s
         let last = 0
+        const waveHz = 0.18  // ~one wave every 5.5s
         for (let i = 0; i < length; i++) {
           const w = Math.random() * 2 - 1
-          last = (last + 0.018 * w) / 1.018
-          data[i] = (last + (ch === 1 ? Math.sin(i * 0.0003) * 0.04 : 0)) * 3.8
+          last = (last + 0.022 * w) / 1.022
+          // LFO modulates amplitude: quiet trough → loud crash → quiet
+          const lfo = 0.3 + 0.7 * Math.max(0, Math.sin((i / sr) * 2 * Math.PI * waveHz))
+          data[i] = last * 4.2 * lfo * (ch === 1 ? 0.92 + Math.sin(i * 0.00007) * 0.08 : 1)
         }
+
       } else if (type === 'forest') {
+        // Pink noise body (wind in trees)
         let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0
         for (let i = 0; i < length; i++) {
           const w = Math.random() * 2 - 1
           b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759
-          b2 = 0.969 * b2 + w * 0.153852;    b3 = 0.8665 * b3 + w * 0.3104856
-          b4 = 0.55 * b4 + w * 0.5329522;    b5 = -0.7616 * b5 - w * 0.016898
+          b2 = 0.969   * b2 + w * 0.153852;  b3 = 0.8665  * b3 + w * 0.3104856
+          b4 = 0.55    * b4 + w * 0.5329522; b5 = -0.7616  * b5 - w * 0.016898
           data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11
           b6 = w * 0.115926
         }
+
+      } else if (type === 'stream') {
+        // White noise with gentle undulation
+        for (let i = 0; i < length; i++) {
+          data[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i * 0.00018))
+        }
+
       } else if (type === 'brown') {
         let last = 0
         for (let i = 0; i < length; i++) {
@@ -98,36 +115,69 @@ export default function FocusSoundPlayer() {
     return buffer
   }
 
-  // Build filter chain that shapes noise into each nature texture
+  // Build filter chain + extra oscillator nodes for insects (forest only)
+  // Returns [filterNodes] — insect oscillators are scheduled separately via scheduleInsects()
   function buildFilters(ctx: AudioContext, type: SoundId): BiquadFilterNode[] {
     if (type === 'rain') {
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.6
-      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 8000; hs.gain.value = -5
-      return [bp, hs]
+      // High bandpass + slight high-shelf cut: makes it sound like drops hitting a surface not just hiss
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800; hp.Q.value = 0.5
+      const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 4500; peak.gain.value = 7; peak.Q.value = 0.8
+      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 9000; hs.gain.value = -8
+      return [hp, peak, hs]
     }
     if (type === 'ocean') {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200; lp.Q.value = 0.4
-      return [lp]
+      // Low-pass keeps rumble; slight boost at 200Hz for the deep crash thud
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.5
+      const boom = ctx.createBiquadFilter(); boom.type = 'peaking'; boom.frequency.value = 180; boom.gain.value = 8; boom.Q.value = 1.2
+      return [lp, boom]
     }
     if (type === 'forest') {
-      const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 1800; peak.gain.value = 4; peak.Q.value = 1.2
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5500
+      // Mid-range peak for rustling leaves
+      const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2200; peak.gain.value = 5; peak.Q.value = 1.0
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6000
       return [peak, lp]
     }
     if (type === 'stream') {
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1600; bp.Q.value = 0.5
-      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 4500; hs.gain.value = 3
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.4
+      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 5000; hs.gain.value = 5
       return [bp, hs]
     }
     if (type === 'brown') {
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 800
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700
       return [lp]
     }
     return []
   }
 
+  // Schedule cricket/insect chirps for the forest sound — random short bursts of high oscillators
+  function scheduleInsects(ctx: AudioContext, dest: AudioNode, duration: number): OscillatorNode[] {
+    const oscs: OscillatorNode[] = []
+    let t = ctx.currentTime + 0.5
+    while (t < ctx.currentTime + duration) {
+      const gap = 0.3 + Math.random() * 1.8
+      t += gap
+      const freq = 3800 + Math.random() * 2800   // 3.8–6.6kHz crickets
+      const dur  = 0.04 + Math.random() * 0.12
+      const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq
+      const env = ctx.createGain(); env.gain.value = 0
+      osc.connect(env); env.connect(dest)
+      osc.start(t)
+      env.gain.setValueAtTime(0, t)
+      env.gain.linearRampToValueAtTime(0.06 + Math.random() * 0.06, t + 0.012)
+      env.gain.setTargetAtTime(0, t + dur * 0.6, 0.02)
+      osc.stop(t + dur + 0.08)
+      oscs.push(osc)
+    }
+    return oscs
+  }
+
   // Tear down all currently playing nodes
   const stopNodes = useCallback(() => {
+    // Clear insect interval if forest was playing
+    if (ctxRef.current) {
+      const id = (ctxRef.current as unknown as Record<string,unknown>).__insectInterval
+      if (id) { clearInterval(id as ReturnType<typeof setInterval>); delete (ctxRef.current as unknown as Record<string,unknown>).__insectInterval }
+    }
     nodesRef.current.forEach((n) => {
       try {
         if ('stop' in n && typeof (n as OscillatorNode).stop === 'function') (n as OscillatorNode).stop()
@@ -167,6 +217,18 @@ export default function FocusSoundPlayer() {
       filters.forEach((f) => { tail.connect(f); tail = f; all.push(f) })
       tail.connect(masterRef.current)
       src.start()
+      // Forest: add insect chirps on top (schedule 60s, rolling)
+      if (id === 'forest') {
+        const insects = scheduleInsects(ctx, masterRef.current, 60)
+        all.push(...insects)
+        // Re-schedule every 55s
+        const insectInterval = setInterval(() => {
+          if (ctx.state === 'closed') { clearInterval(insectInterval); return }
+          const more = scheduleInsects(ctx, masterRef.current!, 60)
+          nodesRef.current.push(...more)
+        }, 55000)
+        ;(ctx as unknown as Record<string,unknown>).__insectInterval = insectInterval
+      }
       nodesRef.current = all
     }
   }, [stopNodes, volume])
