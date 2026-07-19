@@ -224,9 +224,17 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
           {fish && !calm && (
             <motion.div
               key={`fish-${fish.id}`}
-              initial={{ y: pondH * 0.48, opacity: 0, scale: 0.6, rotate: -22 }}
-              animate={{ y: [pondH * 0.48, -44, pondH + 28], opacity: [0, 1, 1, 0], scale: [0.6, 1, 0.82], rotate: [-22, 6, 192] }}
-              transition={{ duration: 0.66, ease: [0.4, 0, 0.5, 1], times: [0, 0.44, 1], opacity: { duration: 0.66, times: [0, 0.12, 0.72, 1] } }}
+              initial={{ y: pondH * 0.52, opacity: 0, scale: 0.5, rotate: 0 }}
+              animate={{
+                y:       [pondH * 0.52, -52, pondH + 20],
+                opacity: [0, 1, 1, 0],
+                scale:   [0.5, 1.05, 0.85],
+                // 0° = nose straight up out of water
+                // lean slightly right at peak, then arc forward on descent (nose leading, tail behind)
+                // never go past ~70° so tail stays below nose throughout
+                rotate:  [0, 14, 62],
+              }}
+              transition={{ duration: 0.68, ease: [0.35, 0, 0.45, 1], times: [0, 0.42, 1], opacity: { duration: 0.68, times: [0, 0.1, 0.72, 1] } }}
               transformTemplate={(_, generated) => `translateX(-50%) ${generated}`}
               style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
             >
