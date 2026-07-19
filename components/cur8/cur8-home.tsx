@@ -184,13 +184,13 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
     const orbRect = buttonEl.getBoundingClientRect()
     const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : orbRect.width / 2
     setFish({ id: item.id, color: item.color, x })
-    setTimeout(() => { setFish(null); setActive(item.id) }, 1100)
+    setTimeout(() => { setFish(null); setActive(item.id) }, 1000)
   }
 
   return (
     <div>
       {/* Pond — realistic water surface with floating orbs */}
-      <div ref={pondRef} style={{ position: 'relative', width: '100%', height: pondH }}>
+      <div ref={pondRef} style={{ position: 'relative', width: '100%', height: pondH, overflow: 'visible' }}>
         {/* Clipped water image */}
         <div style={{ position: 'absolute', inset: 0, borderRadius: 24, overflow: 'hidden', border: `1px solid rgba(111,195,162,0.18)`, boxShadow: 'inset 0 2px 30px rgba(0,0,0,0.35), 0 6px 24px rgba(0,0,0,0.35)' }}>
           <Image src="/cur8/pond-surface.jpg" alt="" fill priority style={{ objectFit: 'cover' }} sizes="900px" />
@@ -224,21 +224,21 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
           {fish && !calm && (
             <motion.div
               key={`fish-${fish.id}`}
-              // Parabolic arc: 8 keyframes along a true curve
-              // x drifts slightly right so the path feels natural, not vertical
-              // y follows a smooth parabola — rises quickly, hangs at peak, falls
+              // Arc: bursts UP out of the pond, curves over, dives DOWN into the widget below
+              // y starts mid-pond, rises above it (negative), then falls through pondH into widget
+              // x curves sideways for a natural arc shape
               animate={{
-                x:       [0, 10, 22, 34, 40, 36, 22, 0],
-                y:       [pondH * 0.52, pondH * 0.1, -80, -140, -155, -100, -20, pondH * 0.6],
-                opacity: [0, 1,   1,   1,    1,    1,   1,   0],
-                scale:   [0.6, 0.85, 1.0, 1.1, 1.12, 1.05, 0.95, 0.85],
-                rotate:  [0,   0,   2,   5,   10,   22,  42,   65],
+                x:       [0,  18,  38,  52,  58,  52,  36,  14],
+                y:       [pondH * 0.5, pondH * 0.05, -60, -120, -140, -80, pondH * 0.4, pondH + 90],
+                opacity: [0,   1,   1,   1,    1,   1,    1,   0],
+                scale:   [0.6, 0.9, 1.05, 1.12, 1.12, 1.05, 0.95, 0.8],
+                rotate:  [0,   0,   5,   12,   22,   42,   68,  90],
               }}
               transition={{
-                duration: 1.3,
+                duration: 1.25,
                 ease: 'linear',
-                times: [0, 0.1, 0.22, 0.35, 0.44, 0.58, 0.74, 1],
-                opacity: { duration: 1.3, ease: 'linear', times: [0, 0.08, 0.15, 0.35, 0.44, 0.58, 0.8, 1] },
+                times: [0, 0.1, 0.22, 0.35, 0.44, 0.6, 0.78, 1],
+                opacity: { duration: 1.25, ease: 'linear', times: [0, 0.08, 0.15, 0.35, 0.44, 0.65, 0.88, 1] },
               }}
               transformTemplate={(_, generated) => `translateX(-50%) scaleY(-1) ${generated}`}
               style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
