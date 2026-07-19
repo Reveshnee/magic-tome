@@ -186,6 +186,9 @@ function getContentKind(item: { url: string }): ContentKind {
 // Finer classification used only for the tappable mini-stats + type filter.
 // Splits audio ("sounds") out from video, which getContentKind lumps together.
 type StatKind = 'video' | 'image' | 'sound' | 'doc'
+
+// Human-friendly singular labels for the type-filter grid header.
+const TYPE_LABEL: Record<StatKind, string> = { video: 'video', image: 'image', sound: 'sound', doc: 'document' }
 function getStatKind(item: { url: string }): StatKind {
   const t = getPreviewType(item.url)
   if (t === 'audio') return 'sound'
@@ -1487,7 +1490,14 @@ export default function Cur8Category({ category }: Props) {
           items={folderItems}
           counts={typeCounts}
           activeType={typeFilter}
-          onSelectType={setTypeFilter}
+          onSelectType={(t) => {
+            // Toggle the filter, and surface the matching items in the big centre
+            // panel: clear any open preview and focus the centre (grid) view.
+            setTypeFilter(t)
+            setSelectedItem(null)
+            setMiddleView('preview')
+            if (isMobile) setMobileTab('preview')
+          }}
           recent={recentItems}
           onOpenItem={(item) => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
           accent={tileStyle.accent}
@@ -1940,6 +1950,58 @@ export default function Cur8Category({ category }: Props) {
                 </button>
               </div>
             </>
+          ) : typeFilter ? (
+            /* ── Idle with a type filter active: show ALL matching items as one
+                 clear grid in the big centre panel (docs, images, sounds, videos).
+                 This is what makes tapping "Documents 9" actually reveal the 9 docs. ── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
+                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
+                  {visibleItems.length} {TYPE_LABEL[typeFilter]}{visibleItems.length === 1 ? '' : 's'} · tap to open
+                </p>
+                <button
+                  onClick={() => setTypeFilter(null)}
+                  style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={11} /> Clear filter
+                </button>
+              </div>
+              {visibleItems.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic', textAlign: 'center', marginTop: 32 }}>Nothing of this kind here yet.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                  {visibleItems.map((item) => {
+                    const kind = getContentKind(item)
+                    const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+                    const KindIcon = kind === 'image' ? ImageIcon : kind === 'doc' ? FileText : kind === 'video' ? Clapperboard : Music
+                    return (
+                      <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
+                        title={item.title}
+                        style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '16 / 11', backgroundColor: tileStyle.accentLight, display: 'flex', flexDirection: 'column' }}
+                      >
+                        {thumb ? (
+                          <img src={thumb} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                        ) : (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><KindIcon size={26} style={{ color: tileStyle.accent }} /></div>
+                        )}
+                        {(kind === 'video') && (
+                          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Play size={18} color="#fff" style={{ marginLeft: 2 }} />
+                          </div>
+                        )}
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.85) 0%, transparent 55%)' }} />
+                        <p style={{ position: 'absolute', bottom: 6, left: 8, right: 8, fontSize: 11, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           ) : videoItems.length > 0 ? (
             /* ── Idle: video grid so a video-only haven/folder is instantly
                  playable from the big centre panel (not just the narrow left lane) ── */
@@ -2131,7 +2193,7 @@ export default function Cur8Category({ category }: Props) {
 
               {saveTab === 'links' ? (
                 <>
-                  {/* ── Links tab ── */}
+                  {/* ���─ Links tab ── */}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <textarea value={url} onChange={(e) => setUrl(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) { e.preventDefault(); handleFetch() } }}

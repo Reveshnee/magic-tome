@@ -123,16 +123,25 @@ export async function summarizeItem(itemId: string, regenerate = false): Promise
         } catch { /* fall through to title/notes */ }
       }
     }
+    const hasRealContent = docText.trim().length > 120
     const body = docText || [item.title, item.description].filter(Boolean).join('. ')
     context = `This is a document the person saved, titled "${item.title}".\n\nDocument content:\n${body}`
 
     const { text } = await generateText({
       model: 'google/gemini-2.5-flash',
-      system:
-        'You are a warm, calming companion inside a personal saved-content app. ' +
-        'Write a gentle 2-3 sentence summary of this document so the person can remember what it holds at a glance. ' +
-        'Be soothing and encouraging, never clinical. Speak plainly and kindly. No emojis, headings, or bullet points. ' +
-        'Base the summary on the actual document content provided.',
+      system: hasRealContent
+        ? // Real extracted text — give a substantial, content-rich summary.
+          'You are a warm, thoughtful companion inside a personal saved-content app. ' +
+          'The person saved this document and wants to actually remember what is inside it. ' +
+          'Write a rich but easy-to-read summary of the ACTUAL content provided — around 4 to 6 sentences (you may use two short paragraphs). ' +
+          'Name the real ideas, concepts, frameworks, people, or key takeaways that appear in the document, so it genuinely reflects what the document says — not a vague description of what it "appears to be". ' +
+          'Keep the tone warm, plain-spoken and encouraging, like a thoughtful friend recapping it for them. ' +
+          'Do not use emojis, headings, or bullet points. Do not invent details that are not in the content.'
+        : // Only a title/notes — stay gentle and brief, do not invent.
+          'You are a warm, calming companion inside a personal saved-content app. ' +
+          'You only have the title and a short note for this document, not its full text. ' +
+          'Write a gentle 2-3 sentence summary of what it appears to be about, without inventing specific details. ' +
+          'Be soothing and encouraging, never clinical. No emojis, headings, or bullet points.',
       prompt: context,
     })
     const summary = text.trim()

@@ -39,9 +39,10 @@ export async function POST(req: Request) {
     ? `Here is a snapshot of everything Reveshnee has saved across her havens (most recent first):\n` +
       items.map((it) => {
         const base = `[${it.category}] "${it.title}"`
-        // If we have extracted file text, include a meaningful excerpt so the AI can read the actual content
+        // If we have extracted file text, include a generous excerpt so the AI can
+        // genuinely discuss the actual content of the document, not just its title.
         if (it.fileText) {
-          return `${base}\n  Document content excerpt: ${it.fileText.slice(0, 600)}`
+          return `${base}\n  Document content: ${it.fileText.slice(0, 1800)}`
         }
         if (it.summary) return `${base} — ${it.summary}`
         if (it.description) return `${base} — ${it.description.slice(0, 80)}`
