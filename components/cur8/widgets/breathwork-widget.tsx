@@ -49,6 +49,32 @@ export default function BreathworkWidget() {
     if (intervalRef.current) clearTimeout(intervalRef.current)
   }
 
+  // Soft singing-bowl chime — 3 harmonically related sine tones that decay gently
+  function playChime(type: 'cycle' | 'done') {
+    const AC = (window.AudioContext || (window as unknown as Record<string, unknown>).webkitAudioContext) as typeof AudioContext | undefined
+    if (!AC) return
+    const ctx = new AC()
+    // done = three tones (root + fifth + octave), cycle = just the root gently
+    const tones = type === 'done'
+      ? [{ freq: 528, vol: 0.22, delay: 0 }, { freq: 792, vol: 0.14, delay: 0.06 }, { freq: 1056, vol: 0.09, delay: 0.12 }]
+      : [{ freq: 528, vol: 0.12, delay: 0 }]
+    tones.forEach(({ freq, vol, delay }) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay)
+      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + delay + 0.03)
+      gain.gain.setTargetAtTime(0, ctx.currentTime + delay + 0.15, type === 'done' ? 0.8 : 0.4)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(ctx.currentTime + delay)
+      osc.stop(ctx.currentTime + delay + (type === 'done' ? 4.5 : 2.5))
+    })
+    // Close context once tones have fully decayed
+    setTimeout(() => { try { ctx.close() } catch {} }, type === 'done' ? 6000 : 3500)
+  }
+
   // Spoken guidance for each phase
   const PHASE_CUES: Record<Phase, string> = {
     idle: '',
@@ -94,9 +120,14 @@ export default function BreathworkWidget() {
     function runExhale() {
       runPhase('exhale', p.exhale, () => {
         if (p.hold2 > 0) {
-          runPhase('hold2', p.hold2, () => { setCycles((c) => c + 1); startCycle() })
+          runPhase('hold2', p.hold2, () => {
+            setCycles((c) => c + 1)
+            if (soundOn) playChime('cycle')
+            startCycle()
+          })
         } else {
           setCycles((c) => c + 1)
+          if (soundOn) playChime('cycle')
           startCycle()
         }
       })
@@ -110,6 +141,8 @@ export default function BreathworkWidget() {
       setActive(false)
       setPhase('idle')
       setCount(0)
+      // Play completion chime if at least one cycle finished
+      if (soundOn && cycles > 0) playChime('done')
     } else {
       setActive(true)
       startCycle()
