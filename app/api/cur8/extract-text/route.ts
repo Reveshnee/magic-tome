@@ -4,6 +4,7 @@ import { cur8Item } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { extractDocText, blobPathnameFromUrl } from '@/lib/cur8/extract-doc-text'
 
 export const maxDuration = 60
 
@@ -25,76 +26,22 @@ export async function POST(req: Request) {
   if (!item) return new NextResponse('Not found', { status: 404 })
 
   // Already extracted — return cached text
-  if (item.fileText) return NextResponse.json({ text: item.fileText })
+  if (item.fileText) return NextResponse.json({ text: item.fileText, cached: true })
 
   // Only process private blob files
   if (!item.url.startsWith('/api/cur8/file')) {
     return NextResponse.json({ text: null })
   }
 
+  const pathname = blobPathnameFromUrl(item.url)
+  if (!pathname) return NextResponse.json({ text: null })
+
   try {
-    // Fetch the file bytes from our own file route (runs server-side, no auth needed here
-    // since we're calling internally — but we pass a relative URL so we need absolute)
-    const origin = req.headers.get('origin') || req.headers.get('host')
-      ? `https://${req.headers.get('host')}`
-      : 'http://localhost:3000'
-
-    const fileRes = await fetch(`${origin}${item.url}`, {
-      headers: { cookie: req.headers.get('cookie') ?? '' },
-    })
-
-    if (!fileRes.ok) {
-      return NextResponse.json({ text: null, error: `File fetch failed: ${fileRes.status}` })
+    const text = await extractDocText(pathname)
+    if (text) {
+      await db.update(cur8Item).set({ fileText: text }).where(eq(cur8Item.id, item.id))
+      return NextResponse.json({ text })
     }
-
-    const arrayBuffer = await fileRes.arrayBuffer()
-    const url = item.url.toLowerCase()
-
-    // Detect file type from pathname param
-    let pathname = ''
-    try {
-      const u = new URL(item.url, 'http://x')
-      pathname = (u.searchParams.get('pathname') ?? '').toLowerCase()
-    } catch { /* ignore */ }
-
-    const isPdf = pathname.endsWith('.pdf') || url.includes('.pdf')
-    const isDocx = pathname.endsWith('.docx') || pathname.endsWith('.doc')
-
-    let extractedText: string | null = null
-
-    if (isDocx) {
-      // Word docs: use mammoth to convert to plain text
-      const mammoth = (await import('mammoth')).default
-      const result = await mammoth.extractRawText({ arrayBuffer })
-      extractedText = result.value?.trim() || null
-    } else if (isPdf) {
-      // PDFs: use pdfjs-dist to extract text from all pages
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-      pdfjsLib.GlobalWorkerOptions.workerSrc = ''
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer), useWorkerFetch: false, useSystemFonts: true }).promise
-      const pages: string[] = []
-      for (let i = 1; i <= Math.min(pdf.numPages, 50); i++) {
-        const page = await pdf.getPage(i)
-        const content = await page.getTextContent()
-        const pageText = content.items
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((it: any) => it.str ?? '')
-          .join(' ')
-          .trim()
-        if (pageText) pages.push(pageText)
-      }
-      extractedText = pages.join('\n\n').trim() || null
-    }
-
-    if (extractedText) {
-      // Truncate to 20k chars to keep DB reasonable
-      const stored = extractedText.slice(0, 20000)
-      await db.update(cur8Item)
-        .set({ fileText: stored })
-        .where(eq(cur8Item.id, item.id))
-      return NextResponse.json({ text: stored })
-    }
-
     return NextResponse.json({ text: null })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

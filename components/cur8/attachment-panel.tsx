@@ -86,16 +86,34 @@ function AttachmentChipsInner({
 
 type Tab = 'cur8' | 'note' | 'device' | 'record'
 
+// Payload describing something to attach, before it's tied to a saved parent.
+export interface PendingAttachment {
+  kind: 'item' | 'note' | 'file'
+  refId?: string
+  url?: string
+  title: string
+  thumbnail?: string
+  mimeType?: string
+}
+
 // Picker sheet: attach an existing Cur8 item, another note, or a device file.
+//
+// Two modes:
+//  - Normal: pass parentId + onAttached. Attachments persist to that parent.
+//  - Deferred (drafting): pass onPick instead. Nothing is persisted — the chosen
+//    payload is handed back so the caller can attach it once the note is saved.
+//    Device files / recordings are still uploaded to blob (that has to happen now).
 export function AttachmentPicker({
-  parentType, parentId, accent, onClose, onAttached,
+  parentType, parentId, accent, onClose, onAttached, onPick,
 }: {
   parentType: 'note' | 'reflection'
-  parentId: string
+  parentId?: string
   accent: string
   onClose: () => void
-  onAttached: (a: AttachmentDTO) => void
+  onAttached?: (a: AttachmentDTO) => void
+  onPick?: (p: PendingAttachment) => void
 }) {
+  const deferred = !!onPick
   const [tab, setTab] = useState<Tab>('cur8')
   const [items, setItems] = useState<Cur8Item[]>([])
   const [notes, setNotes] = useState<NoteDTO[]>([])
