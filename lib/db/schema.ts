@@ -154,6 +154,20 @@ export const cur8Connection = pgTable('cur8_connection', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 })
 
+// Saved AI Q&A conversations ("Discussions"). Auto-saved as the person chats so
+// nothing disappears. Scoped to an item and/or haven when the chat was started
+// from there; library-level chats (home Ask) have both itemId and category null.
+export const cur8Discussion = pgTable('cur8_discussion', {
+  id: text('id').primaryKey(),
+  userId: text('userId').notNull(),
+  itemId: text('itemId'), // the item the chat was about (null = haven/library level)
+  category: text('category'), // haven slug the chat belongs to (null = library level)
+  title: text('title').notNull(), // short label seeded from the first question
+  messages: text('messages').notNull(), // JSON array of { role, content }
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+})
+
 // Per-user custom names for the 8 gardens (overrides the default displayName)
 export const cur8GardenName = pgTable('cur8_garden_name', {
   userId: text('userId').notNull(),
