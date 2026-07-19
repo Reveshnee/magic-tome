@@ -17,7 +17,7 @@ import {
 } from '@/lib/cur8-store'
 import { useViewport } from '@/hooks/use-viewport'
 import { useReadAloud } from '@/hooks/use-speech'
-import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones, CheckSquare, CheckCircle2, Circle, Maximize2, Minimize2 } from 'lucide-react'
+import { LayoutGrid, Eye, List, Volume2, Square, NotebookPen, Pencil, RotateCcw, ClipboardPaste, PlayCircle, Headphones, CheckSquare, CheckCircle2, Circle, Maximize2, Minimize2, MoreHorizontal } from 'lucide-react'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import DocumentViewer from '@/components/cur8/document-viewer'
 import { upload } from '@vercel/blob/client'
@@ -308,8 +308,12 @@ export default function Cur8Category({ category }: Props) {
   // the tappable mini-stats. null = show everything.
   const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
   // Collapsible "overview" rows (stats cards + type pills + recently opened).
-  // Hiding them hands the video/docs board much more room without scrolling.
+  // Collapsed by default on mobile to give the board immediate full height.
   const [overviewOpen, setOverviewOpen] = useState(true)
+  const [toolbarMoreOpen, setToolbarMoreOpen] = useState(false)
+  useEffect(() => {
+    if (isMobile) setOverviewOpen(false)
+  }, [isMobile])
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -1452,13 +1456,31 @@ export default function Cur8Category({ category }: Props) {
           borderBottom: '1px solid rgba(245,240,232,0.07)',
         }}>
           {/* Brain Dump */}
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('cur8:openBrainDump'))}
-            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <Brain size={11} color="#c9a84c" /> Brain dump
-          </button>
-          {/* Reflections */}
+          {/* On desktop show all actions inline; on mobile collapse secondary actions into "..." */}
+          {!isMobile && (
+            <>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('cur8:openBrainDump'))}
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                <Brain size={11} color="#c9a84c" /> Brain dump
+              </button>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('cur8:openFocusSounds'))}
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                <Headphones size={11} color="#8ec8b4" /> Focus sounds
+              </button>
+              <button
+                onClick={() => setShowDiscussions(true)}
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                <MessageSquare size={11} color={tileStyle.accent} /> Discussions
+              </button>
+            </>
+          )}
+
+          {/* Reflect — always visible */}
           <button
             onClick={() => setShowReflections(true)}
             style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: reflections.length > 0 ? `${tileStyle.accent}22` : 'rgba(245,240,232,0.08)', border: `1px solid ${reflections.length > 0 ? tileStyle.accent + '55' : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
@@ -1466,22 +1488,47 @@ export default function Cur8Category({ category }: Props) {
             <NotebookPen size={11} color={reflections.length > 0 ? tileStyle.accent : undefined} />
             Reflect{reflections.length > 0 ? ` · ${reflections.length}` : ''}
           </button>
-          {/* Focus Sounds */}
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('cur8:openFocusSounds'))}
-            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <Headphones size={11} color="#8ec8b4" /> Focus sounds
-          </button>
-          {/* Discussions — this haven's saved AI Q&A conversations */}
-          <button
-            onClick={() => setShowDiscussions(true)}
-            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <MessageSquare size={11} color={tileStyle.accent} /> Discussions
-          </button>
-          {/* Spacer — desktop only; on mobile the row wraps so no spacer needed */}
-          <div style={{ flex: 1, display: isMobile ? 'none' : 'block' }} />
+
+          {/* Mobile: overflow "..." for Brain dump / Focus sounds / Discussions */}
+          {isMobile && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setToolbarMoreOpen((v) => !v)}
+                aria-label="More haven tools"
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: '50%', fontSize: 11, color: '#f5f0e8', backgroundColor: toolbarMoreOpen ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: `1px solid ${toolbarMoreOpen ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer' }}
+              >
+                <MoreHorizontal size={13} />
+              </button>
+              <AnimatePresence>
+                {toolbarMoreOpen && (
+                  <>
+                    <div onClick={() => setToolbarMoreOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                      style={{ position: 'absolute', top: 36, left: 0, zIndex: 50, minWidth: 185, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
+                    >
+                      {[
+                        { label: 'Brain dump', icon: Brain, color: '#c9a84c', action: () => window.dispatchEvent(new CustomEvent('cur8:openBrainDump')) },
+                        { label: 'Focus sounds', icon: Headphones, color: '#8ec8b4', action: () => window.dispatchEvent(new CustomEvent('cur8:openFocusSounds')) },
+                        { label: 'Discussions', icon: MessageSquare, color: tileStyle.accent, action: () => setShowDiscussions(true) },
+                      ].map(({ label, icon: Icon, color, action }, i, arr) => (
+                        <button key={label} onClick={() => { action(); setToolbarMoreOpen(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 14px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none', cursor: 'pointer', color: '#f5f0e8', fontSize: 13, fontWeight: 500, textAlign: 'left' }}
+                        >
+                          <Icon size={13} color={color} /> {label}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
           {/* Collapse the overview rows to hand the board more room */}
           <button
             onClick={() => setOverviewOpen((o) => !o)}
