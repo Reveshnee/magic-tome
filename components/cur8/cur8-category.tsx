@@ -49,6 +49,7 @@ import {
 } from '@/app/actions/cur8'
 import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
+import HavenTypeStats from '@/components/cur8/haven-type-stats'
 import CategoryReflections from '@/components/cur8/category-reflections'
 import ShareMenu from '@/components/cur8/share-menu'
 import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile, shareToDevice, deviceShareSupported } from '@/lib/cur8-share'
@@ -182,6 +183,18 @@ function getContentKind(item: { url: string }): ContentKind {
   return 'doc'
 }
 
+// Finer classification used only for the tappable mini-stats + type filter.
+// Splits audio ("sounds") out from video, which getContentKind lumps together.
+type StatKind = 'video' | 'image' | 'sound' | 'doc'
+function getStatKind(item: { url: string }): StatKind {
+  const t = getPreviewType(item.url)
+  if (t === 'audio') return 'sound'
+  // Uploaded audio files land as generic docs — sniff the extension/mime.
+  if (/\.(mp3|wav|ogg|m4a|aac|flac)(\?|$)/i.test(item.url) || /audio%2F|audio\//i.test(item.url)) return 'sound'
+  const k = getContentKind(item)
+  return k as StatKind
+}
+
 const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
   YouTube:   { accent: '#c85a40', accentLight: '#faecea', image: '/cur8/tile-grove.png' },
   TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
@@ -285,7 +298,7 @@ export default function Cur8Category({ category }: Props) {
   const [expandedPreview, setExpandedPreview] = useState(false)
   // Active content-type filter (videos / images / documents / sounds) driven by
   // the tappable mini-stats. null = show everything.
-  const [typeFilter, setTypeFilter] = useState<ContentKind | 'audio' | null>(null)
+  const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -357,9 +370,10 @@ export default function Cur8Category({ category }: Props) {
   }
 
   // Reflection handlers (category-tied notes, distinct from global brain dump)
-  async function addReflection(body: string) {
+  async function addReflection(body: string): Promise<string | null> {
     const r = await createReflection(category, body).catch(() => null)
-    if (r) setReflections((prev) => [r, ...prev])
+    if (r) { setReflections((prev) => [r, ...prev]); return r.id }
+    return null
   }
   async function removeReflection(id: string) {
     setReflections((prev) => prev.filter((r) => r.id !== id))
@@ -507,7 +521,18 @@ export default function Cur8Category({ category }: Props) {
 
   const catItems = allItems.filter((i) => i.category === category)
   const folderItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
-  const visibleItems = folderItems
+  // Apply the tappable type filter (Videos / Images / Sounds / Documents)
+  const visibleItems = typeFilter ? folderItems.filter((i) => getStatKind(i) === typeFilter) : folderItems
+
+  // Per-type counts for the tappable mini-stats (based on the current folder, not the type filter)
+  const typeCounts: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
+  for (const i of folderItems) typeCounts[getStatKind(i)]++
+
+  // Recently opened items in this haven (max 8), newest first
+  const recentItems = [...catItems]
+    .filter((i) => i.openedAt)
+    .sort((a, b) => new Date(b.openedAt!).getTime() - new Date(a.openedAt!).getTime())
+    .slice(0, 8)
 
   // Auto-sorted lanes
   const videoItems = visibleItems.filter((i) => getContentKind(i) === 'video')
@@ -1445,6 +1470,18 @@ export default function Cur8Category({ category }: Props) {
 
       {/* ── Stats bar ── */}
       {!mediaFocus && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
+      {!mediaFocus && (
+        <HavenTypeStats
+          items={folderItems}
+          counts={typeCounts}
+          activeType={typeFilter}
+          onSelectType={setTypeFilter}
+          recent={recentItems}
+          onOpenItem={(item) => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+          accent={tileStyle.accent}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* ── Mobile tab switcher ── */}
       {isMobile && !mediaFocus && (
@@ -1484,13 +1521,27 @@ export default function Cur8Category({ category }: Props) {
 
       {/* ── Full-width folder filter bar (filters all three lanes) ── */}
       <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: mediaFocus ? 'none' : 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', flexShrink: 0 }}>Folders</span>
+        <button
+          onClick={() => setActiveFolder(null)}
+          title="Show all folders"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.55)', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: '3px 2px' }}
+        >
+          <Folder size={12} /> Folders
+        </button>
         <button onClick={() => setActiveFolder(null)}
           style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
           All <span style={{ opacity: 0.6 }}>{catItems.length}</span>
         </button>
         {folders.map((f) => {
-          const folderCount = catItems.filter((i) => i.folderId === f.id).length
+          const inFolder = catItems.filter((i) => i.folderId === f.id)
+          const folderCount = inFolder.length
+          // Type breakdown for the folder, shown on hover (e.g. "19 videos · 8 documents")
+          const fb: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
+          for (const i of inFolder) fb[getStatKind(i)]++
+          const breakdown = ([['video', 'videos'], ['image', 'images'], ['sound', 'sounds'], ['doc', 'documents']] as const)
+            .filter(([k]) => fb[k] > 0)
+            .map(([k, label]) => `${fb[k]} ${label}`)
+            .join(' · ') || 'empty'
           if (renameFolderId === f.id) {
             return (
               <div key={f.id} style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -1506,7 +1557,7 @@ export default function Cur8Category({ category }: Props) {
           }
           return (
           <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <button onClick={() => setActiveFolder(f.id)}
+            <button onClick={() => setActiveFolder(f.id)} title={`${f.name}: ${breakdown}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
               {f.pinned && <Pin size={9} style={{ opacity: 0.85 }} />}
               {f.name} <span style={{ opacity: 0.6 }}>{folderCount}</span>
