@@ -37,8 +37,12 @@ export default function HomeQuickActions() {
             color: '#f5f0e8', fontSize: 13, fontWeight: 700,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cur8/reflect-icon.png" alt="" width={16} height={16} style={{ objectFit: 'contain' }} />
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" aria-hidden xmlns="http://www.w3.org/2000/svg">
+            <circle cx="9" cy="7.5" r="3.5" stroke="#c9a84c" strokeWidth="1.6" />
+            <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#c9a84c" strokeWidth="1.6" strokeLinecap="round" />
+            <rect x="15.5" y="5" width="5" height="7" rx="1" stroke="#c9a84c" strokeWidth="1.5" />
+            <line x1="17" y1="7" x2="19.5" y2="10" stroke="#c9a84c" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+          </svg>
           Reflect
         </motion.button>
 

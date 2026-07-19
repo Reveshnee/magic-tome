@@ -146,8 +146,12 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
 
       {/* Prompt hint */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/cur8/reflect-icon.png" alt="" width={14} height={14} style={{ objectFit: 'contain', flexShrink: 0 }} />
+        <svg width={13} height={13} viewBox="0 0 24 24" fill="none" aria-hidden xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+          <circle cx="9" cy="7.5" r="3.5" stroke="#c9a84c" strokeWidth="1.6" />
+          <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#c9a84c" strokeWidth="1.6" strokeLinecap="round" />
+          <rect x="15.5" y="5" width="5" height="7" rx="1" stroke="#c9a84c" strokeWidth="1.5" />
+          <line x1="17" y1="7" x2="19.5" y2="10" stroke="#c9a84c" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+        </svg>
         <span style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.75)', fontStyle: 'italic' }}>{prompt}</span>
       </div>
 

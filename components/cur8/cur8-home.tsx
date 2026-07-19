@@ -99,8 +99,10 @@ function CollapsibleSection({
         >
           <div style={{ width: 2, height: prominent ? 26 : 20, backgroundColor: open ? GOLD : 'rgba(245,240,232,0.2)', borderRadius: 2, flexShrink: 0, transition: 'background-color 0.2s' }} />
           {Icon && <Icon size={prominent ? 16 : 14} color={open ? SAGE : MUTED} style={{ flexShrink: 0 }} />}
-          <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: prominent ? 26 : 20, fontWeight: 700, color: open ? CREAM : MUTED, margin: 0, letterSpacing: '-0.01em', transition: 'color 0.2s' }}>{title}</h2>
-          <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', flex: 1, minWidth: 8 }}>{meta}</span>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: prominent ? 26 : 20, fontWeight: 700, color: open ? CREAM : MUTED, margin: 0, letterSpacing: '-0.01em', transition: 'color 0.2s', lineHeight: 1.1 }}>{title}</h2>
+            {meta && <span style={{ fontSize: 10, color: MUTED, letterSpacing: '0.04em', lineHeight: 1.2 }}>{meta}</span>}
+          </div>
           {open ? <ChevronUp size={16} color={MUTED} style={{ flexShrink: 0 }} /> : <ChevronDown size={16} color={MUTED} style={{ flexShrink: 0 }} />}
         </button>
         {description && open && (
@@ -234,14 +236,14 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
         </AnimatePresence>
 
         {/* Orbs overlay (not clipped, so the fish can leap past the edge) */}
-        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '14px 12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? 14 : 22, flexWrap: 'wrap' }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: isMobile ? '10px 14px' : '12px 22px', width: '100%', maxWidth: isMobile ? 260 : 320 }}>
             {POND_ITEMS.map((item, i) => {
               const Icon = item.icon
               const isActive = active === item.id
               const isHidden = fish?.id === item.id // hide the orb while its fish is leaping
               return (
-                <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {!calm && !isActive && (
                       <motion.div
@@ -329,7 +331,7 @@ export default function Cur8Home() {
   const tabScrollRef  = useRef<HTMLDivElement>(null)
   const natureCtxRef  = useRef<{ ctx: AudioContext; src: AudioBufferSourceNode; gain: GainNode } | null>(null)
 
-  const pad    = isTablet ? 32 : 60
+  const pad    = isMobile ? 16 : isTablet ? 32 : 60
   const bentoCols  = isMobile ? '1fr' : '1fr 1fr'
   const smallCols  = isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : 'repeat(4,1fr)'
 

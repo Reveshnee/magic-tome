@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, Brain, BookOpen, Loader2, RotateCcw, Zap,
   User, Send, MessageSquare, ExternalLink, MessagesSquare, Trash2, Copy, Check,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import {
   discoverPatterns, generateWeeklyDigest, getMemories, updateMemory, discoverYou,
@@ -37,6 +38,19 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
 
 export default function AiHub({ items = [], hideHeader = false }: { items?: Pick<Cur8Item, 'id' | 'title' | 'description'>[]; hideHeader?: boolean }) {
   const [tab, setTab] = useState<Tab>('discover')
+  const tabBarRef = useRef<HTMLDivElement>(null)
+  const [tabArrows, setTabArrows] = useState({ left: false, right: false })
+
+  function updateTabArrows() {
+    const el = tabBarRef.current
+    if (!el) return
+    setTabArrows({ left: el.scrollLeft > 8, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 8 })
+  }
+  useEffect(() => { setTimeout(updateTabArrows, 80) }, [])
+
+  function scrollTabBar(dir: 1 | -1) {
+    tabBarRef.current?.scrollBy({ left: dir * 160, behavior: 'smooth' })
+  }
 
   const [discovery, setDiscovery] = useState<DiscoveryResult | null>(null)
   const [discoveryLoading, setDiscoveryLoading] = useState(false)
@@ -100,22 +114,40 @@ export default function AiHub({ items = [], hideHeader = false }: { items?: Pick
         </div>
       )}
 
-      {/* ── Tab bar ── */}
-      <div style={{ display: 'flex', gap: 0, marginTop: hideHeader ? 4 : 14, borderBottom: `1px solid rgba(245,240,232,0.07)`, paddingLeft: 8, paddingRight: 8, overflowX: 'auto' }}>
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => handleTab(key)}
-            style={{
-              flex: 'none', display: 'flex', alignItems: 'center', gap: 5,
-              padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 11.5, fontWeight: tab === key ? 700 : 500,
-              color: tab === key ? GOLD : `${CREAM}55`,
-              borderBottom: tab === key ? `2px solid ${GOLD}` : '2px solid transparent',
-              marginBottom: -1, whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
-            }}>
-            <Icon size={12} /> {label}
-          </button>
-        ))}
+      {/* ── Tab bar with scroll arrows ── */}
+      <div style={{ position: 'relative', marginTop: hideHeader ? 4 : 14 }}>
+        {/* Left fade + arrow */}
+        {tabArrows.left && (
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 1, width: 36, background: `linear-gradient(to right, ${SURFACE} 60%, transparent)`, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 2, pointerEvents: 'none' }}>
+            <button onClick={() => scrollTabBar(-1)} style={{ pointerEvents: 'all', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: `${CREAM}88`, display: 'flex' }}>
+              <ChevronLeft size={14} />
+            </button>
+          </div>
+        )}
+        {/* Right fade + arrow */}
+        {tabArrows.right && (
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 1, width: 36, background: `linear-gradient(to left, ${SURFACE} 60%, transparent)`, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 2, pointerEvents: 'none' }}>
+            <button onClick={() => scrollTabBar(1)} style={{ pointerEvents: 'all', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: GOLD, display: 'flex' }}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
+        <div ref={tabBarRef} onScroll={updateTabArrows} style={{ display: 'flex', gap: 0, borderBottom: `1px solid rgba(245,240,232,0.07)`, paddingLeft: 8, paddingRight: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => handleTab(key)}
+              style={{
+                flex: 'none', display: 'flex', alignItems: 'center', gap: 5,
+                padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 11.5, fontWeight: tab === key ? 700 : 500,
+                color: tab === key ? GOLD : `${CREAM}55`,
+                borderBottom: tab === key ? `2px solid ${GOLD}` : '2px solid transparent',
+                marginBottom: -1, whiteSpace: 'nowrap',
+                transition: 'color 0.15s',
+              }}>
+              <Icon size={12} /> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Tab body ── */}
