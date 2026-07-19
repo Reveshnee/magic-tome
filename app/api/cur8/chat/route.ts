@@ -48,27 +48,43 @@ export async function POST(req: Request) {
       }
       focusContext =
         parts.join('\n') +
-        `\n\nIMPORTANT: The extracted content above IS the document — you have genuinely read it. ` +
-        `Answer confidently and specifically about it. Do NOT hedge with phrases like "I only have an excerpt", ` +
-        `"I can't access the full document", or "based on what was shared" — treat the content above as the complete item. ` +
+        `\n\nIMPORTANT — how to talk about this item:\n` +
+        `• The extracted content above is the COMPLETE document, not a snapshot, preview, or excerpt. You have genuinely read the whole thing.\n` +
+        `• NEVER say things like "the snapshot I have", "sometimes these are excerpts", "the text I'm able to access", "based on what was shared", "beyond the segment I have", or "I only have an excerpt". These are false — you have the full document.\n` +
+        `• Answer directly and specifically, quoting or naming the actual concepts, sections, and terms from the content above.\n` +
+        `• Before saying something "isn't in" the document, scan the full content above carefully — the answer is very likely present, possibly under different wording (for example, "four categories of moves" may appear as a named list of moves).\n` +
+        `• If something truly isn't covered, say so plainly and briefly, without blaming your access to the document.\n` +
         `Prioritise this item in your answer, but you may connect it to her other saves when helpful.`
     }
   }
 
   // Build a concise context snapshot of the user's library
-  const [items, notes] = await Promise.all([
-    db.select({ title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description, fileText: cur8Item.fileText, url: cur8Item.url })
+  const [allItems, notes] = await Promise.all([
+    db.select({ id: cur8Item.id, title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description, fileText: cur8Item.fileText, url: cur8Item.url })
       .from(cur8Item).where(eq(cur8Item.userId, userId)).orderBy(desc(cur8Item.savedAt)).limit(80),
     db.select({ content: cur8Note.body })
       .from(cur8Note).where(eq(cur8Note.userId, userId)).orderBy(desc(cur8Note.createdAt)).limit(20),
   ])
 
+  // When focused on one item, drop it from the library snapshot so it is never
+  // duplicated as a truncated excerpt (that is what made the model think it only
+  // had a "snapshot" of the document and hedge). The focus block already holds
+  // the full text.
+  const items = focusItemId ? allItems.filter((it) => it.id !== focusItemId) : allItems
+
   const libraryContext = items.length > 0
     ? `Here is a snapshot of everything Reveshnee has saved across her havens (most recent first):\n` +
       items.map((it) => {
         const base = `[${it.category}] "${it.title}"`
-        // If we have extracted file text, include a generous excerpt so the AI can
-        // genuinely discuss the actual content of the document, not just its title.
+        // When focused on a single item, keep the wider library short (title +
+        // summary only) so there are no misleading truncated document bodies.
+        if (focusItemId) {
+          if (it.summary) return `${base} — ${it.summary}`
+          if (it.description) return `${base} — ${it.description.slice(0, 80)}`
+          return base
+        }
+        // Otherwise, include a generous excerpt so the AI can genuinely discuss
+        // the actual content of each document, not just its title.
         if (it.fileText) {
           return `${base}\n  Document content: ${it.fileText.slice(0, 1800)}`
         }
@@ -80,7 +96,7 @@ export async function POST(req: Request) {
     : 'She has not saved anything yet.'
 
   const systemPrompt = focusContext
-    ? `${SYSTEM}\n\n${focusContext}\n\nFor wider context, here is the rest of her library:\n${libraryContext}`
+    ? `${SYSTEM}\n\n${focusContext}\n\nFor wider context, here are the TITLES of her other saves (do not treat these as the focused document):\n${libraryContext}`
     : `${SYSTEM}\n\n${libraryContext}`
 
   const result = streamText({
