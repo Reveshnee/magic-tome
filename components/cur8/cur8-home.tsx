@@ -184,7 +184,9 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
     const orbRect = buttonEl.getBoundingClientRect()
     const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : orbRect.width / 2
     setFish({ id: item.id, color: item.color, x })
-    setTimeout(() => { setFish(null); setActive(item.id) }, 1000)
+    // Open widget just before fish arrives, clear fish after full animation
+    setTimeout(() => { setActive(item.id) }, 950)
+    setTimeout(() => { setFish(null) }, 1350)
   }
 
   return (
@@ -219,34 +221,32 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
           )}
         </AnimatePresence>
 
-        {/* Leaping koi (coloured to the chosen ritual) */}
-        <AnimatePresence>
-          {fish && !calm && (
-            <motion.div
-              key={`fish-${fish.id}`}
-              // Arc: bursts UP out of the pond, curves over, dives DOWN into the widget below
-              // y starts mid-pond, rises above it (negative), then falls through pondH into widget
-              // x curves sideways for a natural arc shape
-              animate={{
-                x:       [0,  18,  38,  52,  58,  52,  36,  14],
-                y:       [pondH * 0.5, pondH * 0.05, -60, -120, -140, -80, pondH * 0.4, pondH + 90],
-                opacity: [0,   1,   1,   1,    1,   1,    1,   0],
-                scale:   [0.6, 0.9, 1.05, 1.12, 1.12, 1.05, 0.95, 0.8],
-                rotate:  [0,   0,   5,   12,   22,   42,   68,  90],
-              }}
-              transition={{
-                duration: 1.25,
-                ease: 'linear',
-                times: [0, 0.1, 0.22, 0.35, 0.44, 0.6, 0.78, 1],
-                opacity: { duration: 1.25, ease: 'linear', times: [0, 0.08, 0.15, 0.35, 0.44, 0.65, 0.88, 1] },
-              }}
-              transformTemplate={(_, generated) => `translateX(-50%) scaleY(-1) ${generated}`}
-              style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
-            >
-              <PondFish color={fish.color} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Leaping koi — no AnimatePresence so exit never interrupts the arc */}
+        {fish && !calm && (
+          <motion.div
+            key={`fish-${fish.id}`}
+            // Arc: bursts UP out of the pond, curves sideways, dives DOWN into the widget below
+            // opacity fades to 0 before setFish(null) so there is no visible reset
+            initial={{ x: 0, y: pondH * 0.5, opacity: 0, scale: 0.6, rotate: 0 }}
+            animate={{
+              x:       [0,  20,  42,  58,  64,  56,  38,  16],
+              y:       [pondH * 0.5, pondH * 0.05, -55, -110, -130, -75, pondH * 0.35, pondH + 100],
+              opacity: [0,   1,   1,   1,    1,   1,    1,   0],
+              scale:   [0.6, 0.9, 1.05, 1.12, 1.12, 1.05, 0.95, 0.8],
+              rotate:  [0,   0,   5,   12,   22,   42,   68,  92],
+            }}
+            transition={{
+              duration: 1.3,
+              ease: 'linear',
+              times: [0, 0.1, 0.22, 0.35, 0.44, 0.6, 0.78, 1],
+              opacity: { duration: 1.3, ease: 'linear', times: [0, 0.08, 0.15, 0.35, 0.44, 0.65, 0.86, 1] },
+            }}
+            transformTemplate={(_, generated) => `translateX(-50%) scaleY(-1) ${generated}`}
+            style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
+          >
+            <PondFish color={fish.color} />
+          </motion.div>
+        )}
 
         {/* Orbs overlay (not clipped, so the fish can leap past the edge) */}
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', gap: isMobile ? 10 : 16 }}>
@@ -475,7 +475,7 @@ export default function Cur8Home() {
         />
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
+      {/* ══════════════════════════════════��═══════════════════════════════════
           HERO — full-viewport koi pond image
       ═════════════════════════════════════════��════════════════════════════ */}
       {/* Ripple keyframe — injected once */}
