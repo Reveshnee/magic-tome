@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, X,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, X, Flower2,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -61,14 +61,14 @@ const TILE_ACCENT: Record<string, string> = {
 }
 
 const MOTIVATIONAL = [
-  "Tend your garden, tend your mind.",
-  "Every link saved is a seed planted.",
+  "Still waters hold the deepest thoughts.",
+  "Every save is a ripple worth returning to.",
   "Your curiosity is worth curating.",
-  "A tended garden never runs dry.",
+  "Let your mind settle like a calm pond.",
   "Return to what inspires you.",
   "Small acts of curation, big clarity.",
   "You saved something beautiful today.",
-  "Water your ideas — revisit them often.",
+  "Revisit your ideas — let them flow.",
 ]
 
 // ─── Section heading ──────────────────────────────────────────────────────────
@@ -92,10 +92,10 @@ function SectionLabel({ children, sub, prominent }: { children: React.ReactNode;
 type PondWidget = 'intention' | 'breathwork' | 'timer' | 'calendar' | null
 
 const POND_ITEMS: { id: PondWidget & string; label: string; icon: React.ElementType; color: string; ripple: string }[] = [
-  { id: 'intention', label: 'Intention',  icon: Brain,    color: '#c9a84c', ripple: 'rgba(201,168,76,0.25)' },
-  { id: 'breathwork',label: 'Breathwork', icon: Wind,     color: '#5a9e84', ripple: 'rgba(90,158,132,0.25)' },
-  { id: 'timer',     label: 'Focus',      icon: Timer,    color: '#c85a40', ripple: 'rgba(200,90,64,0.25)'  },
-  { id: 'calendar',  label: 'Calendar',   icon: Calendar, color: '#3a6b8c', ripple: 'rgba(58,107,140,0.25)' },
+  { id: 'intention', label: 'Intention',  icon: Flower2,  color: '#d9a5c0', ripple: 'rgba(217,165,192,0.28)' },
+  { id: 'breathwork',label: 'Breathwork', icon: Wind,     color: '#5a9e84', ripple: 'rgba(90,158,132,0.28)' },
+  { id: 'timer',     label: 'Focus',      icon: Timer,    color: '#e0a24a', ripple: 'rgba(224,162,74,0.28)'  },
+  { id: 'calendar',  label: 'Calendar',   icon: Calendar, color: '#6bb0d4', ripple: 'rgba(107,176,212,0.28)' },
 ]
 
 function KoiPond({ calm }: { calm: boolean }) {
@@ -110,24 +110,33 @@ function KoiPond({ calm }: { calm: boolean }) {
 
   return (
     <div>
-      {/* Pond — oval water surface */}
+      {/* Pond — oval water surface (deep blue water) */}
       <div style={{
         position: 'relative',
         width: '100%',
-        background: 'radial-gradient(ellipse 80% 100% at 50% 60%, #0d3530 0%, #091e1a 60%, #0a1e1b 100%)',
-        borderRadius: '50% 50% 46% 46% / 34% 34% 66% 66%',
-        border: `1px solid rgba(90,158,132,0.18)`,
-        boxShadow: 'inset 0 -8px 32px rgba(0,0,0,0.4), 0 2px 0 rgba(90,158,132,0.12)',
-        padding: '28px 16px 36px',
+        background: 'radial-gradient(ellipse 85% 110% at 50% 32%, #1a5b6e 0%, #124658 32%, #0d3145 62%, #0a2436 100%)',
+        borderRadius: '50% 50% 46% 46% / 30% 30% 70% 70%',
+        border: `1px solid rgba(107,176,212,0.22)`,
+        boxShadow: 'inset 0 14px 40px rgba(120,200,230,0.10), inset 0 -12px 40px rgba(0,0,0,0.45), 0 4px 24px rgba(0,0,0,0.35)',
+        padding: '34px 16px 40px',
         overflow: 'hidden',
       }}>
+        {/* Soft surface light at the top of the water */}
+        <div style={{ position: 'absolute', top: 0, left: '15%', right: '15%', height: 60, background: 'radial-gradient(ellipse 100% 100% at 50% 0%, rgba(150,215,235,0.16) 0%, transparent 75%)', pointerEvents: 'none' }} />
         {/* Water shimmer */}
         {!calm && (
-          <motion.div
-            animate={{ opacity: [0.06, 0.14, 0.06] }}
-            transition={{ repeat: Infinity, duration: 3.5 }}
-            style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 40% at 50% 30%, rgba(90,200,160,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}
-          />
+          <>
+            <motion.div
+              animate={{ opacity: [0.05, 0.16, 0.05], scale: [1, 1.04, 1] }}
+              transition={{ repeat: Infinity, duration: 4 }}
+              style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 55% 40% at 50% 28%, rgba(130,215,240,0.18) 0%, transparent 70%)', pointerEvents: 'none' }}
+            />
+            <motion.div
+              animate={{ opacity: [0.1, 0.02, 0.1], x: [-8, 8, -8] }}
+              transition={{ repeat: Infinity, duration: 6.5, ease: 'easeInOut' }}
+              style={{ position: 'absolute', top: 18, left: '25%', right: '25%', height: 2, borderRadius: 2, background: 'rgba(180,225,240,0.4)', pointerEvents: 'none' }}
+            />
+          </>
         )}
 
         {/* The 4 orbs */}
@@ -176,7 +185,7 @@ function KoiPond({ calm }: { calm: boolean }) {
         </div>
 
         {/* Pond edge label */}
-        <p style={{ textAlign: 'center', margin: '16px 0 0', fontSize: 10, color: `rgba(90,158,132,0.5)`, letterSpacing: '0.1em', textTransform: 'uppercase', position: 'relative', zIndex: 2 }}>
+        <p style={{ textAlign: 'center', margin: '18px 0 0', fontSize: 10, color: `rgba(150,205,225,0.55)`, letterSpacing: '0.14em', textTransform: 'uppercase', position: 'relative', zIndex: 2 }}>
           tap a ritual to begin
         </p>
       </div>
@@ -314,7 +323,7 @@ export default function Cur8Home() {
       ══════════════════════════════════════════════════════════════════════ */}
       <div style={{ position: 'relative', height: '100svh', minHeight: 520, overflow: 'hidden' }}>
         {/* Background image */}
-        <Image src="/cur8/pond-hero.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
+          <Image src="/cur8/koi-pond.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
         {/* Layered dark overlay — richer depth */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(6,18,16,0.55) 0%, rgba(6,18,16,0.35) 40%, rgba(6,18,16,0.82) 80%, rgba(10,30,27,1) 100%)' }} />
 
