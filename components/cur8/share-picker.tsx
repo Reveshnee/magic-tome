@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { CATEGORIES } from '@/lib/cur8-store'
+import { CATEGORIES, slugFromCategory } from '@/lib/cur8-store'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import { Link2 } from 'lucide-react'
 
@@ -19,7 +19,7 @@ export default function SharePicker({
   function pick(categoryName: string) {
     // Hand off to the garden page, which reads ?share= and opens the save
     // dialog with the link pre-filled and auto-fetched.
-    router.push(`/cur8/${categoryName.toLowerCase()}?share=${encodeURIComponent(sharedUrl)}`)
+    router.push(`/cur8/${slugFromCategory(categoryName)}?share=${encodeURIComponent(sharedUrl)}`)
   }
 
   return (

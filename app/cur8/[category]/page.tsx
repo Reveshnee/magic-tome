@@ -13,9 +13,21 @@ export default async function CategoryPage({
   if (!session?.user) redirect('/cur8/sign-in')
 
   const { category } = await params
-  const matched = CATEGORIES.find(
+
+  // Primary: match on the new garden-name slug (e.g. "koi-pond", "greenhouse")
+  const matched = CATEGORIES.find((c) => c.slug === category)
+
+  if (matched) {
+    return <Cur8Category category={matched.name} />
+  }
+
+  // Legacy redirect: old content-type slugs (e.g. "instagram" → "greenhouse")
+  const legacy = CATEGORIES.find(
     (c) => c.name.toLowerCase() === category.toLowerCase()
   )
-  if (!matched) notFound()
-  return <Cur8Category category={matched.name} />
+  if (legacy) {
+    redirect(`/cur8/${legacy.slug}`)
+  }
+
+  notFound()
 }

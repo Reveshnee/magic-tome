@@ -11,7 +11,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, Music2, VolumeX,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
-import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
+import { CATEGORIES, slugFromCategory, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
 import { useGardenNames } from '@/components/cur8/garden-names-provider'
 import { getCur8Data, searchEverything, ensureGuideSaved, type SearchResults } from '@/app/actions/cur8'
 import KoiLeap from '@/components/cur8/koi-leap'
@@ -308,7 +308,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
   )
 }
 
-// ─── Main hub component ───────────────────────────────────────────────�����───────
+// ─── Main hub component ─────────────────────────────────────────��─────�����───────
 export default function Cur8Home() {
   const router = useRouter()
   const { isMobile, isTablet } = useViewport()
@@ -625,7 +625,7 @@ export default function Cur8Home() {
                         <div style={{ borderTop: `1px solid ${BORDER}` }}>
                           <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED, padding: '10px 18px 4px', margin: 0 }}>Reflections</p>
                           {results.reflections.slice(0, 5).map((r) => (
-                            <Link key={r.id} href={`/cur8/${r.category.toLowerCase()}`} onClick={() => setSearchOpen(false)}
+                            <Link key={r.id} href={`/cur8/${slugFromCategory(r.category)}`} onClick={() => setSearchOpen(false)}
                               style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 18px', textDecoration: 'none', color: CREAM }}>
                               <Leaf size={14} color={SAGE} style={{ flexShrink: 0, marginTop: 1 }} />
                               <span style={{ fontSize: 12.5, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.body}</span>
@@ -719,8 +719,8 @@ export default function Cur8Home() {
               const count = items.filter((i) => i.category === cat.name).length
               const accent = TILE_ACCENT[cat.name] ?? SAGE
               return (
-                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`}
-                  onClick={(e) => handleHavenClick(e, `/cur8/${cat.name.toLowerCase()}`)}
+                <Link key={cat.name} href={`/cur8/${cat.slug}`}
+                  onClick={(e) => handleHavenClick(e, `/cur8/${cat.slug}`)}
                   style={{ textDecoration: 'none', flexShrink: 0 }}>
                   <div
                     style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '13px 15px', borderBottom: '2px solid transparent', cursor: 'pointer', transition: 'all 0.15s ease' }}
@@ -813,7 +813,7 @@ export default function Cur8Home() {
               const count = items.filter((item) => item.category === cat.name).length
               const accent = TILE_ACCENT[cat.name] ?? SAGE
               return (
-                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.name.toLowerCase()}`)} style={{ textDecoration: 'none' }}>
+                <Link key={cat.name} href={`/cur8/${cat.slug}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.slug}`)} style={{ textDecoration: 'none' }}>
                   <motion.div
                     whileHover={calm ? undefined : { scale: 1.012, y: -2 }}
                     transition={{ type: 'spring', stiffness: 300 }}
@@ -843,7 +843,7 @@ export default function Cur8Home() {
               const count = items.filter((item) => item.category === cat.name).length
               const accent = TILE_ACCENT[cat.name] ?? SAGE
               return (
-                <Link key={cat.name} href={`/cur8/${cat.name.toLowerCase()}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.name.toLowerCase()}`)} style={{ textDecoration: 'none' }}>
+                <Link key={cat.name} href={`/cur8/${cat.slug}`} onClick={(e) => handleHavenClick(e, `/cur8/${cat.slug}`)} style={{ textDecoration: 'none' }}>
                   <motion.div
                     whileHover={calm ? undefined : { scale: 1.02, y: -2 }}
                     transition={{ type: 'spring', stiffness: 300 }}
