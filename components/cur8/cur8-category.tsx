@@ -1533,16 +1533,14 @@ export default function Cur8Category({ category }: Props) {
 
       {/* ── Full-width folder filter bar (filters all three lanes) ── */}
       <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: mediaFocus ? 'none' : 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
+        {/* "All" chip — shows total count, acts as clear-folder filter.
+            Highlighted in accent when no folder is active so it's clear it's the active state. */}
         <button
           onClick={() => setActiveFolder(null)}
-          title="Show all folders"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.55)', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: '3px 2px' }}
+          title="Show all items across all folders"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: activeFolder === null ? '#0d2420' : 'rgba(245,240,232,0.7)' }}
         >
-          <Folder size={12} /> Folders
-        </button>
-        <button onClick={() => setActiveFolder(null)}
-          style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-          All <span style={{ opacity: 0.6 }}>{catItems.length}</span>
+          <Folder size={11} /> All {catItems.length}
         </button>
         {folders.map((f) => {
           const inFolder = catItems.filter((i) => i.folderId === f.id)
@@ -2537,9 +2535,9 @@ export default function Cur8Category({ category }: Props) {
               <textarea
                 value={editItem.description}
                 onChange={(e) => setEditItem((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
-                rows={3}
-                placeholder="A description or any details you want to keep…"
-                style={{ width: '100%', resize: 'vertical', minHeight: 72, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', marginBottom: 14 }}
+                rows={11}
+                placeholder="Add notes, key takeaways, quotes, anything you want to keep about this item…"
+                style={{ width: '100%', resize: 'vertical', minHeight: 220, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.6, outline: 'none', fontFamily: 'inherit', marginBottom: 14 }}
               />
               <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: tileStyle.accent, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
                 <Sparkles size={11} /> Why I saved this
