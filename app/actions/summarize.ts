@@ -6,6 +6,7 @@ import { cur8Item } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { generateText } from 'ai'
+import { extractDocText, blobPathnameFromUrl } from '@/lib/cur8/extract-doc-text'
 
 async function getUserId() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -104,8 +105,51 @@ export async function summarizeItem(itemId: string, regenerate = false): Promise
   if (!item) throw new Error('Item not found')
   if (item.summary && !regenerate) return { summary: item.summary, cached: true }
 
-  const platform = platformFromUrl(item.url)
   let context = ''
+
+  // Uploaded documents (private blob) — read the actual document text.
+  if (item.url.startsWith('/api/cur8/file')) {
+    let docText = item.fileText ?? ''
+    if (!docText) {
+      // Not extracted yet — do it now (mammoth for Word, Gemini vision for PDFs)
+      const pathname = blobPathnameFromUrl(item.url)
+      if (pathname) {
+        try {
+          const extracted = await extractDocText(pathname)
+          if (extracted) {
+            docText = extracted
+            await db.update(cur8Item).set({ fileText: extracted }).where(eq(cur8Item.id, itemId))
+          }
+        } catch { /* fall through to title/notes */ }
+      }
+    }
+    const hasRealContent = docText.trim().length > 120
+    const body = docText || [item.title, item.description].filter(Boolean).join('. ')
+    context = `This is a document the person saved, titled "${item.title}".\n\nDocument content:\n${body}`
+
+    const { text } = await generateText({
+      model: 'google/gemini-2.5-flash',
+      system: hasRealContent
+        ? // Real extracted text — give a substantial, content-rich summary.
+          'You are a warm, thoughtful companion inside a personal saved-content app. ' +
+          'The person saved this document and wants to actually remember what is inside it. ' +
+          'Write a rich but easy-to-read summary of the ACTUAL content provided — around 4 to 6 sentences (you may use two short paragraphs). ' +
+          'Name the real ideas, concepts, frameworks, people, or key takeaways that appear in the document, so it genuinely reflects what the document says — not a vague description of what it "appears to be". ' +
+          'Keep the tone warm, plain-spoken and encouraging, like a thoughtful friend recapping it for them. ' +
+          'Do not use emojis, headings, or bullet points. Do not invent details that are not in the content.'
+        : // Only a title/notes — stay gentle and brief, do not invent.
+          'You are a warm, calming companion inside a personal saved-content app. ' +
+          'You only have the title and a short note for this document, not its full text. ' +
+          'Write a gentle 2-3 sentence summary of what it appears to be about, without inventing specific details. ' +
+          'Be soothing and encouraging, never clinical. No emojis, headings, or bullet points.',
+      prompt: context,
+    })
+    const summary = text.trim()
+    await db.update(cur8Item).set({ summary }).where(and(eq(cur8Item.id, itemId), eq(cur8Item.userId, userId)))
+    return { summary, cached: false }
+  }
+
+  const platform = platformFromUrl(item.url)
 
   if (platform === 'youtube') {
     const videoId = extractYouTubeId(item.url)

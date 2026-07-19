@@ -8,7 +8,7 @@ import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Sparkles, Clapperboard, Music, Globe,
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
-  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, Pin,
+  Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pin, MessageSquare,
   Mail, MessageCircle, Download, Share2,
 } from 'lucide-react'
 import {
@@ -49,8 +49,11 @@ import {
 } from '@/app/actions/cur8'
 import { summarizeItem } from '@/app/actions/summarize'
 import CategoryStatsBar from '@/components/cur8/category-stats-bar'
+import HavenTypeStats from '@/components/cur8/haven-type-stats'
 import CategoryReflections from '@/components/cur8/category-reflections'
 import ShareMenu from '@/components/cur8/share-menu'
+import { ItemCompanion } from '@/components/cur8/item-companion'
+import { DiscussionList } from '@/components/cur8/ai-hub'
 import { buildMailtoShare, buildWhatsAppShare, openExternal, saveOrDownload, isDownloadableFile, shareToDevice, deviceShareSupported } from '@/lib/cur8-share'
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -182,6 +185,21 @@ function getContentKind(item: { url: string }): ContentKind {
   return 'doc'
 }
 
+// Finer classification used only for the tappable mini-stats + type filter.
+// Splits audio ("sounds") out from video, which getContentKind lumps together.
+type StatKind = 'video' | 'image' | 'sound' | 'doc'
+
+// Human-friendly singular labels for the type-filter grid header.
+const TYPE_LABEL: Record<StatKind, string> = { video: 'video', image: 'image', sound: 'sound', doc: 'document' }
+function getStatKind(item: { url: string }): StatKind {
+  const t = getPreviewType(item.url)
+  if (t === 'audio') return 'sound'
+  // Uploaded audio files land as generic docs — sniff the extension/mime.
+  if (/\.(mp3|wav|ogg|m4a|aac|flac)(\?|$)/i.test(item.url) || /audio%2F|audio\//i.test(item.url)) return 'sound'
+  const k = getContentKind(item)
+  return k as StatKind
+}
+
 const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: string }> = {
   YouTube:   { accent: '#c85a40', accentLight: '#faecea', image: '/cur8/tile-grove.png' },
   TikTok:    { accent: '#c97a7a', accentLight: '#f9eded', image: '/cur8/tile-bloom.png' },
@@ -254,6 +272,7 @@ export default function Cur8Category({ category }: Props) {
   const [mobileTab, setMobileTab] = useState<'browse' | 'preview' | 'links'>('browse')
   const [reflections, setReflections] = useState<ReflectionDTO[]>([])
   const [showReflections, setShowReflections] = useState(false)
+  const [showDiscussions, setShowDiscussions] = useState(false)
   const { displayName, defaultName, isCustom, rename, reset } = useGardenNames()
   const gardenName = displayName(category)
   const [renaming, setRenaming] = useState(false)
@@ -273,11 +292,24 @@ export default function Cur8Category({ category }: Props) {
   // Collapsible side panels — desktop only (mobile uses tab switcher instead).
   // Start collapsed so the centre preview fills as much width as possible by
   // default — no need to manually hit Expand.
+  // Panels open by default on desktop, closed on mobile (mobile uses tab switcher instead).
+  // Start false to avoid SSR mismatch, then set correctly once client viewport is known.
   const [leftOpen, setLeftOpen] = useState(false)
   const [rightOpen, setRightOpen] = useState(false)
+  useEffect(() => {
+    if (!isMobile) { setLeftOpen(true); setRightOpen(true) }
+  }, [isMobile])
   // Desktop "full page" preview — hides both side panels + all chrome so the
   // media fills the whole window (the mobile experience, brought to laptop).
   const [expandedPreview, setExpandedPreview] = useState(false)
+  // Companion panel (Notes + Ask AI) docked beside the playing item.
+  const [companionOpen, setCompanionOpen] = useState(false)
+  // Active content-type filter (videos / images / documents / sounds) driven by
+  // the tappable mini-stats. null = show everything.
+  const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
+  // Collapsible "overview" rows (stats cards + type pills + recently opened).
+  // Hiding them hands the video/docs board much more room without scrolling.
+  const [overviewOpen, setOverviewOpen] = useState(true)
 
   function readItemAloud(item: Cur8Item) {
     if (speaking) { stopSpeak(); return }
@@ -349,9 +381,10 @@ export default function Cur8Category({ category }: Props) {
   }
 
   // Reflection handlers (category-tied notes, distinct from global brain dump)
-  async function addReflection(body: string) {
+  async function addReflection(body: string): Promise<string | null> {
     const r = await createReflection(category, body).catch(() => null)
-    if (r) setReflections((prev) => [r, ...prev])
+    if (r) { setReflections((prev) => [r, ...prev]); return r.id }
+    return null
   }
   async function removeReflection(id: string) {
     setReflections((prev) => prev.filter((r) => r.id !== id))
@@ -498,7 +531,19 @@ export default function Cur8Category({ category }: Props) {
   // close the menu on the very click that opens a submenu (Move to folder).
 
   const catItems = allItems.filter((i) => i.category === category)
-  const visibleItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
+  const folderItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
+  // Apply the tappable type filter (Videos / Images / Sounds / Documents)
+  const visibleItems = typeFilter ? folderItems.filter((i) => getStatKind(i) === typeFilter) : folderItems
+
+  // Per-type counts for the tappable mini-stats (based on the current folder, not the type filter)
+  const typeCounts: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
+  for (const i of folderItems) typeCounts[getStatKind(i)]++
+
+  // Recently opened items in this haven (max 8), newest first
+  const recentItems = [...catItems]
+    .filter((i) => i.openedAt)
+    .sort((a, b) => new Date(b.openedAt!).getTime() - new Date(a.openedAt!).getTime())
+    .slice(0, 8)
 
   // Auto-sorted lanes
   const videoItems = visibleItems.filter((i) => getContentKind(i) === 'video')
@@ -1001,29 +1046,38 @@ export default function Cur8Category({ category }: Props) {
           url={item.url}
           filename={filenameFromUrl(item.url, item.title)}
           accent={tileStyle.accent}
+          itemId={item.id}
         />
       )
     }
 
     if (type === 'pdf') {
-      let embedUrl = item.url
-
+      // Private blob PDFs — fetch client-side (session cookie sent automatically)
+      // and create a local blob: URL. Avoids Android iframe blank + Google Docs
+      // viewer auth failure. DocumentViewer handles the fetch + objectURL lifecycle.
       if (item.url.startsWith('/api/cur8/file')) {
-        // Private blob served from our own origin — iframe it directly, no viewer needed
-        embedUrl = item.url
-      } else if (item.url.includes('drive.google.com/file/d/')) {
+        return (
+          <DocumentViewer
+            url={item.url}
+            filename={item.title ?? 'document.pdf'}
+            accent={tileStyle.accent}
+            itemId={item.id}
+          />
+        )
+      }
+
+      // External / Google Drive PDFs — keep existing iframe approach
+      let embedUrl = item.url
+      if (item.url.includes('drive.google.com/file/d/')) {
         const id = item.url.match(/\/d\/([^/]+)/)?.[1]
         if (id) embedUrl = `https://drive.google.com/file/d/${id}/preview`
       } else if (item.url.includes('docs.google.com')) {
         embedUrl = item.url.replace('/edit', '/preview').replace('/pub', '/preview')
       } else {
-        // External PDF or Office doc — route through Google Docs viewer
-        // Build an absolute URL so Google can fetch it
         const abs = item.url.startsWith('http') ? item.url : `${window.location.origin}${item.url}`
         embedUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(abs)}&embedded=true`
       }
-      const isBlobPdf = item.url.startsWith('/api/cur8/file')
-      const downloadUrl = isBlobPdf ? `${item.url}${item.url.includes('?') ? '&' : '?'}download=1` : item.url
+      const downloadUrl = `${item.url}${item.url.includes('?') ? '&' : '?'}download=1`
       return (
         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
           <iframe
@@ -1031,9 +1085,6 @@ export default function Cur8Category({ category }: Props) {
             style={{ width: '100%', height: '100%', border: 'none', display: 'block', backgroundColor: '#fff' }}
             title={item.title}
           />
-          {/* Recovery bar — some browsers (esp. mobile) won't render a PDF inside
-              an iframe, leaving it blank. These always-present buttons let the
-              document be opened full-screen or downloaded regardless. */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 12px', backgroundColor: 'rgba(13,36,32,0.88)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.6)' }}>Can&rsquo;t see it? Open or download instead.</span>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -1305,14 +1356,15 @@ export default function Cur8Category({ category }: Props) {
     <div
       style={{
         display: 'flex', flexDirection: 'column',
-        // mediaFocus on mobile: lock to 100vh so the video iframe has a real height to fill.
-        // Normal mobile: auto-height so the page scrolls naturally.
-        // Desktop: always locked to viewport height for the 3-panel layout.
-        height: (isMobile && !mediaFocus) ? 'auto' : '100vh',
+        // mediaFocus: lock to 100vh so the video iframe has a real height to fill.
+        // Otherwise (desktop AND mobile): auto-height so the WHOLE page scrolls
+        // naturally — the video/docs board is no longer trapped in a tiny strip.
+        height: mediaFocus ? '100vh' : 'auto',
         minHeight: '100vh',
         backgroundColor: '#0d2420', color: '#f5f0e8',
         fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif',
-        overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden',
+        overflowY: mediaFocus ? 'hidden' : 'auto',
+        overflowX: 'hidden',
         position: 'relative',
       }}
     >
@@ -1421,15 +1473,49 @@ export default function Cur8Category({ category }: Props) {
           >
             <Headphones size={11} color="#8ec8b4" /> Focus sounds
           </button>
+          {/* Discussions — this haven's saved AI Q&A conversations */}
+          <button
+            onClick={() => setShowDiscussions(true)}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: '#f5f0e8', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <MessageSquare size={11} color={tileStyle.accent} /> Discussions
+          </button>
           {/* Spacer — desktop only; on mobile the row wraps so no spacer needed */}
           <div style={{ flex: 1, display: isMobile ? 'none' : 'block' }} />
+          {/* Collapse the overview rows to hand the board more room */}
+          <button
+            onClick={() => setOverviewOpen((o) => !o)}
+            title={overviewOpen ? 'Hide the overview and see more of your board' : 'Show the overview'}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: 50, fontSize: 10.5, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: '1px solid rgba(245,240,232,0.12)', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: isMobile ? 'auto' : 0 }}
+          >
+            {overviewOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />} {overviewOpen ? 'Hide overview' : 'Show overview'}
+          </button>
           {/* Quick count chip */}
-          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap', marginLeft: isMobile ? 'auto' : 0 }}>{catItems.length} saved</span>
+          <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.5)', whiteSpace: 'nowrap' }}>{catItems.length} saved</span>
         </div>
       )}
 
-      {/* ── Stats bar ── */}
-      {!mediaFocus && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
+      {/* ── Stats bar (part of the collapsible overview) ── */}
+      {!mediaFocus && overviewOpen && <CategoryStatsBar items={catItems} accent={tileStyle.accent} reflectionCount={reflections.length} />}
+      {!mediaFocus && overviewOpen && (
+        <HavenTypeStats
+          items={folderItems}
+          counts={typeCounts}
+          activeType={typeFilter}
+          onSelectType={(t) => {
+            // Toggle the filter, and surface the matching items in the big centre
+            // panel: clear any open preview and focus the centre (grid) view.
+            setTypeFilter(t)
+            setSelectedItem(null)
+            setMiddleView('preview')
+            if (isMobile) setMobileTab('preview')
+          }}
+          recent={recentItems}
+          onOpenItem={(item) => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+          accent={tileStyle.accent}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* ── Mobile tab switcher ── */}
       {isMobile && !mediaFocus && (
@@ -1469,13 +1555,25 @@ export default function Cur8Category({ category }: Props) {
 
       {/* ── Full-width folder filter bar (filters all three lanes) ── */}
       <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: mediaFocus ? 'none' : 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', flexShrink: 0 }}>Folders</span>
-        <button onClick={() => setActiveFolder(null)}
-          style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-          All <span style={{ opacity: 0.6 }}>{catItems.length}</span>
+        {/* "All" chip — shows total count, acts as clear-folder filter.
+            Highlighted in accent when no folder is active so it's clear it's the active state. */}
+        <button
+          onClick={() => setActiveFolder(null)}
+          title="Show all items across all folders"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: activeFolder === null ? '#0d2420' : 'rgba(245,240,232,0.7)' }}
+        >
+          <Folder size={11} /> All {catItems.length}
         </button>
         {folders.map((f) => {
-          const folderCount = catItems.filter((i) => i.folderId === f.id).length
+          const inFolder = catItems.filter((i) => i.folderId === f.id)
+          const folderCount = inFolder.length
+          // Type breakdown for the folder, shown on hover (e.g. "19 videos · 8 documents")
+          const fb: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
+          for (const i of inFolder) fb[getStatKind(i)]++
+          const breakdown = ([['video', 'videos'], ['image', 'images'], ['sound', 'sounds'], ['doc', 'documents']] as const)
+            .filter(([k]) => fb[k] > 0)
+            .map(([k, label]) => `${fb[k]} ${label}`)
+            .join(' · ') || 'empty'
           if (renameFolderId === f.id) {
             return (
               <div key={f.id} style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -1491,7 +1589,7 @@ export default function Cur8Category({ category }: Props) {
           }
           return (
           <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <button onClick={() => setActiveFolder(f.id)}
+            <button onClick={() => setActiveFolder(f.id)} title={`${f.name}: ${breakdown}`}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
               {f.pinned && <Pin size={9} style={{ opacity: 0.85 }} />}
               {f.name} <span style={{ opacity: 0.6 }}>{folderCount}</span>
@@ -1534,8 +1632,20 @@ export default function Cur8Category({ category }: Props) {
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
-      {/* paddingTop clears the fixed mediaFocus overlay bar (~56px) on mobile */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden', minHeight: isMobile ? 'auto' : 0, position: 'relative', paddingTop: mediaFocus ? 56 : 0 }}>
+      {/* paddingTop clears the fixed mediaFocus overlay bar (~56px) on mobile.
+          Desktop: a tall, fixed board height (near-full viewport) so the video
+          and docs columns are roomy — the page itself scrolls to reach it, and
+          the top overview can be collapsed for even more room. */}
+      <div style={{
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        overflow: (isMobile && !mediaFocus) ? 'visible' : 'hidden',
+        position: 'relative', paddingTop: mediaFocus ? 56 : 0,
+        ...(mediaFocus
+          ? { flex: 1, minHeight: 0 }
+          : isMobile
+            ? { minHeight: 'auto' }
+            : { height: 'calc(100vh - 44px)', minHeight: 460 }),
+      }}>
 
         {/* ── Panel 1: Videos lane ── */}
         {/* Desktop: collapsible. Mobile: tab-switched. */}
@@ -1703,9 +1813,29 @@ export default function Cur8Category({ category }: Props) {
             </div>
           ) : selectedItem ? (
             <>
-              {/* Preview — always takes 100% of the available space, never shrunk */}
-              <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}>
-                {renderPreview(selectedItem)}
+              {/* Preview + optional companion sit side by side so the media keeps
+                  playing while you take notes / ask AI (all three at once). On mobile
+                  the companion stacks below; on desktop it docks to the right. */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0, position: 'relative' }}>
+                <div style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden', minHeight: isMobile ? 200 : 0, minWidth: 0 }}>
+                  {renderPreview(selectedItem)}
+                </div>
+                {companionOpen && (
+                  <div style={{ position: 'relative', flexShrink: 0, width: isMobile ? '100%' : 360, height: isMobile ? 340 : 'auto', borderTop: isMobile ? '1px solid rgba(245,240,232,0.12)' : 'none' }}>
+                    <ItemCompanion
+                      itemId={selectedItem.id}
+                      itemTitle={selectedItem.title}
+                      category={category}
+                      initialNote={selectedItem.description ?? ''}
+                      accent={tileStyle.accent}
+                      onClose={() => setCompanionOpen(false)}
+                      onNoteSaved={(note) => {
+                        setAllItems((prev) => prev.map((it) => (it.id === selectedItem.id ? { ...it, description: note } : it)))
+                        setSelectedItem((cur) => (cur && cur.id === selectedItem.id ? { ...cur, description: note } : cur))
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* ── Summary: slides in from the RIGHT edge as a full-height panel.
@@ -1829,6 +1959,11 @@ export default function Cur8Category({ category }: Props) {
                     {speaking ? <Square size={11} /> : <Volume2 size={11} />} {!isMobile && (speaking ? 'Stop' : 'Listen')}
                   </button>
                 )}
+                <button onClick={() => setCompanionOpen((o) => !o)}
+                  title="Ask AI & take notes while this plays"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: companionOpen ? '#0d2420' : 'rgba(245,240,232,0.8)', backgroundColor: companionOpen ? tileStyle.accent : 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                  <MessageSquare size={11} /> {!isMobile && 'Ask AI'}
+                </button>
                 <button onClick={() => setEditItem({ id: selectedItem.id, title: selectedItem.title, description: selectedItem.description ?? '', whySaved: selectedItem.whySaved ?? '' })}
                   title="Edit title, note & why you saved it"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 700, color: 'rgba(245,240,232,0.8)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
@@ -1852,6 +1987,93 @@ export default function Cur8Category({ category }: Props) {
                 </button>
               </div>
             </>
+          ) : typeFilter ? (
+            /* ── Idle with a type filter active: show ALL matching items as one
+                 clear grid in the big centre panel (docs, images, sounds, videos).
+                 This is what makes tapping "Documents 9" actually reveal the 9 docs. ── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
+                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
+                  {visibleItems.length} {TYPE_LABEL[typeFilter]}{visibleItems.length === 1 ? '' : 's'} · tap to open
+                </p>
+                <button
+                  onClick={() => setTypeFilter(null)}
+                  style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: 'rgba(245,240,232,0.6)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={11} /> Clear filter
+                </button>
+              </div>
+              {visibleItems.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic', textAlign: 'center', marginTop: 32 }}>Nothing of this kind here yet.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                  {visibleItems.map((item) => {
+                    const kind = getContentKind(item)
+                    const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+                    const KindIcon = kind === 'image' ? ImageIcon : kind === 'doc' ? FileText : kind === 'video' ? Clapperboard : Music
+                    return (
+                      <div
+                        key={item.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
+                        title={item.title}
+                        style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '16 / 11', backgroundColor: tileStyle.accentLight, display: 'flex', flexDirection: 'column' }}
+                      >
+                        {thumb ? (
+                          <img src={thumb} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                        ) : (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><KindIcon size={26} style={{ color: tileStyle.accent }} /></div>
+                        )}
+                        {(kind === 'video') && (
+                          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Play size={18} color="#fff" style={{ marginLeft: 2 }} />
+                          </div>
+                        )}
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.85) 0%, transparent 55%)' }} />
+                        <p style={{ position: 'absolute', bottom: 6, left: 8, right: 8, fontSize: 11, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ) : videoItems.length > 0 ? (
+            /* ── Idle: video grid so a video-only haven/folder is instantly
+                 playable from the big centre panel (not just the narrow left lane) ── */
+            <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+              <p style={{ margin: '0 0 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
+                {videoItems.length} {videoItems.length === 1 ? 'video' : 'videos'} · tap to play
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
+                {videoItems.map((item) => {
+                  const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
+                  return (
+                    <div
+                      key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedItem(item); setMiddleView('preview'); if (isMobile) setMobileTab('preview') } }}
+                      title={item.title}
+                      style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', aspectRatio: '16 / 10', backgroundColor: tileStyle.accentLight }}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                      ) : (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Clapperboard size={26} style={{ color: tileStyle.accent }} /></div>
+                      )}
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 40, height: 40, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Play size={18} color="#fff" style={{ marginLeft: 2 }} />
+                      </div>
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(13,61,58,0.8) 0%, transparent 55%)' }} />
+                      <p style={{ position: 'absolute', bottom: 6, left: 8, right: 8, fontSize: 11, fontWeight: 600, color: '#f5f0e8', lineHeight: 1.25, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           ) : moodImages.length > 0 ? (
             /* ── Idle: rotating moodboard of saved images ── */
             <button
@@ -2008,7 +2230,7 @@ export default function Cur8Category({ category }: Props) {
 
               {saveTab === 'links' ? (
                 <>
-                  {/* ── Links tab ── */}
+                  {/* ���─ Links tab ── */}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <textarea value={url} onChange={(e) => setUrl(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && !e.shiftKey) { e.preventDefault(); handleFetch() } }}
@@ -2233,6 +2455,38 @@ export default function Cur8Category({ category }: Props) {
         onEdit={editReflection}
       />
 
+      {/* ── Discussions drawer — this haven's saved AI Q&A conversations ── */}
+      <AnimatePresence>
+        {showDiscussions && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowDiscussions(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 300, backgroundColor: 'rgba(6,18,16,0.5)', backdropFilter: 'blur(1px)' }}
+            />
+            <motion.div
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 301, width: isMobile ? '100%' : 400, maxWidth: '100%', backgroundColor: '#0b2b28', borderLeft: '1px solid rgba(245,240,232,0.12)', display: 'flex', flexDirection: 'column' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 18px', borderBottom: '1px solid rgba(245,240,232,0.1)', flexShrink: 0 }}>
+                <MessageSquare size={16} style={{ color: tileStyle.accent }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.5)' }}>Discussions</p>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#f5f0e8' }}>{gardenName}</p>
+                </div>
+                <button onClick={() => setShowDiscussions(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}>
+                  <X size={13} /> Close
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+                <DiscussionList category={category} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* ── Rename garden modal ── */}
       <AnimatePresence>
         {renaming && (
@@ -2412,9 +2666,9 @@ export default function Cur8Category({ category }: Props) {
               <textarea
                 value={editItem.description}
                 onChange={(e) => setEditItem((prev) => (prev ? { ...prev, description: e.target.value } : prev))}
-                rows={3}
-                placeholder="A description or any details you want to keep…"
-                style={{ width: '100%', resize: 'vertical', minHeight: 72, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit', marginBottom: 14 }}
+                rows={11}
+                placeholder="Add notes, key takeaways, quotes, anything you want to keep about this item…"
+                style={{ width: '100%', resize: 'vertical', minHeight: 220, padding: '11px 13px', borderRadius: 11, backgroundColor: '#0d2420', border: '1px solid rgba(245,240,232,0.15)', color: '#f5f0e8', fontSize: 14, lineHeight: 1.6, outline: 'none', fontFamily: 'inherit', marginBottom: 14 }}
               />
               <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: tileStyle.accent, display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
                 <Sparkles size={11} /> Why I saved this

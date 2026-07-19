@@ -6,7 +6,9 @@ import { PenLine, Mic, MicOff, Send, Trash2, Lightbulb, X, Mail, MessageCircle, 
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
 import { getSettings, type Cur8Settings } from '@/app/actions/notes'
-import { AttachmentChips, AttachmentPicker, useAttachments } from '@/components/cur8/attachment-panel'
+import { AttachmentChips, AttachmentPicker, useAttachments, type PendingAttachment } from '@/components/cur8/attachment-panel'
+import { addAttachment } from '@/app/actions/cur8'
+import { composeShareText } from '@/lib/cur8-share'
 
 interface Props {
   open: boolean
@@ -14,7 +16,7 @@ interface Props {
   categoryLabel: string
   accent: string
   reflections: ReflectionDTO[]
-  onAdd: (body: string) => Promise<void>
+  onAdd: (body: string) => Promise<string | null>
   onDelete: (id: string) => Promise<void>
   onEdit: (id: string, body: string) => Promise<void>
 }
@@ -34,9 +36,17 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const [attachFor, setAttachFor] = useState<string | null>(null)
+  const [draftAttachOpen, setDraftAttachOpen] = useState(false)
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const baseRef = useRef('')
   const reflectionIds = reflections.map((r) => r.id)
   const attachments = useAttachments('reflection', reflectionIds, open)
+
+  // Build shareable text for a reflection: body + links to its attachments.
+  function reflectionShareText(r: ReflectionDTO) {
+    const atts = (attachments.byParent[r.id] || []).map((a) => ({ title: a.title, url: a.url ?? undefined }))
+    return composeShareText(r.body, atts)
+  }
 
   async function saveEdit(id: string) {
     const body = editDraft.trim()
@@ -85,10 +95,23 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
     if (!body || saving) return
     setSaving(true)
     if (listening) stop()
-    await onAdd(body).catch(() => {})
+    const newId = await onAdd(body).catch(() => null)
+    // Persist any attachments staged while drafting
+    if (newId && pendingAttachments.length > 0) {
+      await Promise.all(
+        pendingAttachments.map((p) =>
+          addAttachment({
+            parentType: 'reflection', parentId: newId, kind: p.kind,
+            refId: p.refId, url: p.url, title: p.title, thumbnail: p.thumbnail, mimeType: p.mimeType,
+          }).catch(() => null),
+        ),
+      )
+      attachments.refresh([newId])
+    }
     if (settings?.autoEmail) emailReflection(body)
     setDraft('')
     baseRef.current = ''
+    setPendingAttachments([])
     setSaving(false)
   }
 
@@ -136,20 +159,43 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing && e.keyCode !== 229) submit()
           }}
           placeholder="Capture a reflection or brainstorm…"
-          rows={3}
-          style={{ width: '100%', resize: 'none', background: 'none', border: 'none', outline: 'none', color: '#f5f0e8', fontSize: 13.5, lineHeight: 1.5, fontFamily: 'inherit' }}
+          rows={7}
+          style={{ width: '100%', resize: 'vertical', minHeight: 170, background: 'none', border: 'none', outline: 'none', color: '#f5f0e8', fontSize: 14, lineHeight: 1.6, fontFamily: 'inherit' }}
         />
+
+        {/* Staged attachments (added while drafting, saved with the reflection) */}
+        {pendingAttachments.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {pendingAttachments.map((p, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 9px', borderRadius: 50, backgroundColor: `${accent}1a`, border: `1px solid ${accent}44`, fontSize: 11.5, color: '#f5f0e8', maxWidth: 200 }}>
+                <Paperclip size={11} color={accent} style={{ flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                <button onClick={() => setPendingAttachments((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove attachment" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', display: 'flex', flexShrink: 0 }}><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {micSupported ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {micSupported ? (
+              <button
+                onClick={toggleMic}
+                title={listening ? 'Stop dictation' : 'Dictate'}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 600, backgroundColor: listening ? '#c85a40' : 'rgba(245,240,232,0.08)', color: listening ? '#fff' : 'rgba(245,240,232,0.7)' }}
+              >
+                {listening ? <MicOff size={13} /> : <Mic size={13} />}
+                {listening ? 'Listening…' : 'Voice'}
+              </button>
+            ) : <span />}
             <button
-              onClick={toggleMic}
-              title={listening ? 'Stop dictation' : 'Dictate'}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 600, backgroundColor: listening ? '#c85a40' : 'rgba(245,240,232,0.08)', color: listening ? '#fff' : 'rgba(245,240,232,0.7)' }}
+              onClick={() => setDraftAttachOpen(true)}
+              title="Attach a file, note, or saved item"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 50, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 600, backgroundColor: 'rgba(245,240,232,0.08)', color: 'rgba(245,240,232,0.7)' }}
             >
-              {listening ? <MicOff size={13} /> : <Mic size={13} />}
-              {listening ? 'Listening…' : 'Voice'}
+              <Paperclip size={13} /> Attach
             </button>
-          ) : <span />}
+          </div>
           <button
             onClick={submit}
             disabled={!draft.trim() || saving}
@@ -204,14 +250,14 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
                   <Pencil size={13} />
                 </button>
                 <button
-                  onClick={() => emailReflection(r.body)}
+                  onClick={() => emailReflection(reflectionShareText(r))}
                   title="Send to mem.ai by email"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
                 >
                   <Mail size={13} />
                 </button>
                 <button
-                  onClick={() => whatsAppReflection(r.body)}
+                  onClick={() => whatsAppReflection(reflectionShareText(r))}
                   title="Share via WhatsApp"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', padding: 2 }}
                 >
@@ -256,6 +302,14 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
               accent={accent}
               onClose={() => setAttachFor(null)}
               onAttached={(a) => attachments.add(a)}
+            />
+          )}
+          {draftAttachOpen && (
+            <AttachmentPicker
+              parentType="reflection"
+              accent={accent}
+              onClose={() => setDraftAttachOpen(false)}
+              onPick={(p) => setPendingAttachments((prev) => [...prev, p])}
             />
           )}
         </>

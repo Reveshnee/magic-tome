@@ -43,8 +43,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const ifNoneMatch = request.headers.get('if-none-match') ?? undefined
-
-    // get() streams the private blob directly — no external signed-URL fetch needed
     const result = await get(pathname, {
       access: 'private',
       ...(ifNoneMatch ? { ifNoneMatch } : {}),
@@ -54,20 +52,16 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Not found', { status: 404 })
     }
 
-    // 304 — blob unchanged, client can use its cache
+    // 304 — client cache is still valid, no body needed
     if (result.statusCode === 304) {
       return new NextResponse(null, {
         status: 304,
-        headers: {
-          ETag: result.blob.etag,
-          'Cache-Control': 'private, no-cache',
-        },
+        headers: { ETag: result.blob.etag, 'Cache-Control': 'private, no-cache' },
       })
     }
 
     const filename = pathname.split('/').pop() ?? 'file'
-    const contentType = resolveContentType(pathname, result.blob.contentType)
-    // ?download=1 forces a "Save as" download instead of opening inline
+    const contentType = resolveContentType(pathname, result.blob.contentType ?? undefined)
     const forceDownload = request.nextUrl.searchParams.get('download') === '1'
     const disposition = forceDownload ? 'attachment' : 'inline'
 
@@ -77,7 +71,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': contentType,
         ETag: result.blob.etag,
         'Cache-Control': 'private, no-cache',
-        'Content-Disposition': `${disposition}; filename="${filename}"`,
+        'Content-Disposition': `${disposition}; filename="${encodeURIComponent(filename)}"`,
       },
     })
   } catch (error) {
