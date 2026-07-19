@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, Music2, VolumeX,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, Music2, VolumeX, MoreHorizontal,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, slugFromCategory, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -308,7 +308,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
   )
 }
 
-// ─── Main hub component ─────────────────────────────────────────��─────�����───────
+// ─── Main hub component ───────────────────────────────────��─────��─────�����───────
 export default function Cur8Home() {
   const router = useRouter()
   const { isMobile, isTablet } = useViewport()
@@ -325,6 +325,7 @@ export default function Cur8Home() {
   const [leap,        setLeap]        = useState<{ href: string; origin: DOMRect } | null>(null)
   const [tabScroll,     setTabScroll]     = useState({ left: false, right: false })
   const [naturePlaying, setNaturePlaying] = useState(false)
+  const [moreOpen,      setMoreOpen]      = useState(false)
   const tabScrollRef  = useRef<HTMLDivElement>(null)
   const natureCtxRef  = useRef<{ ctx: AudioContext; src: AudioBufferSourceNode; gain: GainNode } | null>(null)
 
@@ -485,23 +486,32 @@ export default function Cur8Home() {
         {/* Layered dark overlay — richer depth */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(6,18,16,0.55) 0%, rgba(6,18,16,0.35) 40%, rgba(6,18,16,0.82) 80%, rgba(10,30,27,1) 100%)' }} />
 
-        {/* Water movement — soft light bands drifting across the pond surface */}
+        {/* Water movement — light bands drifting across the pond surface */}
         {!calm && (
           <>
+            {/* Wide slow band — upper water */}
             <motion.div
-              animate={{ x: ['-100%', '130%'] }}
-              transition={{ repeat: Infinity, duration: 15, ease: 'linear', delay: 0 }}
-              style={{ position: 'absolute', top: '36%', left: 0, width: '38%', height: 2, background: 'linear-gradient(to right, transparent, rgba(160,230,210,0.22), transparent)', pointerEvents: 'none', zIndex: 1 }}
+              animate={{ x: ['-110%', '140%'] }}
+              transition={{ repeat: Infinity, duration: 14, ease: 'linear', delay: 0 }}
+              style={{ position: 'absolute', top: '33%', left: 0, width: '45%', height: 6, background: 'linear-gradient(to right, transparent, rgba(180,240,220,0.38), transparent)', filter: 'blur(3px)', pointerEvents: 'none', zIndex: 2 }}
             />
+            {/* Narrow faster band — mid water */}
             <motion.div
-              animate={{ x: ['-100%', '130%'] }}
-              transition={{ repeat: Infinity, duration: 21, ease: 'linear', delay: 5 }}
-              style={{ position: 'absolute', top: '50%', left: 0, width: '26%', height: 1.5, background: 'linear-gradient(to right, transparent, rgba(140,210,200,0.17), transparent)', pointerEvents: 'none', zIndex: 1 }}
+              animate={{ x: ['-110%', '140%'] }}
+              transition={{ repeat: Infinity, duration: 9, ease: 'linear', delay: 3 }}
+              style={{ position: 'absolute', top: '47%', left: 0, width: '28%', height: 3, background: 'linear-gradient(to right, transparent, rgba(160,230,210,0.45), transparent)', filter: 'blur(2px)', pointerEvents: 'none', zIndex: 2 }}
             />
+            {/* Counter-direction band — lower water */}
             <motion.div
-              animate={{ x: ['130%', '-100%'] }}
-              transition={{ repeat: Infinity, duration: 25, ease: 'linear', delay: 2 }}
-              style={{ position: 'absolute', top: '60%', left: 0, width: '30%', height: 1, background: 'linear-gradient(to right, transparent, rgba(180,240,220,0.14), transparent)', pointerEvents: 'none', zIndex: 1 }}
+              animate={{ x: ['140%', '-110%'] }}
+              transition={{ repeat: Infinity, duration: 18, ease: 'linear', delay: 6 }}
+              style={{ position: 'absolute', top: '58%', left: 0, width: '35%', height: 4, background: 'linear-gradient(to right, transparent, rgba(200,245,230,0.30), transparent)', filter: 'blur(2px)', pointerEvents: 'none', zIndex: 2 }}
+            />
+            {/* Bright glint — small sparkle crossing fast */}
+            <motion.div
+              animate={{ x: ['-110%', '140%'] }}
+              transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut', delay: 1 }}
+              style={{ position: 'absolute', top: '41%', left: 0, width: '12%', height: 2, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.55), transparent)', filter: 'blur(1px)', pointerEvents: 'none', zIndex: 2 }}
             />
           </>
         )}
@@ -517,7 +527,8 @@ export default function Cur8Home() {
           </div>
 
           {/* Nav actions */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10 }}>
+          <nav style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10, position: 'relative' }}>
+            {/* Search — always visible */}
             <button
               onClick={() => setSearchOpen(!searchOpen)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '8px 16px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: CREAM, background: 'rgba(245,240,232,0.10)', border: '1px solid rgba(245,240,232,0.16)', backdropFilter: 'blur(12px)', cursor: 'pointer' }}
@@ -526,36 +537,94 @@ export default function Cur8Home() {
               {!isMobile && 'Search'}
             </button>
 
-            <button
-              onClick={() => setCalm(!calm)}
-              aria-pressed={calm}
-              title={calm ? 'Calm mode on' : 'Turn on calm mode'}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: calm ? BG : CREAM, background: calm ? SAGE : 'rgba(245,240,232,0.10)', border: `1px solid ${calm ? SAGE : 'rgba(245,240,232,0.16)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', transition: 'all 0.2s' }}
-            >
-              <Wind size={13} />
-              {!isMobile && (calm ? 'Calm on' : 'Calm')}
-            </button>
+            {/* Desktop: Calm, Nature, Guide inline */}
+            {!isMobile && (
+              <>
+                <button
+                  onClick={() => setCalm(!calm)}
+                  aria-pressed={calm}
+                  title={calm ? 'Calm mode on' : 'Turn on calm mode'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: calm ? BG : CREAM, background: calm ? SAGE : 'rgba(245,240,232,0.10)', border: `1px solid ${calm ? SAGE : 'rgba(245,240,232,0.16)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <Wind size={13} />
+                  {calm ? 'Calm on' : 'Calm'}
+                </button>
 
-            {/* Nature sounds toggle */}
-            <button
-              onClick={toggleNature}
-              aria-pressed={naturePlaying}
-              title={naturePlaying ? 'Turn off nature sounds' : 'Turn on nature sounds (soft rain)'}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: naturePlaying ? BG : SAGE, background: naturePlaying ? SAGE : 'rgba(90,158,132,0.12)', border: `1px solid ${naturePlaying ? SAGE : 'rgba(90,158,132,0.35)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', transition: 'all 0.2s' }}
-            >
-              {naturePlaying ? <Music2 size={13} /> : <VolumeX size={13} />}
-              {!isMobile && (naturePlaying ? 'Sounds on' : 'Nature sounds')}
-            </button>
+                <button
+                  onClick={toggleNature}
+                  aria-pressed={naturePlaying}
+                  title={naturePlaying ? 'Turn off nature sounds' : 'Nature sounds (soft rain)'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: naturePlaying ? BG : SAGE, background: naturePlaying ? SAGE : 'rgba(90,158,132,0.12)', border: `1px solid ${naturePlaying ? SAGE : 'rgba(90,158,132,0.35)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  {naturePlaying ? <Music2 size={13} /> : <VolumeX size={13} />}
+                  {naturePlaying ? 'Sounds on' : 'Nature sounds'}
+                </button>
 
-            <Link
-              href="/cur8/guide"
-              title="How to use Cur8"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: CREAM, background: 'rgba(245,240,232,0.10)', border: '1px solid rgba(245,240,232,0.16)', textDecoration: 'none', backdropFilter: 'blur(12px)' }}
-            >
-              <HelpCircle size={13} />
-              {!isMobile && 'Guide'}
-            </Link>
+                <Link
+                  href="/cur8/guide"
+                  title="How to use Cur8"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: CREAM, background: 'rgba(245,240,232,0.10)', border: '1px solid rgba(245,240,232,0.16)', textDecoration: 'none', backdropFilter: 'blur(12px)' }}
+                >
+                  <HelpCircle size={13} />
+                  Guide
+                </Link>
+              </>
+            )}
 
+            {/* Mobile: "..." overflow button for Calm, Sounds, Guide */}
+            {isMobile && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setMoreOpen((v) => !v)}
+                  aria-label="More options"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: moreOpen ? SAGE : 'rgba(245,240,232,0.10)', border: `1px solid ${moreOpen ? SAGE : 'rgba(245,240,232,0.18)'}`, backdropFilter: 'blur(12px)', cursor: 'pointer', color: moreOpen ? BG : CREAM }}
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+
+                <AnimatePresence>
+                  {moreOpen && (
+                    <>
+                      {/* Backdrop to close */}
+                      <div onClick={() => setMoreOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.92, y: -6 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.92, y: -6 }}
+                        style={{ position: 'absolute', top: 44, right: 0, zIndex: 50, minWidth: 180, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 16, border: `1px solid ${BORDER}`, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                      >
+                        <button
+                          onClick={() => { setCalm(!calm); setMoreOpen(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '13px 16px', background: 'none', border: 'none', cursor: 'pointer', color: calm ? SAGE : CREAM, fontSize: 13, fontWeight: 500, textAlign: 'left', borderBottom: `1px solid ${BORDER}` }}
+                        >
+                          <Wind size={14} />
+                          {calm ? 'Calm mode: on' : 'Calm mode'}
+                          {calm && <span style={{ marginLeft: 'auto', fontSize: 10, color: SAGE, fontWeight: 700 }}>ON</span>}
+                        </button>
+                        <button
+                          onClick={() => { toggleNature(); setMoreOpen(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '13px 16px', background: 'none', border: 'none', cursor: 'pointer', color: naturePlaying ? SAGE : CREAM, fontSize: 13, fontWeight: 500, textAlign: 'left', borderBottom: `1px solid ${BORDER}` }}
+                        >
+                          {naturePlaying ? <Music2 size={14} /> : <VolumeX size={14} />}
+                          {naturePlaying ? 'Nature sounds: on' : 'Nature sounds'}
+                          {naturePlaying && <span style={{ marginLeft: 'auto', fontSize: 10, color: SAGE, fontWeight: 700 }}>ON</span>}
+                        </button>
+                        <Link
+                          href="/cur8/guide"
+                          onClick={() => setMoreOpen(false)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '13px 16px', textDecoration: 'none', color: CREAM, fontSize: 13, fontWeight: 500 }}
+                        >
+                          <HelpCircle size={14} />
+                          How to use Cur8
+                        </Link>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Sign out — always visible */}
             <button
               onClick={handleSignOut}
               title="Sign out"
@@ -643,24 +712,26 @@ export default function Cur8Home() {
 
         {/* ── HERO TEXT BLOCK ── */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '0 20px 84px' : `0 ${pad}px 92px` }}>
-          <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD }}>{greeting}, Reveshnee</p>
-          <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(40px, 5.5vw, 76px)', fontWeight: 700, color: CREAM, lineHeight: 1.0, margin: '0 0 14px', letterSpacing: '-0.02em' }}>
+          <p style={{ margin: '0 0 6px', fontSize: isMobile ? 10 : 11, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD }}>{greeting}, Reveshnee</p>
+          <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: isMobile ? 'clamp(28px, 9vw, 40px)' : 'clamp(44px, 5.5vw, 76px)', fontWeight: 700, color: CREAM, lineHeight: 1.05, margin: isMobile ? '0 0 10px' : '0 0 14px', letterSpacing: '-0.02em' }}>
             {"Reveshnee's"}<br />
             <em style={{ fontStyle: 'italic', color: GOLD }}>Haven</em>
           </h1>
-          <p style={{ margin: '0 0 28px', fontSize: 13, color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, maxWidth: 380 }}>
-            &ldquo;{quote}&rdquo;
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 18 : 28, flexWrap: 'wrap' }}>
+          {!isMobile && (
+            <p style={{ margin: '0 0 28px', fontSize: 13, color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, maxWidth: 380 }}>
+              &ldquo;{quote}&rdquo;
+            </p>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 14 : 28, flexWrap: 'wrap', marginBottom: isMobile ? 0 : 0 }}>
             {[
               { value: items.length, label: 'saved',  color: CREAM },
               { value: todayCount,   label: 'today',  color: CORAL },
               { value: 8,            label: 'havens', color: SAGE  },
             ].map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 30, fontWeight: 800, color: s.color, fontFamily: 'var(--font-playfair), Georgia, serif', lineHeight: 1 }}>{s.value}</span>
-                <span style={{ fontSize: 11, color: MUTED }}>{s.label}</span>
-                {i < 2 && <span style={{ marginLeft: isMobile ? 6 : 10, width: 1, height: 22, backgroundColor: 'rgba(245,240,232,0.15)', display: 'inline-block', alignSelf: 'center' }} />}
+              <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                <span style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: s.color, fontFamily: 'var(--font-playfair), Georgia, serif', lineHeight: 1 }}>{s.value}</span>
+                <span style={{ fontSize: 10, color: MUTED }}>{s.label}</span>
+                {i < 2 && <span style={{ marginLeft: isMobile ? 4 : 10, width: 1, height: 18, backgroundColor: 'rgba(245,240,232,0.15)', display: 'inline-block', alignSelf: 'center' }} />}
               </div>
             ))}
             {items.length > 0 && (

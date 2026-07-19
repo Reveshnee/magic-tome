@@ -147,7 +147,7 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
       {/* Prompt hint */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/cur8/reflect-icon.png" alt="" width={14} height={14} style={{ objectFit: 'contain', flexShrink: 0, filter: 'invert(72%) sepia(40%) saturate(600%) hue-rotate(10deg) brightness(1.1)' }} />
+        <img src="/cur8/reflect-icon.png" alt="" width={14} height={14} style={{ objectFit: 'contain', flexShrink: 0 }} />
         <span style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.75)', fontStyle: 'italic' }}>{prompt}</span>
       </div>
 

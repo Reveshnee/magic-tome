@@ -117,7 +117,7 @@ export default function GlobalReflect() {
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cur8/reflect-icon.png" alt="" width={22} height={22} style={{ objectFit: 'contain', filter: 'invert(72%) sepia(40%) saturate(600%) hue-rotate(10deg) brightness(1.1)', opacity: 0.95 }} />
+          <img src="/cur8/reflect-icon.png" alt="" width={22} height={22} style={{ objectFit: 'contain', opacity: 0.9 }} />
         </motion.button>
       )}
 
@@ -147,7 +147,7 @@ export default function GlobalReflect() {
               <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '18px 18px 14px', borderBottom: '1px solid rgba(245,240,232,0.07)' }}>
                 <div style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${ACCENT}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/cur8/reflect-icon.png" alt="" width={18} height={18} style={{ objectFit: 'contain', filter: 'invert(72%) sepia(40%) saturate(600%) hue-rotate(10deg) brightness(1.1)' }} />
+                  <img src="/cur8/reflect-icon.png" alt="" width={18} height={18} style={{ objectFit: 'contain' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8', margin: 0, lineHeight: 1.1 }}>Reflections</h3>
@@ -162,7 +162,7 @@ export default function GlobalReflect() {
                 {/* Prompt hint */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: `${ACCENT}11`, border: `1px solid ${ACCENT}22` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/cur8/reflect-icon.png" alt="" width={14} height={14} style={{ objectFit: 'contain', flexShrink: 0, filter: 'invert(72%) sepia(40%) saturate(600%) hue-rotate(10deg) brightness(1.1)' }} />
+                  <img src="/cur8/reflect-icon.png" alt="" width={14} height={14} style={{ objectFit: 'contain', flexShrink: 0 }} />
                   <span style={{ fontSize: 11.5, color: 'rgba(245,240,232,0.7)', fontStyle: 'italic' }}>{prompt}</span>
                 </div>
 

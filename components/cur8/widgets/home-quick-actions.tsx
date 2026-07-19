@@ -38,7 +38,7 @@ export default function HomeQuickActions() {
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/cur8/reflect-icon.png" alt="" width={16} height={16} style={{ objectFit: 'contain', filter: 'invert(72%) sepia(40%) saturate(600%) hue-rotate(10deg) brightness(1.1)' }} />
+          <img src="/cur8/reflect-icon.png" alt="" width={16} height={16} style={{ objectFit: 'contain' }} />
           Reflect
         </motion.button>
 
