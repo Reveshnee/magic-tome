@@ -185,8 +185,8 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
     const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : orbRect.width / 2
     setFish({ id: item.id, color: item.color, x })
     // Open widget just before fish arrives, clear fish after full animation
-    setTimeout(() => { setActive(item.id) }, 950)
-    setTimeout(() => { setFish(null) }, 1350)
+    setTimeout(() => { setActive(item.id) }, 880)
+    setTimeout(() => { setFish(null) }, 1300)
   }
 
   return (
@@ -233,7 +233,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
               pointerEvents: 'none',
               willChange: 'transform, opacity',
               filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))',
-              animation: `koiLeap 1.3s cubic-bezier(0.25,0,0.4,1) forwards`,
+              animation: `koiLeap 1.2s linear forwards`,
             }}
           >
             {/* Inner wrapper flips nose-up: SVG nose is at top, scaleY(-1) makes tail face up (into water) */}
@@ -251,9 +251,9 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
             36%  { transform: translate(54px, -110px)  scale(1.12) rotate(12deg); }
             44%  { transform: translate(62px, -130px)  scale(1.12) rotate(20deg); }
             60%  { transform: translate(54px,  -70px)  scale(1.05) rotate(42deg); }
-            78%  { transform: translate(36px,  ${Math.round(pondH * 0.3)}px) scale(0.95) rotate(68deg); opacity: 1; }
-            88%  { opacity: 0; }
-            100% { transform: translate(14px,  ${pondH + 110}px) scale(0.8)  rotate(92deg); opacity: 0; }
+            76%  { transform: translate(36px,  ${Math.round(pondH * 0.3)}px) scale(0.95) rotate(65deg); opacity: 1; }
+            88%  { transform: translate(24px,  ${Math.round(pondH * 0.75)}px) scale(0.88) rotate(80deg); opacity: 0.3; }
+            100% { transform: translate(14px,  ${pondH + 110}px)              scale(0.8)  rotate(92deg); opacity: 0; }
           }
         `}</style>
 
