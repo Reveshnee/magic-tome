@@ -229,12 +229,17 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
                 y:       [pondH * 0.52, -52, pondH + 20],
                 opacity: [0, 1, 1, 0],
                 scale:   [0.5, 1.05, 0.85],
-                // 0° = nose straight up out of water
-                // lean slightly right at peak, then arc forward on descent (nose leading, tail behind)
-                // never go past ~70° so tail stays below nose throughout
-                rotate:  [0, 14, 62],
+                // Rotation is independent — nose stays UP through entire ascent (0→42%),
+                // only tips forward on descent (42→100%) so tail always trails behind
+                rotate:  [0, 0, 8, 55],
               }}
-              transition={{ duration: 0.68, ease: [0.35, 0, 0.45, 1], times: [0, 0.42, 1], opacity: { duration: 0.68, times: [0, 0.1, 0.72, 1] } }}
+              transition={{
+                duration: 0.72,
+                ease: [0.35, 0, 0.45, 1],
+                times: [0, 0.42, 1],
+                opacity: { duration: 0.72, times: [0, 0.1, 0.72, 1] },
+                rotate:  { duration: 0.72, ease: 'easeIn', times: [0, 0.4, 0.58, 1] },
+              }}
               transformTemplate={(_, generated) => `translateX(-50%) ${generated}`}
               style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
             >
