@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Headphones, Play, Pause, Volume2, VolumeX, X, Waves, Radio, Zap, CloudRain, Droplets, Wind, Music } from 'lucide-react'
+import { Headphones, Play, Pause, Volume2, VolumeX, X, Waves, Radio, Zap, Droplets, Wind, Music } from 'lucide-react'
 
-type SoundId = 'rain' | 'ocean' | 'brown' | 'pond' | 'hz432' | 'binaural18' | 'binaural40' | 'binaural2'
+type SoundId = 'ocean' | 'brown' | 'pond' | 'hz432' | 'binaural18' | 'binaural40' | 'binaural2'
 
 interface SoundDef {
   id: SoundId
@@ -16,7 +16,6 @@ interface SoundDef {
 }
 
 const SOUNDS: SoundDef[] = [
-  { id: 'rain',       label: 'Rain',           hint: 'Drops on a surface',            icon: CloudRain, color: '#6bb7dd' },
   { id: 'ocean',      label: 'Ocean',          hint: 'Waves building and crashing',   icon: Waves,     color: '#5a9e84' },
   { id: 'brown',      label: 'Brown noise',    hint: 'Deep calming rumble',           icon: Wind,      color: '#c85a40' },
   { id: 'pond',       label: 'Pond drips',     hint: 'Water drops on still water',    icon: Droplets,  color: '#8ec8b4' },
@@ -30,7 +29,7 @@ export default function FocusSoundPlayer() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [playing, setPlaying] = useState(false)
-  const [active, setActive] = useState<SoundId>('rain')
+  const [active, setActive] = useState<SoundId>('ocean')
   const [volume, setVolume] = useState(0.5)
 
   // Allow other components (e.g. HomeQuickActions) to open the panel via a custom event
@@ -70,14 +69,7 @@ export default function FocusSoundPlayer() {
     for (let ch = 0; ch < channels; ch++) {
       const data = buffer.getChannelData(ch)
 
-      if (type === 'rain') {
-        // White noise base with rapid amplitude patter — simulates individual drop impacts
-        for (let i = 0; i < length; i++) {
-          const patter = 0.55 + 0.45 * Math.abs(Math.sin(i * 0.0031) * Math.sin(i * 0.0071))
-          data[i] = (Math.random() * 2 - 1) * patter
-        }
-
-      } else if (type === 'ocean') {
+      if (type === 'ocean') {
         // Brown noise with a dramatic slow LFO swell — wave rises then crashes every ~6s
         let last = 0
         const waveHz = 0.16  // ~one wave every 6.2s
@@ -114,13 +106,6 @@ export default function FocusSoundPlayer() {
   // Build filter chain + extra oscillator nodes for insects (forest only)
   // Returns [filterNodes] — insect oscillators are scheduled separately via scheduleInsects()
   function buildFilters(ctx: AudioContext, type: SoundId): BiquadFilterNode[] {
-    if (type === 'rain') {
-      // High bandpass + slight high-shelf cut: makes it sound like drops hitting a surface not just hiss
-      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800; hp.Q.value = 0.5
-      const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 4500; peak.gain.value = 7; peak.Q.value = 0.8
-      const hs = ctx.createBiquadFilter(); hs.type = 'highshelf'; hs.frequency.value = 9000; hs.gain.value = -8
-      return [hp, peak, hs]
-    }
     if (type === 'ocean') {
       // Low-pass keeps rumble; slight boost at 200Hz for the deep crash thud
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900; lp.Q.value = 0.5
