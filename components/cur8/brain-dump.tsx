@@ -13,7 +13,9 @@ import {
 } from '@/app/actions/notes'
 import { useReadAloud, useDictation } from '@/hooks/use-speech'
 import { cleanupBrainDump, type CleanupResult } from '@/app/actions/ai-features'
-import { AttachmentChips, AttachmentPicker, useAttachments } from '@/components/cur8/attachment-panel'
+import { AttachmentChips, AttachmentPicker, useAttachments, type PendingAttachment } from '@/components/cur8/attachment-panel'
+import { addAttachment } from '@/app/actions/cur8'
+import { composeShareText } from '@/lib/cur8-share'
 
 const ACCENT = '#c9a84c'
 const SAGE = '#8ec8b4'
@@ -36,7 +38,11 @@ export default function BrainDump() {
   const baseDraftRef = useRef('')
   const [cleanup, setCleanup] = useState<CleanupResult | null>(null)
   const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupError, setCleanupError] = useState('')
   const [attachFor, setAttachFor] = useState<string | null>(null)
+  // Attachments staged on the draft, before the note is saved
+  const [draftAttachOpen, setDraftAttachOpen] = useState(false)
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const noteIds = notes.map((n) => n.id)
   const attachments = useAttachments('note', noteIds, open)
 
@@ -95,9 +101,24 @@ export default function BrainDump() {
     if (listening) stopDictation()
     try {
       const note = await createNote(body)
+      // Persist any attachments that were staged while drafting
+      if (pendingAttachments.length > 0) {
+        await Promise.all(
+          pendingAttachments.map((p) =>
+            addAttachment({
+              parentType: 'note', parentId: note.id, kind: p.kind,
+              refId: p.refId, url: p.url, title: p.title, thumbnail: p.thumbnail, mimeType: p.mimeType,
+            }).catch(() => null),
+          ),
+        )
+      }
       setNotes((prev) => [note, ...prev])
       setDraft('')
       baseDraftRef.current = ''
+      setPendingAttachments([])
+      setCleanup(null)
+      // Refresh attachments so the freshly attached files show on the saved note
+      if (pendingAttachments.length > 0) attachments.refresh()
       // If auto-send is on, open the user's email pre-filled to mem.ai
       if (settings.autoEmail) emailNote(body)
     } catch {
@@ -152,9 +173,15 @@ export default function BrainDump() {
     await updateNote(id, body).catch(() => {})
   }
 
+  // Build the shareable text for a note: its body plus links to any attachments.
+  function noteShareText(note: NoteDTO) {
+    const atts = (attachments.byParent[note.id] || []).map((a) => ({ title: a.title, url: a.url ?? undefined }))
+    return composeShareText(note.body, atts)
+  }
+
   async function copyNote(note: NoteDTO) {
     try {
-      await navigator.clipboard.writeText(note.body)
+      await navigator.clipboard.writeText(noteShareText(note))
       setCopiedId(note.id)
       setTimeout(() => setCopiedId(null), 1500)
     } catch { /* noop */ }
@@ -269,11 +296,11 @@ export default function BrainDump() {
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={onKeyDown}
                     placeholder={listening ? 'Listening… just talk' : 'Type or tap the mic to speak…'}
-                    rows={3}
+                    rows={8}
                     style={{
-                      width: '100%', resize: 'vertical', minHeight: 74, padding: '12px 14px', borderRadius: 12,
+                      width: '100%', resize: 'vertical', minHeight: 200, padding: '14px 16px', borderRadius: 12,
                       backgroundColor: '#0a1e1b', border: `1px solid ${listening ? SAGE : 'rgba(245,240,232,0.15)'}`,
-                      color: '#f5f0e8', fontSize: 14, lineHeight: 1.5, outline: 'none', fontFamily: 'inherit',
+                      color: '#f5f0e8', fontSize: 15, lineHeight: 1.6, outline: 'none', fontFamily: 'inherit',
                     }}
                   />
                   {listening && (
@@ -296,13 +323,28 @@ export default function BrainDump() {
                       {listening ? <MicOff size={15} /> : <Mic size={15} />} {listening ? 'Stop' : 'Speak'}
                     </button>
                   )}
+                  {/* Attach while drafting */}
+                  <button
+                    onClick={() => setDraftAttachOpen(true)}
+                    title="Attach a file, note, or saved item to this thought"
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 13px', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(245,240,232,0.2)', fontSize: 13, fontWeight: 600, backgroundColor: 'transparent', color: 'rgba(245,240,232,0.8)' }}
+                  >
+                    <Paperclip size={14} /> Attach
+                  </button>
                   {/* AI Tidy button */}
                   <button
                     onClick={async () => {
                       if (!draft.trim()) return
                       setCleanup(null)
+                      setCleanupError('')
                       setCleanupLoading(true)
-                      try { setCleanup(await cleanupBrainDump(draft)) } catch { /* noop */ } finally { setCleanupLoading(false) }
+                      try {
+                        const result = await cleanupBrainDump(draft)
+                        if (result && result.tidy) setCleanup(result)
+                        else setCleanupError('Could not tidy just now — please try again in a moment.')
+                      } catch {
+                        setCleanupError('Could not tidy just now — please try again in a moment.')
+                      } finally { setCleanupLoading(false) }
                     }}
                     disabled={cleanupLoading || !draft.trim()}
                     title="AI: tidy this thought and pull out action items"
@@ -325,6 +367,24 @@ export default function BrainDump() {
                 </div>
                 {!sttSupported && (
                   <p style={{ fontSize: 10.5, color: 'rgba(245,240,232,0.4)', marginTop: 8 }}>Voice dictation isn&apos;t supported in this browser — try Chrome or your Android phone.</p>
+                )}
+
+                {/* Tidy error feedback */}
+                {cleanupError && (
+                  <p style={{ fontSize: 12, color: '#e8a598', marginTop: 8 }}>{cleanupError}</p>
+                )}
+
+                {/* Staged attachments (added while drafting, saved with the note) */}
+                {pendingAttachments.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                    {pendingAttachments.map((p, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 9px', borderRadius: 50, backgroundColor: `${SAGE}1a`, border: `1px solid ${SAGE}44`, fontSize: 11.5, color: '#f5f0e8', maxWidth: 200 }}>
+                        <Paperclip size={11} color={SAGE} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                        <button onClick={() => setPendingAttachments((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove attachment" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', display: 'flex', flexShrink: 0 }}><X size={12} /></button>
+                      </span>
+                    ))}
+                  </div>
                 )}
 
                 {/* AI cleanup result panel */}
@@ -416,10 +476,10 @@ export default function BrainDump() {
                             <IconBtn onClick={() => startEdit(note)} title="Edit">
                               <Pencil size={14} />
                             </IconBtn>
-                            <IconBtn onClick={() => emailNote(note.body)} title={`Email to ${settings.memEmail.trim() || 'save@mem.ai'}`}>
+                            <IconBtn onClick={() => emailNote(noteShareText(note))} title={`Email to ${settings.memEmail.trim() || 'save@mem.ai'}`}>
                               <Mail size={14} />
                             </IconBtn>
-                            <IconBtn onClick={() => whatsAppNote(note.body)} title="Send via WhatsApp">
+                            <IconBtn onClick={() => whatsAppNote(noteShareText(note))} title="Send via WhatsApp">
                               <MessageCircle size={14} />
                             </IconBtn>
                             <IconBtn onClick={() => copyNote(note)} title="Copy">
@@ -520,6 +580,16 @@ export default function BrainDump() {
           accent={ACCENT}
           onClose={() => setAttachFor(null)}
           onAttached={(a) => attachments.add(a)}
+        />
+      )}
+
+      {/* Deferred picker — staging attachments on a draft before it's saved */}
+      {draftAttachOpen && (
+        <AttachmentPicker
+          parentType="note"
+          accent={ACCENT}
+          onClose={() => setDraftAttachOpen(false)}
+          onPick={(p) => setPendingAttachments((prev) => [...prev, p])}
         />
       )}
 

@@ -25,6 +25,51 @@ export function buildWhatsAppShare(title: string, url: string): string {
   return `https://wa.me/?text=${text}`
 }
 
+// A lightweight description of an attachment to include when sharing a note.
+export interface ShareAttachment {
+  title: string
+  url?: string
+}
+
+// Turn relative proxy URLs into absolute so links work outside the app.
+function absoluteUrl(url: string): string {
+  if (typeof window === 'undefined') return url
+  return url.startsWith('/') ? `${window.location.origin}${url}` : url
+}
+
+// Compose the plain-text body of a note plus any attachment links.
+export function composeShareText(body: string, attachments: ShareAttachment[] = []): string {
+  const lines = [body.trim()]
+  const withLinks = attachments.filter((a) => a.url)
+  if (withLinks.length > 0) {
+    lines.push('', 'Attachments:')
+    for (const a of withLinks) lines.push(`• ${a.title}: ${absoluteUrl(a.url!)}`)
+  } else if (attachments.length > 0) {
+    lines.push('', `(${attachments.length} attachment${attachments.length === 1 ? '' : 's'})`)
+  }
+  return lines.join('\n')
+}
+
+export function buildMailtoShareWithAttachments(title: string, body: string, attachments: ShareAttachment[] = []): string {
+  const subject = encodeURIComponent(title.slice(0, 60) || 'A note from Cur8')
+  const text = encodeURIComponent(`${composeShareText(body, attachments)}\n\nShared from Cur8`)
+  return `mailto:?subject=${subject}&body=${text}`
+}
+
+export function buildWhatsAppShareWithAttachments(body: string, attachments: ShareAttachment[] = []): string {
+  return `https://wa.me/?text=${encodeURIComponent(composeShareText(body, attachments))}`
+}
+
+export async function shareNoteToDevice(title: string, body: string, attachments: ShareAttachment[] = []): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.share) return false
+  try {
+    await navigator.share({ title: title.slice(0, 60) || 'Cur8 note', text: composeShareText(body, attachments) })
+    return true
+  } catch {
+    return false
+  }
+}
+
 // Open a URL in a new tab reliably (anchor target=_blank is unreliable on
 // Android and can navigate away from the PWA).
 export function openExternal(url: string) {

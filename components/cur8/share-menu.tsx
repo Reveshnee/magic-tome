@@ -7,12 +7,17 @@ import { Share2, Mail, MessageCircle, Smartphone, Link2, Download, Check } from 
 import {
   buildMailtoShare,
   buildWhatsAppShare,
+  buildMailtoShareWithAttachments,
+  buildWhatsAppShareWithAttachments,
+  composeShareText,
   shareToDevice,
+  shareNoteToDevice,
   deviceShareSupported,
   copyToClipboard,
   saveOrDownload,
   isDownloadableFile,
   openExternal,
+  type ShareAttachment,
 } from '@/lib/cur8-share'
 
 export default function ShareMenu({
@@ -21,13 +26,20 @@ export default function ShareMenu({
   accent,
   showLabel = false,
   buttonStyle,
+  noteBody,
+  attachments,
 }: {
   title: string
   url: string
   accent: string
   showLabel?: boolean
   buttonStyle?: React.CSSProperties
+  // When sharing a note/reflection, pass its text + attachments so they're
+  // bundled into the share (email/WhatsApp/device/copy) instead of just a link.
+  noteBody?: string
+  attachments?: ShareAttachment[]
 }) {
+  const isNote = noteBody != null
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState<{ x: number; top?: number; bottom?: number } | null>(null)
   const [status, setStatus] = useState('')
@@ -116,27 +128,29 @@ export default function ShareMenu({
                 <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)', padding: '4px 8px 6px' }}>
                   Share
                 </p>
-                <MenuRow icon={<Mail size={14} />} label="Email" onClick={() => { openExternal(buildMailtoShare(title, url)); setOpen(false) }} />
-                <MenuRow icon={<MessageCircle size={14} />} label="WhatsApp" onClick={() => { openExternal(buildWhatsAppShare(title, url)); setOpen(false) }} />
+                <MenuRow icon={<Mail size={14} />} label="Email" onClick={() => { openExternal(isNote ? buildMailtoShareWithAttachments(title, noteBody!, attachments) : buildMailtoShare(title, url)); setOpen(false) }} />
+                <MenuRow icon={<MessageCircle size={14} />} label="WhatsApp" onClick={() => { openExternal(isNote ? buildWhatsAppShareWithAttachments(noteBody!, attachments) : buildWhatsAppShare(title, url)); setOpen(false) }} />
                 {deviceOk && (
-                  <MenuRow icon={<Smartphone size={14} />} label="This device" onClick={async () => { setOpen(false); await shareToDevice(title, url) }} />
+                  <MenuRow icon={<Smartphone size={14} />} label="This device" onClick={async () => { setOpen(false); if (isNote) await shareNoteToDevice(title, noteBody!, attachments); else await shareToDevice(title, url) }} />
                 )}
                 <div style={{ height: 1, backgroundColor: 'rgba(245,240,232,0.09)', margin: '5px 4px' }} />
                 <MenuRow
                   icon={<Link2 size={14} />}
-                  label="Copy link"
-                  onClick={async () => { const ok = await copyToClipboard(url); setOpen(false); flash(ok ? 'Link copied' : 'Copy failed') }}
+                  label={isNote ? 'Copy text' : 'Copy link'}
+                  onClick={async () => { const ok = await copyToClipboard(isNote ? composeShareText(noteBody!, attachments) : url); setOpen(false); flash(ok ? (isNote ? 'Copied' : 'Link copied') : 'Copy failed') }}
                 />
-                <MenuRow
-                  icon={<Download size={14} />}
-                  label={downloadable ? 'Download file' : 'Save (copy link)'}
-                  accent={accent}
-                  onClick={async () => {
-                    setOpen(false)
-                    const res = await saveOrDownload(title, url)
-                    flash(res === 'downloaded' ? 'Downloading…' : res === 'copied' ? 'Link copied' : 'Could not save')
-                  }}
-                />
+                {!isNote && (
+                  <MenuRow
+                    icon={<Download size={14} />}
+                    label={downloadable ? 'Download file' : 'Save (copy link)'}
+                    accent={accent}
+                    onClick={async () => {
+                      setOpen(false)
+                      const res = await saveOrDownload(title, url)
+                      flash(res === 'downloaded' ? 'Downloading…' : res === 'copied' ? 'Link copied' : 'Could not save')
+                    }}
+                  />
+                )}
               </motion.div>
             </>
           )}

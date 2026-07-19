@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { upload } from '@vercel/blob/client'
 import {
@@ -204,23 +204,33 @@ export function AttachmentPicker({
   }, [])
 
   async function attachItem(it: Cur8Item) {
+    if (deferred) {
+      onPick!({ kind: 'item', refId: it.id, url: it.url, title: it.title, thumbnail: it.thumbnail ?? undefined })
+      onClose()
+      return
+    }
     setBusy(true)
     const a = await addAttachment({
-      parentType, parentId, kind: 'item', refId: it.id, url: it.url,
+      parentType, parentId: parentId!, kind: 'item', refId: it.id, url: it.url,
       title: it.title, thumbnail: it.thumbnail,
     }).catch(() => null)
     setBusy(false)
-    if (a) { onAttached(a); onClose() }
+    if (a) { onAttached?.(a); onClose() }
   }
 
   async function attachNote(n: NoteDTO) {
+    if (deferred) {
+      onPick!({ kind: 'note', refId: n.id, title: n.body.slice(0, 80) })
+      onClose()
+      return
+    }
     setBusy(true)
     const a = await addAttachment({
-      parentType, parentId, kind: 'note', refId: n.id,
+      parentType, parentId: parentId!, kind: 'note', refId: n.id,
       title: n.body.slice(0, 80),
     }).catch(() => null)
     setBusy(false)
-    if (a) { onAttached(a); onClose() }
+    if (a) { onAttached?.(a); onClose() }
   }
 
   async function attachDeviceFile(file: File) {
@@ -233,13 +243,19 @@ export function AttachmentPicker({
         onUploadProgress: ({ percentage }) => setUploadMsg(`Uploading ${file.name} — ${Math.round(percentage)}%`),
       })
       const url = `/api/cur8/file?pathname=${encodeURIComponent(blob.pathname)}`
+      const title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+      const thumbnail = mime.startsWith('image/') ? url : undefined
+      if (deferred) {
+        // File is uploaded to blob now, but we hand the payload back so the
+        // caller attaches it to the note once the note itself is saved.
+        onPick!({ kind: 'file', url, title, thumbnail, mimeType: mime })
+        onClose()
+        return
+      }
       const a = await addAttachment({
-        parentType, parentId, kind: 'file', url,
-        title: file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '),
-        thumbnail: mime.startsWith('image/') ? url : undefined,
-        mimeType: mime,
+        parentType, parentId: parentId!, kind: 'file', url, title, thumbnail, mimeType: mime,
       })
-      onAttached(a)
+      onAttached?.(a)
       onClose()
     } catch {
       setUploadMsg('Upload failed — try again.')
@@ -401,17 +417,31 @@ export function AttachmentPicker({
 export function useAttachments(parentType: 'note' | 'reflection', parentIds: string[], enabled: boolean) {
   const [byParent, setByParent] = useState<Record<string, AttachmentDTO[]>>({})
   const key = parentIds.join(',')
-  useEffect(() => {
-    if (!enabled || parentIds.length === 0) return
-    getAttachmentsFor(parentType, parentIds)
+
+  const load = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    getAttachmentsFor(parentType, ids)
       .then((rows) => {
         const grouped: Record<string, AttachmentDTO[]> = {}
         for (const r of rows) (grouped[r.parentId] ||= []).push(r)
         setByParent(grouped)
       })
       .catch(() => {})
+  }, [parentType])
+
+  useEffect(() => {
+    if (!enabled || parentIds.length === 0) return
+    load(parentIds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled, parentType])
+
+  // Re-fetch attachments. Pass the extra id(s) of any just-saved parent so the
+  // new note/reflection is included even before parentIds prop updates.
+  const refresh = useCallback((extraIds: string[] = []) => {
+    const ids = Array.from(new Set([...parentIds, ...extraIds]))
+    load(ids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, key])
 
   function add(a: AttachmentDTO) {
     setByParent((prev) => ({ ...prev, [a.parentId]: [a, ...(prev[a.parentId] || [])] }))
@@ -420,5 +450,5 @@ export function useAttachments(parentType: 'note' | 'reflection', parentIds: str
     setByParent((prev) => ({ ...prev, [parentId]: (prev[parentId] || []).filter((x) => x.id !== id) }))
     removeAttachment(id).catch(() => {})
   }
-  return { byParent, add, remove }
+  return { byParent, add, remove, refresh }
 }
