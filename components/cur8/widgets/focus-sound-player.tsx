@@ -70,19 +70,23 @@ export default function FocusSoundPlayer() {
       const data = buffer.getChannelData(ch)
 
       if (type === 'rain') {
-        // White noise base — the hiss of rain on a surface
-        for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+        // White noise base with rapid amplitude patter — simulates individual drop impacts
+        for (let i = 0; i < length; i++) {
+          const patter = 0.55 + 0.45 * Math.abs(Math.sin(i * 0.0031) * Math.sin(i * 0.0071))
+          data[i] = (Math.random() * 2 - 1) * patter
+        }
 
       } else if (type === 'ocean') {
-        // Brown noise base with a slow LFO swell — each "wave" takes ~4-6s
+        // Brown noise with a dramatic slow LFO swell — wave rises then crashes every ~6s
         let last = 0
-        const waveHz = 0.18  // ~one wave every 5.5s
+        const waveHz = 0.16  // ~one wave every 6.2s
         for (let i = 0; i < length; i++) {
           const w = Math.random() * 2 - 1
           last = (last + 0.022 * w) / 1.022
-          // LFO modulates amplitude: quiet trough → loud crash → quiet
-          const lfo = 0.3 + 0.7 * Math.max(0, Math.sin((i / sr) * 2 * Math.PI * waveHz))
-          data[i] = last * 4.2 * lfo * (ch === 1 ? 0.92 + Math.sin(i * 0.00007) * 0.08 : 1)
+          // Use pow(sin,2) for sharper crests (more crash-like peak)
+          const raw = Math.sin((i / sr) * 2 * Math.PI * waveHz)
+          const lfo = 0.15 + 0.85 * Math.max(0, raw * raw)
+          data[i] = last * 5.5 * lfo * (ch === 1 ? 0.88 + Math.sin(i * 0.00005) * 0.12 : 1)
         }
 
       } else if (type === 'forest') {
@@ -149,24 +153,42 @@ export default function FocusSoundPlayer() {
     return []
   }
 
-  // Schedule cricket/insect chirps for the forest sound — random short bursts of high oscillators
+  // Schedule cricket/insect chirps — dense overlapping bursts to sound like a real forest
   function scheduleInsects(ctx: AudioContext, dest: AudioNode, duration: number): OscillatorNode[] {
     const oscs: OscillatorNode[] = []
-    let t = ctx.currentTime + 0.5
+    // Layer 1: rapid cricket trills (short repeated bursts at ~4-5kHz)
+    let t = ctx.currentTime + 0.2
     while (t < ctx.currentTime + duration) {
-      const gap = 0.3 + Math.random() * 1.8
+      const gap = 0.08 + Math.random() * 0.55   // much denser: 80–630ms gaps
       t += gap
-      const freq = 3800 + Math.random() * 2800   // 3.8–6.6kHz crickets
-      const dur  = 0.04 + Math.random() * 0.12
-      const osc = ctx.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq
+      const freq = 3600 + Math.random() * 1200   // 3.6–4.8kHz — classic cricket
+      const dur  = 0.06 + Math.random() * 0.18
+      const osc = ctx.createOscillator(); osc.type = 'square'; osc.frequency.value = freq
       const env = ctx.createGain(); env.gain.value = 0
       osc.connect(env); env.connect(dest)
       osc.start(t)
       env.gain.setValueAtTime(0, t)
-      env.gain.linearRampToValueAtTime(0.06 + Math.random() * 0.06, t + 0.012)
-      env.gain.setTargetAtTime(0, t + dur * 0.6, 0.02)
-      osc.stop(t + dur + 0.08)
+      env.gain.linearRampToValueAtTime(0.18 + Math.random() * 0.14, t + 0.008) // much louder: 0.18–0.32
+      env.gain.setTargetAtTime(0, t + dur * 0.5, 0.018)
+      osc.stop(t + dur + 0.06)
       oscs.push(osc)
+    }
+    // Layer 2: lower cicada drone (~1.8–2.4kHz) — continuous background hum
+    let t2 = ctx.currentTime + 0.1
+    while (t2 < ctx.currentTime + duration) {
+      const gap2 = 0.6 + Math.random() * 1.4
+      t2 += gap2
+      const freq2 = 1800 + Math.random() * 600
+      const dur2  = 0.3 + Math.random() * 0.8
+      const osc2 = ctx.createOscillator(); osc2.type = 'sawtooth'; osc2.frequency.value = freq2
+      const env2 = ctx.createGain(); env2.gain.value = 0
+      osc2.connect(env2); env2.connect(dest)
+      osc2.start(t2)
+      env2.gain.setValueAtTime(0, t2)
+      env2.gain.linearRampToValueAtTime(0.10 + Math.random() * 0.08, t2 + 0.05)
+      env2.gain.setTargetAtTime(0, t2 + dur2 * 0.7, 0.06)
+      osc2.stop(t2 + dur2 + 0.12)
+      oscs.push(osc2)
     }
     return oscs
   }
