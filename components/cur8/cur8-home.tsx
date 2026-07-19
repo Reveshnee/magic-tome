@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, X,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -24,7 +24,6 @@ import IntentionWidget from '@/components/cur8/widgets/intention-widget'
 import { useViewport } from '@/hooks/use-viewport'
 import AiHub from '@/components/cur8/ai-hub'
 import WordMap from '@/components/cur8/word-map'
-import HomeQuickActions from '@/components/cur8/widgets/home-quick-actions'
 import { QuickSave, OneThing } from '@/components/cur8/hub-quick-tools'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -73,137 +72,264 @@ const MOTIVATIONAL = [
 ]
 
 // ─── Section heading ──────────────────────────────────────────────────────────
-function SectionLabel({ children, sub }: { children: React.ReactNode; sub?: string }) {
+function SectionLabel({ children, sub, prominent }: { children: React.ReactNode; sub?: string; prominent?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 20 }}>
-      <div style={{ width: 2, height: 20, backgroundColor: GOLD, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }} />
-      <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: CREAM, margin: 0, letterSpacing: '-0.01em' }}>
-        {children}
-      </h2>
-      {sub && <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em' }}>{sub}</span>}
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: prominent ? 10 : 20 }}>
+      <div style={{ width: 2, height: prominent ? 26 : 20, backgroundColor: GOLD, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }} />
+      <h2 style={{
+        fontFamily: 'var(--font-playfair), Georgia, serif',
+        fontSize: prominent ? 26 : 20,
+        fontWeight: 700, color: CREAM, margin: 0, letterSpacing: '-0.01em',
+      }}>{children}</h2>
+      {sub && <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', marginLeft: 2 }}>{sub}</span>}
     </div>
   )
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Koi Pond widget launcher ─────────────────────────────────────────────────
+// Four widget orbs float in an oval "pond". Tapping one leaps a koi and opens
+// the widget. Only one widget is ever open at a time — calm and focused.
+type PondWidget = 'intention' | 'breathwork' | 'timer' | 'calendar' | null
+
+const POND_ITEMS: { id: PondWidget & string; label: string; icon: React.ElementType; color: string; ripple: string }[] = [
+  { id: 'intention', label: 'Intention',  icon: Brain,    color: '#c9a84c', ripple: 'rgba(201,168,76,0.25)' },
+  { id: 'breathwork',label: 'Breathwork', icon: Wind,     color: '#5a9e84', ripple: 'rgba(90,158,132,0.25)' },
+  { id: 'timer',     label: 'Focus',      icon: Timer,    color: '#c85a40', ripple: 'rgba(200,90,64,0.25)'  },
+  { id: 'calendar',  label: 'Calendar',   icon: Calendar, color: '#3a6b8c', ripple: 'rgba(58,107,140,0.25)' },
+]
+
+function KoiPond({ calm }: { calm: boolean }) {
+  const [active, setActive] = useState<PondWidget>(null)
+  const [leaping, setLeaping] = useState<PondWidget>(null)
+
+  function handleOrb(id: PondWidget) {
+    if (active === id) { setActive(null); return }
+    setLeaping(id)
+    setTimeout(() => { setLeaping(null); setActive(id) }, 420)
+  }
+
+  return (
+    <div>
+      {/* Pond — oval water surface */}
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        background: 'radial-gradient(ellipse 80% 100% at 50% 60%, #0d3530 0%, #091e1a 60%, #0a1e1b 100%)',
+        borderRadius: '50% 50% 46% 46% / 34% 34% 66% 66%',
+        border: `1px solid rgba(90,158,132,0.18)`,
+        boxShadow: 'inset 0 -8px 32px rgba(0,0,0,0.4), 0 2px 0 rgba(90,158,132,0.12)',
+        padding: '28px 16px 36px',
+        overflow: 'hidden',
+      }}>
+        {/* Water shimmer */}
+        {!calm && (
+          <motion.div
+            animate={{ opacity: [0.06, 0.14, 0.06] }}
+            transition={{ repeat: Infinity, duration: 3.5 }}
+            style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 40% at 50% 30%, rgba(90,200,160,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}
+          />
+        )}
+
+        {/* The 4 orbs */}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
+          {POND_ITEMS.map((item, i) => {
+            const Icon = item.icon
+            const isActive = active === item.id
+            const isLeaping = leaping === item.id
+
+            return (
+              <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
+                {/* Ripple ring */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {!calm && !isActive && (
+                    <motion.div
+                      animate={{ scale: [1, 1.55, 1], opacity: [0.5, 0, 0.5] }}
+                      transition={{ repeat: Infinity, duration: 2.4 + i * 0.4, delay: i * 0.6 }}
+                      style={{ position: 'absolute', width: 58, height: 58, borderRadius: '50%', border: `1.5px solid ${item.ripple}`, pointerEvents: 'none' }}
+                    />
+                  )}
+                  {/* Orb */}
+                  <motion.button
+                    onClick={() => handleOrb(item.id)}
+                    animate={calm ? undefined : isLeaping ? { y: [-60, 0], scale: [0.7, 1.1, 1] } : isActive ? { scale: 1.12 } : { y: [0, -5, 0] }}
+                    transition={isLeaping
+                      ? { duration: 0.42, ease: 'easeOut' }
+                      : isActive ? { type: 'spring', stiffness: 300 }
+                      : { repeat: Infinity, duration: 2.8 + i * 0.35, ease: 'easeInOut' }}
+                    style={{
+                      position: 'relative', zIndex: 3,
+                      width: 56, height: 56, borderRadius: '50%',
+                      backgroundColor: isActive ? item.color : `${item.color}22`,
+                      border: `2px solid ${isActive ? item.color : `${item.color}44`}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', boxShadow: isActive ? `0 0 20px ${item.color}55` : `0 2px 12px rgba(0,0,0,0.4)`,
+                      transition: 'background-color 0.25s, border-color 0.25s, box-shadow 0.25s',
+                    }}
+                  >
+                    <Icon size={22} color={isActive ? '#0d2420' : item.color} />
+                  </motion.button>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, color: isActive ? item.color : MUTED, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{item.label}</span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Pond edge label */}
+        <p style={{ textAlign: 'center', margin: '16px 0 0', fontSize: 10, color: `rgba(90,158,132,0.5)`, letterSpacing: '0.1em', textTransform: 'uppercase', position: 'relative', zIndex: 2 }}>
+          tap a ritual to begin
+        </p>
+      </div>
+
+      {/* Open widget — slides in below the pond */}
+      <AnimatePresence>
+        {active && (
+          <motion.div
+            key={active}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+            style={{ overflow: 'hidden', marginTop: 10 }}
+          >
+            <div style={{ borderRadius: 18, overflow: 'hidden', border: `1px solid ${BORDER}` }}>
+              {active === 'intention'  && <IntentionWidget />}
+              {active === 'breathwork' && <BreathworkWidget />}
+              {active === 'timer'      && <FocusTimerWidget />}
+              {active === 'calendar'   && <MiniCalendarWidget />}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── Main hub component ───────────────────────────────────────────────────────
 export default function Cur8Home() {
   const router = useRouter()
   const { isMobile, isTablet } = useViewport()
-  const pad = isMobile ? 20 : isTablet ? 32 : 48
-  const bentoCols = isMobile ? '1fr' : '1fr 1fr'
-  const smallCols = isMobile ? 'repeat(2, 1fr)' : isTablet ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)'
-
-  const [items, setItems] = useState<Cur8Item[]>([])
-  const [folders, setFolders] = useState<Cur8Folder[]>([])
-  const [search, setSearch] = useState('')
-  const [mounted, setMounted] = useState(false)
-  const [greeting, setGreeting] = useState('Good morning')
-  const [quote, setQuote] = useState('')
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [results, setResults] = useState<SearchResults | null>(null)
-  const [searching, setSearching] = useState(false)
   const [calm, setCalm] = useCalmMode()
-  const [activeWord, setActiveWord] = useState<string | null>(null)
-  const [wordMapOpen, setWordMapOpen] = useState(false)
   const { displayName } = useGardenNames()
 
-  // Haven tab bar scroll arrows
+  const [items,       setItems]       = useState<Cur8Item[]>([])
+  const [mounted,     setMounted]     = useState(false)
+  const [search,      setSearch]      = useState('')
+  const [searching,   setSearching]   = useState(false)
+  const [results,     setResults]     = useState<SearchResults | null>(null)
+  const [searchOpen,  setSearchOpen]  = useState(false)
+  const [wordMapOpen, setWordMapOpen] = useState(false)
+  const [activeWord,  setActiveWord]  = useState<string | null>(null)
+  const [recentOpen,  setRecentOpen]  = useState(true)
+  const [leap,        setLeap]        = useState<{ href: string; origin: DOMRect } | null>(null)
+  const [tabScroll,   setTabScroll]   = useState({ left: false, right: false })
   const tabScrollRef = useRef<HTMLDivElement>(null)
-  const [tabScroll, setTabScroll] = useState({ left: false, right: false })
+
+  const pad    = isTablet ? 32 : 60
+  const bentoCols  = isMobile ? '1fr' : '1fr 1fr'
+  const smallCols  = isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(3,1fr)' : 'repeat(4,1fr)'
+
+  const quote  = MOTIVATIONAL[new Date().getDay() % MOTIVATIONAL.length]
+  const hour   = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
+  const recent     = items.filter((i) => i.thumbnail).slice(0, 12)
+  const todayCount = items.filter((i) => {
+    const d = new Date(i.savedAt); const t = new Date()
+    return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate()
+  }).length
+
+  // Load data
+  useEffect(() => {
+    setMounted(true)
+    ensureGuideSaved().catch(() => {})
+    getCur8Data().then((d) => setItems((d.items ?? []) as Cur8Item[])).catch(() => {})
+  }, [])
+
+  // Search
+  useEffect(() => {
+    if (!search.trim()) { setResults(null); return }
+    const id = setTimeout(async () => {
+      setSearching(true)
+      try { setResults(await searchEverything(search.trim())) } catch { setResults(null) }
+      finally { setSearching(false) }
+    }, 280)
+    return () => clearTimeout(id)
+  }, [search])
+
+  // Close search on outside click
+  useEffect(() => {
+    if (!searchOpen) return
+    const fn = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (!t.closest('[data-search-box]')) setSearchOpen(false)
+    }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [searchOpen])
+
   function updateTabArrows() {
     const el = tabScrollRef.current
     if (!el) return
     setTabScroll({ left: el.scrollLeft > 4, right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 })
   }
-  useEffect(() => {
-    updateTabArrows()
-    window.addEventListener('resize', updateTabArrows)
-    return () => window.removeEventListener('resize', updateTabArrows)
-  }, [])
+  useEffect(() => { setTimeout(updateTabArrows, 120) }, [mounted])
+
   function scrollTabs(dir: 1 | -1) {
     tabScrollRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' })
   }
 
-  // Koi leap animation
-  const [leap, setLeap] = useState<{ href: string; x: number; y: number } | null>(null)
-  function handleHavenClick(e: React.MouseEvent, href: string) {
-    if (calm) return
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
-    e.preventDefault()
-    setLeap({ href, x: e.clientX, y: e.clientY })
-  }
-
-  // Search
-  useEffect(() => {
-    const q = search.trim()
-    if (!q) { setResults(null); setSearching(false); return }
-    setSearching(true)
-    const t = setTimeout(() => {
-      searchEverything(q).then(setResults).catch(() => {}).finally(() => setSearching(false))
-    }, 250)
-    return () => clearTimeout(t)
-  }, [search])
-
   function surpriseMe() {
-    if (items.length === 0) return
-    const pick = items[Math.floor(Math.random() * items.length)]
-    window.open(pick.url, '_blank', 'noopener,noreferrer')
+    if (!items.length) return
+    const it = items[Math.floor(Math.random() * items.length)]
+    window.open(it.url, '_blank', 'noopener,noreferrer')
   }
 
-  useEffect(() => {
-    const h = new Date().getHours()
-    setGreeting(h < 12 ? 'Ease into the day' : h < 17 ? 'Take a breath' : 'Unwind a little')
-    const day = Math.floor(Date.now() / 86400000) % MOTIVATIONAL.length
-    setQuote(MOTIVATIONAL[day])
-    ensureGuideSaved()
-      .catch(() => {})
-      .finally(() => {
-        getCur8Data()
-          .then((data) => { setItems(data.items as Cur8Item[]); setFolders(data.folders as Cur8Folder[]) })
-          .catch(() => {})
-          .finally(() => setMounted(true))
-      })
-  }, [])
+  function handleHavenClick(e: React.MouseEvent, href: string) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+    if (calm) return
+    e.preventDefault()
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setLeap({ href, origin: rect })
+  }
 
   async function handleSignOut() {
     await authClient.signOut()
     router.push('/cur8/sign-in')
-    router.refresh()
   }
 
-  const recent = [...items]
-    .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
-    .slice(0, 10)
-
-  const todayCount = items.filter((i) => new Date(i.savedAt).toDateString() === new Date().toDateString()).length
-
   return (
-    <div style={{ ...KOI, backgroundColor: BG, color: CREAM, minHeight: '100vh', fontFamily: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif', overflowX: 'hidden' }}>
+    <div style={{ ...KOI, minHeight: '100vh', backgroundColor: BG, color: CREAM, fontFamily: 'var(--font-sans)', position: 'relative', overflowX: 'hidden' }}>
+      <FloatingParticles />
+      {leap && (
+        <KoiLeap
+          active={!!leap}
+          origin={leap.origin}
+          onComplete={() => { const h = leap.href; setLeap(null); router.push(h) }}
+        />
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          HERO — full-bleed koi pond image with refined text hierarchy
+          HERO — full-viewport koi pond image
       ══════════════════════════════════════════════════════════════════════ */}
-      <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
-        <Image src="/cur8/koi-pond.jpg" alt="Reveshnee's haven" fill className="object-cover object-center" priority sizes="100vw" />
+      <div style={{ position: 'relative', height: '100svh', minHeight: 520, overflow: 'hidden' }}>
+        {/* Background image */}
+        <Image src="/cur8/pond-hero.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
+        {/* Layered dark overlay — richer depth */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(6,18,16,0.55) 0%, rgba(6,18,16,0.35) 40%, rgba(6,18,16,0.82) 80%, rgba(10,30,27,1) 100%)' }} />
 
-        {/* Layered overlay — darker vignette at top and bottom, lighter through the middle */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(10,30,27,0.72) 0%, rgba(10,30,27,0.08) 35%, rgba(10,30,27,0.08) 55%, rgba(10,30,27,0.82) 82%, rgba(10,30,27,0.97) 100%)' }} />
-
-        <FloatingParticles disabled={calm} />
-
-        {/* ── TOP NAV BAR ── */}
-        <header style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: isMobile ? '18px 20px' : '22px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {/* Logo + wordmark */}
+        {/* ── NAV BAR ── */}
+        <header style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '18px 20px' : '20px 36px' }}>
+          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, overflow: 'hidden', flexShrink: 0, boxShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
-              <Image src="/cur8/logo-v2/icon-pair.png" alt="Cur8 koi logo" width={34} height={34} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ position: 'relative', width: 36, height: 36 }}>
+              <Image src="/cur8/logo-v2/icon-pair.png" alt="Cur8 logo" fill style={{ objectFit: 'contain' }} />
             </div>
             <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: CREAM, letterSpacing: '0.03em' }}>cur8</span>
           </div>
 
           {/* Nav actions */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10 }}>
-            {/* Search */}
             <button
               onClick={() => setSearchOpen(!searchOpen)}
               style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '7px 10px' : '8px 16px', borderRadius: 50, fontSize: 12, fontWeight: 500, color: CREAM, background: 'rgba(245,240,232,0.10)', border: '1px solid rgba(245,240,232,0.16)', backdropFilter: 'blur(12px)', cursor: 'pointer' }}
@@ -212,7 +338,6 @@ export default function Cur8Home() {
               {!isMobile && 'Search'}
             </button>
 
-            {/* Calm mode */}
             <button
               onClick={() => setCalm(!calm)}
               aria-pressed={calm}
@@ -223,7 +348,6 @@ export default function Cur8Home() {
               {!isMobile && (calm ? 'Calm on' : 'Calm')}
             </button>
 
-            {/* Guide */}
             <Link
               href="/cur8/guide"
               title="How to use Cur8"
@@ -233,7 +357,6 @@ export default function Cur8Home() {
               {!isMobile && 'Guide'}
             </Link>
 
-            {/* Sign out */}
             <button
               onClick={handleSignOut}
               title="Sign out"
@@ -248,6 +371,7 @@ export default function Cur8Home() {
         <AnimatePresence>
           {searchOpen && (
             <motion.div
+              data-search-box
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -319,27 +443,20 @@ export default function Cur8Home() {
         </AnimatePresence>
 
         {/* ── HERO TEXT BLOCK ── */}
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '0 20px 80px' : `0 ${pad}px 90px` }}>
-          {/* Eyebrow */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: isMobile ? '0 20px 84px' : `0 ${pad}px 92px` }}>
           <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 600, letterSpacing: '0.22em', textTransform: 'uppercase', color: GOLD }}>{greeting}, Reveshnee</p>
-
-          {/* Name headline */}
           <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 'clamp(40px, 5.5vw, 76px)', fontWeight: 700, color: CREAM, lineHeight: 1.0, margin: '0 0 14px', letterSpacing: '-0.02em' }}>
             {"Reveshnee's"}<br />
             <em style={{ fontStyle: 'italic', color: GOLD }}>Haven</em>
           </h1>
-
-          {/* Quote */}
           <p style={{ margin: '0 0 28px', fontSize: 13, color: 'rgba(245,240,232,0.6)', lineHeight: 1.7, maxWidth: 380 }}>
             &ldquo;{quote}&rdquo;
           </p>
-
-          {/* Stats row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 18 : 28, flexWrap: 'wrap' }}>
             {[
-              { value: items.length, label: 'saved', color: CREAM },
-              { value: todayCount, label: 'today', color: CORAL },
-              { value: 8, label: 'havens', color: SAGE },
+              { value: items.length, label: 'saved',  color: CREAM },
+              { value: todayCount,   label: 'today',  color: CORAL },
+              { value: 8,            label: 'havens', color: SAGE  },
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span style={{ fontSize: 30, fontWeight: 800, color: s.color, fontFamily: 'var(--font-playfair), Georgia, serif', lineHeight: 1 }}>{s.value}</span>
@@ -372,7 +489,7 @@ export default function Cur8Home() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          HAVEN TAB BAR — sticky, frosted, refined
+          HAVEN TAB BAR — sticky
       ══════════════════════════════════════════════════════════════════════ */}
       <div style={{ position: 'sticky', top: 0, zIndex: 40, backgroundColor: 'rgba(10,28,24,0.96)', backdropFilter: 'blur(24px)', borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ position: 'relative' }}>
@@ -396,7 +513,6 @@ export default function Cur8Home() {
               </motion.button>
             )}
           </AnimatePresence>
-
           <div ref={tabScrollRef} onScroll={updateTabArrows}
             style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', scrollbarWidth: 'none', padding: '0 20px' }}>
             {CATEGORIES.map((cat) => {
@@ -426,68 +542,91 @@ export default function Cur8Home() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          BODY — calmer, sectioned layout
+          BODY
       ══════════════════════════════════════════════════════════════════════ */}
       <div style={{ backgroundColor: BG }}>
 
-        {/* ── QUICK ACTIONS ── thin row just below the tab bar */}
-        <div style={{ padding: isMobile ? '20px 20px 0' : `24px ${pad}px 0`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', borderBottom: `1px solid ${BORDER}` }}>
-          <HomeQuickActions />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 20 }}>
-            <QuickSave onSaved={(item) => setItems((prev) => [item, ...prev])} />
-            <OneThing items={items} />
-          </div>
+        {/* ── QUICK SAVE + ONE THING ── thin row */}
+        <div style={{ padding: isMobile ? '20px 20px 0' : `24px ${pad}px 0`, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, borderBottom: `1px solid ${BORDER}`, paddingBottom: 20 }}>
+          <QuickSave onSaved={(item) => setItems((prev) => [item, ...prev])} />
+          <OneThing items={items} />
         </div>
 
-        {/* ── RITUALS (widgets) ── collapsed, refined header */}
-        <div style={{ padding: isMobile ? '32px 20px 0' : `36px ${pad}px 0` }}>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : isTablet ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 10 : 14 }}>
-            <IntentionWidget />
-            <BreathworkWidget />
-            <FocusTimerWidget />
-            <MiniCalendarWidget />
+        {/* ── KNOW YOURSELF — AI insights (most prominent section) ── */}
+        <section style={{ padding: isMobile ? '44px 20px 0' : `52px ${pad}px 0` }}>
+          <div style={{ marginBottom: 8 }}>
+            <SectionLabel prominent>Know Yourself</SectionLabel>
+            <p style={{ margin: '0 0 24px', fontSize: 13, color: MUTED, lineHeight: 1.7, maxWidth: 540 }}>
+              Your AI companion reads everything you have saved and helps you see patterns, ask questions, and deepen understanding — across your whole library.
+            </p>
           </div>
-        </div>
+          <AiHub items={items} />
+        </section>
 
-        {/* ── RECENTLY TENDED ── */}
+        {/* ── THE POND — rituals ── */}
+        <section style={{ padding: isMobile ? '48px 20px 0' : `52px ${pad}px 0` }}>
+          <SectionLabel sub="your daily rituals">The Pond</SectionLabel>
+          <KoiPond calm={calm} />
+        </section>
+
+        {/* ── RECENTLY VISITED ── collapsible */}
         {recent.length > 0 && (
-          <section style={{ padding: isMobile ? '40px 0 0' : `48px 0 0` }}>
-            <div style={{ padding: isMobile ? '0 20px' : `0 ${pad}px` }}>
-              <SectionLabel sub={`${recent.length} items`}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <Clock size={14} color={SAGE} /> Recently tended
+          <section style={{ padding: isMobile ? '44px 0 0' : `48px 0 0` }}>
+            <div style={{ padding: isMobile ? '0 20px' : `0 ${pad}px`, marginBottom: recentOpen ? 0 : 0 }}>
+              <button
+                onClick={() => setRecentOpen((o) => !o)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 20px', width: '100%', textAlign: 'left' }}
+              >
+                <div style={{ width: 2, height: 20, backgroundColor: recentOpen ? GOLD : 'rgba(245,240,232,0.2)', borderRadius: 2, flexShrink: 0 }} />
+                <Clock size={14} color={recentOpen ? SAGE : MUTED} style={{ flexShrink: 0 }} />
+                <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: recentOpen ? CREAM : MUTED, transition: 'color 0.2s' }}>
+                  Recently visited
                 </span>
-              </SectionLabel>
+                <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', flex: 1 }}>{recent.length} items</span>
+                {recentOpen ? <ChevronUp size={15} color={MUTED} /> : <ChevronDown size={15} color={MUTED} />}
+              </button>
             </div>
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', paddingLeft: pad, paddingRight: pad }}>
-              {recent.map((item, i) => {
-                const accent = TILE_ACCENT[item.category] ?? SAGE
-                return (
-                  <motion.a
-                    key={item.id}
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    whileHover={calm ? undefined : { y: -4, scale: 1.02 }}
-                    style={{ flexShrink: 0, width: isMobile ? 148 : 172, height: 118, borderRadius: 14, overflow: 'hidden', position: 'relative', textDecoration: 'none', display: 'block', border: `1px solid ${BORDER}` }}
-                  >
-                    {item.thumbnail ? (
-                      <img src={item.thumbnail} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', backgroundColor: SURFACE2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Globe size={22} color={accent} />
-                      </div>
-                    )}
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,30,27,0.95) 0%, transparent 52%)' }} />
-                    <div style={{ position: 'absolute', top: 8, left: 8, width: 5, height: 5, borderRadius: '50%', backgroundColor: accent }} />
-                    <p style={{ position: 'absolute', bottom: 8, left: 9, right: 9, fontSize: 10, fontWeight: 600, color: CREAM, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
-                  </motion.a>
-                )
-              })}
-            </div>
+
+            <AnimatePresence>
+              {recentOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', paddingLeft: pad, paddingRight: pad }}>
+                    {recent.map((item, i) => {
+                      const accent = TILE_ACCENT[item.category] ?? SAGE
+                      return (
+                        <motion.a
+                          key={item.id}
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                          whileHover={calm ? undefined : { y: -4, scale: 1.02 }}
+                          style={{ flexShrink: 0, width: isMobile ? 148 : 172, height: 118, borderRadius: 14, overflow: 'hidden', position: 'relative', textDecoration: 'none', display: 'block', border: `1px solid ${BORDER}` }}
+                        >
+                          {item.thumbnail ? (
+                            <img src={item.thumbnail} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', backgroundColor: SURFACE2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Globe size={22} color={accent} />
+                            </div>
+                          )}
+                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,30,27,0.95) 0%, transparent 52%)' }} />
+                          <div style={{ position: 'absolute', top: 8, left: 8, width: 5, height: 5, borderRadius: '50%', backgroundColor: accent }} />
+                          <p style={{ position: 'absolute', bottom: 8, left: 9, right: 9, fontSize: 10, fontWeight: 600, color: CREAM, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+                        </motion.a>
+                      )
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
         )}
 
@@ -510,16 +649,10 @@ export default function Cur8Home() {
                   >
                     <Image src={cat.tileImage} alt={displayName(cat.name)} fill style={{ objectFit: 'cover' }} sizes="600px" />
                     <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(160deg, rgba(10,30,27,0.1) 0%, rgba(10,30,27,0.90) 100%)` }} />
-
-                    {/* Icon */}
                     <div style={{ position: 'absolute', top: 16, left: 16, width: 40, height: 40, borderRadius: 12, backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
                       {Icon && <Icon size={18} color="#fff" />}
                     </div>
-
-                    {/* Count pill */}
                     <div style={{ position: 'absolute', top: 20, right: 16, fontSize: 10, fontWeight: 700, backgroundColor: 'rgba(10,30,27,0.72)', backdropFilter: 'blur(6px)', color: CREAM, borderRadius: 50, padding: '3px 10px', border: `1px solid ${BORDER}` }}>{count} saved</div>
-
-                    {/* Text block */}
                     <div style={{ position: 'absolute', bottom: 18, left: 18, right: 18, textAlign: 'center' }}>
                       <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 28, fontWeight: 700, color: CREAM, margin: '0 0 3px', lineHeight: 1.1, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>{displayName(cat.name)}</h3>
                       <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: accent, margin: '0 0 5px' }}>{cat.area}</p>
@@ -546,19 +679,13 @@ export default function Cur8Home() {
                   >
                     <Image src={cat.tileImage} alt={displayName(cat.name)} fill style={{ objectFit: 'cover' }} sizes="240px" />
                     <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(150deg, rgba(10,30,27,0.12) 0%, rgba(10,30,27,0.94) 100%)` }} />
-
-                    {/* Accent bar */}
                     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, backgroundColor: accent }} />
-
-                    {/* Icon */}
                     <div style={{ position: 'absolute', top: 13, left: 13, width: 30, height: 30, borderRadius: 9, backgroundColor: accent, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {Icon && <Icon size={13} color="#fff" />}
                     </div>
-
                     {count > 0 && (
                       <div style={{ position: 'absolute', top: 13, right: 12, fontSize: 9, fontWeight: 700, backgroundColor: `${accent}22`, color: accent, borderRadius: 50, padding: '2px 8px' }}>{count}</div>
                     )}
-
                     <div style={{ position: 'absolute', bottom: 12, left: 15, right: 10 }}>
                       <h3 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 14, fontWeight: 700, color: CREAM, margin: '0 0 1px', lineHeight: 1.2, textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}>{displayName(cat.name)}</h3>
                       <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: accent, margin: '0 0 2px' }}>{cat.area}</p>
@@ -571,12 +698,7 @@ export default function Cur8Home() {
           </div>
         </section>
 
-        {/* ── KNOW YOURSELF ── AI insights */}
-        <section style={{ padding: isMobile ? '48px 20px 0' : `56px ${pad}px 0` }}>
-          <AiHub items={items} />
-        </section>
-
-        {/* ── WORD MAP ── collapsible to keep the page calm */}
+        {/* ── WORD MAP ── collapsible */}
         {items.length >= 3 && (
           <section style={{ padding: isMobile ? '44px 20px 0' : `48px ${pad}px 0` }}>
             <button
@@ -588,7 +710,6 @@ export default function Cur8Home() {
               <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', flex: 1 }}>tap a word to filter across all havens</span>
               {wordMapOpen ? <ChevronUp size={15} color={MUTED} /> : <ChevronDown size={15} color={MUTED} />}
             </button>
-
             <AnimatePresence>
               {wordMapOpen && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
@@ -596,11 +717,11 @@ export default function Cur8Home() {
                   {activeWord && (
                     <div style={{ marginTop: 14 }}>
                       <p style={{ margin: '0 0 8px', fontSize: 11, color: MUTED, letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
-                        Saves containing &ldquo;{activeWord}&rdquo; — {items.filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord)).length} items
+                        Saves containing &ldquo;{activeWord}&rdquo; — {items.filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord!)).length} items
                       </p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         {items
-                          .filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord))
+                          .filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord!))
                           .slice(0, 8)
                           .map(it => (
                             <a key={it.id} href={it.url} target="_blank" rel="noopener noreferrer"
@@ -627,28 +748,21 @@ export default function Cur8Home() {
             style={{ textAlign: 'center', padding: isMobile ? '60px 20px 80px' : `80px ${pad}px 100px` }}
           >
             <div style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: `${SAGE}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', border: `1px solid ${SAGE}33` }}>
-              <Sparkles size={26} color={SAGE} />
+              <Plus size={26} color={SAGE} />
             </div>
-            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 26, fontWeight: 700, color: CREAM, marginBottom: 10 }}>Your haven awaits</h2>
-            <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.7, maxWidth: 340, margin: '0 auto 28px' }}>Pick a haven above and paste your first link — YouTube, articles, docs, anything.</p>
-            <Link href="/cur8/youtube" style={{ textDecoration: 'none' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 50, backgroundColor: CORAL, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                <Plus size={14} /> Start with The Grove
-              </div>
+            <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 26, fontWeight: 700, color: CREAM, margin: '0 0 10px' }}>Your haven is empty</h2>
+            <p style={{ fontSize: 14, color: MUTED, margin: '0 0 28px', lineHeight: 1.6, maxWidth: 340, marginInline: 'auto' }}>
+              Open any haven from the tabs above to start saving videos, articles, documents, and more.
+            </p>
+            <Link href="/cur8/youtube" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 50, backgroundColor: SAGE, color: BG, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+              <Plus size={15} /> Add your first save
             </Link>
           </motion.div>
         )}
 
-        {/* Bottom spacer */}
-        <div style={{ height: 80 }} />
+        {/* Bottom spacing */}
+        <div style={{ height: isMobile ? 60 : 80 }} />
       </div>
-
-      {/* Koi leap animation */}
-      <KoiLeap
-        active={!!leap}
-        origin={leap}
-        onComplete={() => { if (leap) router.push(leap.href) }}
-      />
     </div>
   )
 }

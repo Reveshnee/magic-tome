@@ -301,7 +301,7 @@ function AskTab({ itemId, itemTitle, category, accent }: { itemId: string; itemT
         )}
         {messages.length > 0 && (
           <button onClick={() => setSaveMenuFor(saveMenuFor === 'all' ? null : 'all')} style={miniBtn(`${CREAM}0d`, `${CREAM}99`)}>
-            <Save size={11} /> Save
+            <Save size={11} /> Share
           </button>
         )}
       </div>
@@ -414,11 +414,15 @@ function SaveMenu({ accent, onPick, onClose, inline }: { accent: string; onPick:
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
       <div style={{
         position: 'absolute', zIndex: 50,
-        ...(inline ? { top: 26, left: 0 } : { top: 84, right: 12 }),
-        backgroundColor: '#123c37', border: `1px solid ${CREAM}1a`, borderRadius: 12, padding: 6, minWidth: 180,
+        // Per-answer menus open UPWARD so they are never clipped by the panel bottom.
+        // The whole-chat "Share" menu opens downward from the toolbar (top: 36).
+        ...(inline ? { bottom: 28, left: 0 } : { top: 36, right: 0 }),
+        backgroundColor: '#123c37', border: `1px solid ${CREAM}1a`, borderRadius: 12, padding: 6, minWidth: 188,
         boxShadow: '0 8px 24px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', gap: 2,
       }}>
-        <p style={{ margin: '4px 8px 6px', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: `${CREAM}55` }}>Save this to</p>
+        <p style={{ margin: '4px 8px 6px', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: `${CREAM}55` }}>
+          {inline ? 'Save this answer to' : 'Share whole chat to'}
+        </p>
         <button onClick={() => onPick('braindump')} style={saveRow(accent)}>Brain dump</button>
         <button onClick={() => onPick('reflection')} style={saveRow(accent)}>Reflections</button>
       </div>
