@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { cur8Item, cur8Note } from '@/lib/db/schema'
+import { cur8Item, cur8Note, cur8Discussion } from '@/lib/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { streamText } from 'ai'
@@ -59,12 +59,36 @@ export async function POST(req: Request) {
   }
 
   // Build a concise context snapshot of the user's library
-  const [allItems, notes] = await Promise.all([
+  const [allItems, notes, discussions] = await Promise.all([
     db.select({ id: cur8Item.id, title: cur8Item.title, category: cur8Item.category, summary: cur8Item.summary, description: cur8Item.description, fileText: cur8Item.fileText, url: cur8Item.url })
       .from(cur8Item).where(eq(cur8Item.userId, userId)).orderBy(desc(cur8Item.savedAt)).limit(80),
     db.select({ content: cur8Note.body })
       .from(cur8Note).where(eq(cur8Note.userId, userId)).orderBy(desc(cur8Note.createdAt)).limit(20),
+    db.select({ title: cur8Discussion.title, category: cur8Discussion.category, messages: cur8Discussion.messages, updatedAt: cur8Discussion.updatedAt })
+      .from(cur8Discussion).where(eq(cur8Discussion.userId, userId)).orderBy(desc(cur8Discussion.updatedAt)).limit(12),
   ])
+
+  // Summarise recent AI discussions so the companion has continuity — it can
+  // remember what Reveshnee has already asked and explored, across every haven.
+  const discussionsContext = discussions.length > 0
+    ? `Here are recent AI conversations you have already had with Reveshnee (most recent first). ` +
+      `Use them for continuity — you can refer back to what she asked and what you discussed, ` +
+      `and avoid repeating yourself:\n` +
+      discussions.map((d) => {
+        let firstQ = ''
+        let lastA = ''
+        try {
+          const msgs = JSON.parse(d.messages) as { role: string; content: string }[]
+          firstQ = msgs.find((m) => m.role === 'user')?.content ?? ''
+          lastA = [...msgs].reverse().find((m) => m.role === 'assistant')?.content ?? ''
+        } catch { /* ignore malformed */ }
+        const scope = d.category ? `[${d.category}] ` : ''
+        const parts = [`${scope}"${d.title}"`]
+        if (firstQ) parts.push(`  She asked: ${firstQ.slice(0, 160)}`)
+        if (lastA) parts.push(`  You replied (excerpt): ${lastA.slice(0, 220)}`)
+        return parts.join('\n')
+      }).join('\n')
+    : ''
 
   // When focused on one item, drop it from the library snapshot so it is never
   // duplicated as a truncated excerpt (that is what made the model think it only
@@ -95,9 +119,10 @@ export async function POST(req: Request) {
       (notes.length > 0 ? `\n\nHer recent brain-dump notes:\n${notes.map((n) => `"${n.content.slice(0, 120)}"`).join('\n')}` : '')
     : 'She has not saved anything yet.'
 
-  const systemPrompt = focusContext
+  const base = focusContext
     ? `${SYSTEM}\n\n${focusContext}\n\nFor wider context, here are the TITLES of her other saves (do not treat these as the focused document):\n${libraryContext}`
     : `${SYSTEM}\n\n${libraryContext}`
+  const systemPrompt = discussionsContext ? `${base}\n\n${discussionsContext}` : base
 
   const result = streamText({
     model: 'google/gemini-2.5-flash',

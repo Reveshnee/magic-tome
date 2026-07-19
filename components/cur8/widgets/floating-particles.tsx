@@ -45,17 +45,18 @@ export default function FloatingParticles({ disabled = false }: { disabled?: boo
     window.addEventListener('resize', resize)
 
     function spawnParticle(): Particle {
-      const type = Math.random() < 0.5 ? 'leaf' : Math.random() < 0.7 ? 'drop' : 'spark'
-      const maxLife = randBetween(120, 280)
+      // Tiny, calm motes only — no large leaf shapes (they read as distracting).
+      const type = Math.random() < 0.7 ? 'drop' : 'spark'
+      const maxLife = randBetween(160, 340)
       return {
         x: randBetween(0, W),
         y: randBetween(-40, H * 0.3),
-        vx: randBetween(-0.3, 0.3),
-        vy: randBetween(0.15, 0.55),
-        size: type === 'leaf' ? randBetween(5, 14) : type === 'drop' ? randBetween(2, 5) : randBetween(1.5, 3),
+        vx: randBetween(-0.15, 0.15),
+        vy: randBetween(0.08, 0.28),
+        size: type === 'drop' ? randBetween(1.2, 2.6) : randBetween(1, 2),
         opacity: 0,
         rotation: randBetween(0, Math.PI * 2),
-        rotationSpeed: randBetween(-0.012, 0.012),
+        rotationSpeed: randBetween(-0.006, 0.006),
         type,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         life: 0,
@@ -63,8 +64,8 @@ export default function FloatingParticles({ disabled = false }: { disabled?: boo
       }
     }
 
-    // Seed initial particles
-    for (let i = 0; i < 28; i++) {
+    // Seed initial particles — few and far between, just gentle ambiance.
+    for (let i = 0; i < 12; i++) {
       const p = spawnParticle()
       p.y = randBetween(0, H)
       p.life = randBetween(0, p.maxLife * 0.6)
@@ -126,14 +127,15 @@ export default function FloatingParticles({ disabled = false }: { disabled?: boo
         p.rotation += p.rotationSpeed
 
         // Fade in / out
-        const fadeIn = 30
-        const fadeOut = 40
+        const fadeIn = 40
+        const fadeOut = 50
+        const peak = 0.22
         if (p.life < fadeIn) {
-          p.opacity = (p.life / fadeIn) * 0.55
+          p.opacity = (p.life / fadeIn) * peak
         } else if (p.life > p.maxLife - fadeOut) {
-          p.opacity = ((p.maxLife - p.life) / fadeOut) * 0.55
+          p.opacity = ((p.maxLife - p.life) / fadeOut) * peak
         } else {
-          p.opacity = 0.55
+          p.opacity = peak
         }
 
         if (p.type === 'leaf') drawLeaf(ctx!, p)

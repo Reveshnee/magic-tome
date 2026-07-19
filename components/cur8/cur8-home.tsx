@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap, Briefcase, Shirt, Heart, Brain, Clapperboard, FolderOpen, Globe,
   Search, LogOut, Plus, Clock, Leaf, Sparkles, Shuffle, Wind, HelpCircle,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar, X, Flower2,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Timer, Calendar,
 } from 'lucide-react'
 import { useCalmMode } from '@/hooks/use-calm-mode'
 import { CATEGORIES, type Cur8Item, type Cur8Folder } from '@/lib/cur8-store'
@@ -71,123 +71,217 @@ const MOTIVATIONAL = [
   "Revisit your ideas — let them flow.",
 ]
 
-// ─── Section heading ──────────────────────────────────────────────────────────
-function SectionLabel({ children, sub, prominent }: { children: React.ReactNode; sub?: string; prominent?: boolean }) {
+// ─── Collapsible section wrapper ──────────────────────────────────────────────
+// Uniform expand/collapse behaviour for every home section, matching the look
+// of the header used across the hub.
+function CollapsibleSection({
+  title, meta, description, icon: Icon, prominent, defaultOpen = true,
+  padX, bleed, children,
+}: {
+  title: string
+  meta?: string
+  description?: string
+  icon?: React.ElementType
+  prominent?: boolean
+  defaultOpen?: boolean
+  padX: number
+  bleed?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: prominent ? 10 : 20 }}>
-      <div style={{ width: 2, height: prominent ? 26 : 20, backgroundColor: GOLD, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }} />
-      <h2 style={{
-        fontFamily: 'var(--font-playfair), Georgia, serif',
-        fontSize: prominent ? 26 : 20,
-        fontWeight: 700, color: CREAM, margin: 0, letterSpacing: '-0.01em',
-      }}>{children}</h2>
-      {sub && <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', marginLeft: 2 }}>{sub}</span>}
-    </div>
+    <section style={{ padding: `${prominent ? 48 : 42}px 0 0` }}>
+      <div style={{ padding: `0 ${padX}px` }}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          style={{ display: 'flex', alignItems: 'center', gap: 11, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 4px', width: '100%', textAlign: 'left' }}
+        >
+          <div style={{ width: 2, height: prominent ? 26 : 20, backgroundColor: open ? GOLD : 'rgba(245,240,232,0.2)', borderRadius: 2, flexShrink: 0, transition: 'background-color 0.2s' }} />
+          {Icon && <Icon size={prominent ? 16 : 14} color={open ? SAGE : MUTED} style={{ flexShrink: 0 }} />}
+          <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: prominent ? 26 : 20, fontWeight: 700, color: open ? CREAM : MUTED, margin: 0, letterSpacing: '-0.01em', transition: 'color 0.2s' }}>{title}</h2>
+          <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', flex: 1, minWidth: 8 }}>{meta}</span>
+          {open ? <ChevronUp size={16} color={MUTED} style={{ flexShrink: 0 }} /> : <ChevronDown size={16} color={MUTED} style={{ flexShrink: 0 }} />}
+        </button>
+        {description && open && (
+          <p style={{ margin: '6px 0 0', paddingLeft: 13, fontSize: 13, color: MUTED, lineHeight: 1.7, maxWidth: 560 }}>{description}</p>
+        )}
+      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: bleed ? '18px 0 0' : `18px ${padX}px 0` }}>{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
   )
 }
 
 // ─── Koi Pond widget launcher ─────────────────────────────────────────────────
-// Four widget orbs float in an oval "pond". Tapping one leaps a koi and opens
-// the widget. Only one widget is ever open at a time — calm and focused.
+// Widget orbs rest on a real pond surface. Tapping one sends a koi (coloured to
+// match that ritual) leaping out of the water, then the widget opens below.
+// Only one widget is ever open at a time — calm and focused.
 type PondWidget = 'intention' | 'breathwork' | 'timer' | 'calendar' | null
 
-const POND_ITEMS: { id: PondWidget & string; label: string; icon: React.ElementType; color: string; ripple: string }[] = [
-  { id: 'intention', label: 'Intention',  icon: Flower2,  color: '#d9a5c0', ripple: 'rgba(217,165,192,0.28)' },
-  { id: 'breathwork',label: 'Breathwork', icon: Wind,     color: '#5a9e84', ripple: 'rgba(90,158,132,0.28)' },
-  { id: 'timer',     label: 'Focus',      icon: Timer,    color: '#e0a24a', ripple: 'rgba(224,162,74,0.28)'  },
-  { id: 'calendar',  label: 'Calendar',   icon: Calendar, color: '#6bb0d4', ripple: 'rgba(107,176,212,0.28)' },
+type PondItem = {
+  id: PondWidget & string
+  label: string
+  icon?: React.ElementType
+  image?: string
+  color: string
+  ripple: string
+}
+
+const POND_ITEMS: PondItem[] = [
+  { id: 'intention', label: 'Intention',  image: '/cur8/lotus-icon.png', color: '#e29ec4', ripple: 'rgba(226,158,196,0.32)' },
+  { id: 'breathwork',label: 'Breathwork', icon: Wind,     color: '#6fc3a2', ripple: 'rgba(111,195,162,0.32)' },
+  { id: 'timer',     label: 'Focus',      icon: Timer,    color: '#e6a94f', ripple: 'rgba(230,169,79,0.32)'  },
+  { id: 'calendar',  label: 'Calendar',   icon: Calendar, color: '#6bb7dd', ripple: 'rgba(107,183,221,0.32)' },
 ]
 
-function KoiPond({ calm }: { calm: boolean }) {
-  const [active, setActive] = useState<PondWidget>(null)
-  const [leaping, setLeaping] = useState<PondWidget>(null)
+// A small stylised top-down koi that can be tinted any colour.
+function PondFish({ color }: { color: string }) {
+  return (
+    <svg width="46" height="46" viewBox="0 0 64 64" fill="none" aria-hidden>
+      {/* body */}
+      <path d="M32 5 C41 14, 45 25, 41 41 C39 49, 35 55, 32 59 C29 55, 25 49, 23 41 C19 25, 23 14, 32 5 Z" fill={color} />
+      {/* tail fins */}
+      <path d="M32 50 C28 57, 23 60, 18 62 C22 55, 25 53, 28 48 Z" fill={color} opacity="0.75" />
+      <path d="M32 50 C36 57, 41 60, 46 62 C42 55, 39 53, 36 48 Z" fill={color} opacity="0.75" />
+      {/* side fins */}
+      <ellipse cx="19" cy="30" rx="6.5" ry="3" fill={color} opacity="0.7" transform="rotate(-28 19 30)" />
+      <ellipse cx="45" cy="30" rx="6.5" ry="3" fill={color} opacity="0.7" transform="rotate(28 45 30)" />
+      {/* pale marking */}
+      <ellipse cx="32" cy="24" rx="4" ry="7" fill="#fff" opacity="0.45" />
+      {/* eyes */}
+      <circle cx="28.5" cy="14" r="1.7" fill="#0a1e1b" />
+      <circle cx="35.5" cy="14" r="1.7" fill="#0a1e1b" />
+    </svg>
+  )
+}
 
-  function handleOrb(id: PondWidget) {
-    if (active === id) { setActive(null); return }
-    setLeaping(id)
-    setTimeout(() => { setLeaping(null); setActive(id) }, 420)
+const POND_H_MOBILE = 168
+const POND_H_DESKTOP = 190
+
+function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
+  const [active, setActive] = useState<PondWidget>(null)
+  const [fish, setFish] = useState<{ id: string; color: string; x: number } | null>(null)
+  const pondRef = useRef<HTMLDivElement>(null)
+  const pondH = isMobile ? POND_H_MOBILE : POND_H_DESKTOP
+
+  function handleOrb(item: PondItem, e: React.MouseEvent) {
+    if (active === item.id) { setActive(null); return }
+    if (calm) { setActive(item.id); return }
+    const pondRect = pondRef.current?.getBoundingClientRect()
+    const orbRect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const x = pondRect ? orbRect.left + orbRect.width / 2 - pondRect.left : 0
+    setFish({ id: item.id, color: item.color, x })
+    setTimeout(() => { setFish(null); setActive(item.id) }, 680)
   }
 
   return (
     <div>
-      {/* Pond — oval water surface (deep blue water) */}
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        background: 'radial-gradient(ellipse 85% 110% at 50% 32%, #1a5b6e 0%, #124658 32%, #0d3145 62%, #0a2436 100%)',
-        borderRadius: '50% 50% 46% 46% / 30% 30% 70% 70%',
-        border: `1px solid rgba(107,176,212,0.22)`,
-        boxShadow: 'inset 0 14px 40px rgba(120,200,230,0.10), inset 0 -12px 40px rgba(0,0,0,0.45), 0 4px 24px rgba(0,0,0,0.35)',
-        padding: '34px 16px 40px',
-        overflow: 'hidden',
-      }}>
-        {/* Soft surface light at the top of the water */}
-        <div style={{ position: 'absolute', top: 0, left: '15%', right: '15%', height: 60, background: 'radial-gradient(ellipse 100% 100% at 50% 0%, rgba(150,215,235,0.16) 0%, transparent 75%)', pointerEvents: 'none' }} />
-        {/* Water shimmer */}
-        {!calm && (
-          <>
+      {/* Pond — realistic water surface with floating orbs */}
+      <div ref={pondRef} style={{ position: 'relative', width: '100%', height: pondH }}>
+        {/* Clipped water image */}
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 24, overflow: 'hidden', border: `1px solid rgba(111,195,162,0.18)`, boxShadow: 'inset 0 2px 30px rgba(0,0,0,0.35), 0 6px 24px rgba(0,0,0,0.35)' }}>
+          <Image src="/cur8/pond-surface.jpg" alt="" fill priority style={{ objectFit: 'cover' }} sizes="900px" />
+          {/* Depth + readability overlay */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(10,40,42,0.42) 0%, rgba(8,32,34,0.58) 100%)' }} />
+          {/* Gentle surface shimmer */}
+          {!calm && (
             <motion.div
-              animate={{ opacity: [0.05, 0.16, 0.05], scale: [1, 1.04, 1] }}
-              transition={{ repeat: Infinity, duration: 4 }}
-              style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 55% 40% at 50% 28%, rgba(130,215,240,0.18) 0%, transparent 70%)', pointerEvents: 'none' }}
+              animate={{ opacity: [0.04, 0.12, 0.04], x: [-10, 10, -10] }}
+              transition={{ repeat: Infinity, duration: 7, ease: 'easeInOut' }}
+              style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 45% at 50% 30%, rgba(150,220,235,0.16) 0%, transparent 70%)', pointerEvents: 'none' }}
             />
-            <motion.div
-              animate={{ opacity: [0.1, 0.02, 0.1], x: [-8, 8, -8] }}
-              transition={{ repeat: Infinity, duration: 6.5, ease: 'easeInOut' }}
-              style={{ position: 'absolute', top: 18, left: '25%', right: '25%', height: 2, borderRadius: 2, background: 'rgba(180,225,240,0.4)', pointerEvents: 'none' }}
-            />
-          </>
-        )}
-
-        {/* The 4 orbs */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20, flexWrap: 'wrap', position: 'relative', zIndex: 2 }}>
-          {POND_ITEMS.map((item, i) => {
-            const Icon = item.icon
-            const isActive = active === item.id
-            const isLeaping = leaping === item.id
-
-            return (
-              <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-                {/* Ripple ring */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {!calm && !isActive && (
-                    <motion.div
-                      animate={{ scale: [1, 1.55, 1], opacity: [0.5, 0, 0.5] }}
-                      transition={{ repeat: Infinity, duration: 2.4 + i * 0.4, delay: i * 0.6 }}
-                      style={{ position: 'absolute', width: 58, height: 58, borderRadius: '50%', border: `1.5px solid ${item.ripple}`, pointerEvents: 'none' }}
-                    />
-                  )}
-                  {/* Orb */}
-                  <motion.button
-                    onClick={() => handleOrb(item.id)}
-                    animate={calm ? undefined : isLeaping ? { y: [-60, 0], scale: [0.7, 1.1, 1] } : isActive ? { scale: 1.12 } : { y: [0, -5, 0] }}
-                    transition={isLeaping
-                      ? { duration: 0.42, ease: 'easeOut' }
-                      : isActive ? { type: 'spring', stiffness: 300 }
-                      : { repeat: Infinity, duration: 2.8 + i * 0.35, ease: 'easeInOut' }}
-                    style={{
-                      position: 'relative', zIndex: 3,
-                      width: 56, height: 56, borderRadius: '50%',
-                      backgroundColor: isActive ? item.color : `${item.color}22`,
-                      border: `2px solid ${isActive ? item.color : `${item.color}44`}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', boxShadow: isActive ? `0 0 20px ${item.color}55` : `0 2px 12px rgba(0,0,0,0.4)`,
-                      transition: 'background-color 0.25s, border-color 0.25s, box-shadow 0.25s',
-                    }}
-                  >
-                    <Icon size={22} color={isActive ? '#0d2420' : item.color} />
-                  </motion.button>
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 600, color: isActive ? item.color : MUTED, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{item.label}</span>
-              </div>
-            )
-          })}
+          )}
         </div>
 
-        {/* Pond edge label */}
-        <p style={{ textAlign: 'center', margin: '18px 0 0', fontSize: 10, color: `rgba(150,205,225,0.55)`, letterSpacing: '0.14em', textTransform: 'uppercase', position: 'relative', zIndex: 2 }}>
-          tap a ritual to begin
-        </p>
+        {/* Splash where the fish breaks the surface */}
+        <AnimatePresence>
+          {fish && !calm && (
+            <motion.span
+              key={`splash-${fish.id}`}
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: [0, 0.7, 0], scale: [0, 1.5] }}
+              transition={{ duration: 0.5, delay: 0.18 }}
+              style={{ position: 'absolute', left: fish.x, top: pondH * 0.5, width: 44, height: 15, transform: 'translate(-50%, -50%)', borderRadius: '50%', border: '2px solid rgba(200,235,240,0.75)', zIndex: 3, pointerEvents: 'none' }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Leaping koi (coloured to the chosen ritual) */}
+        <AnimatePresence>
+          {fish && !calm && (
+            <motion.div
+              key={`fish-${fish.id}`}
+              initial={{ y: pondH * 0.48, opacity: 0, scale: 0.6, rotate: -22 }}
+              animate={{ y: [pondH * 0.48, -44, pondH + 28], opacity: [0, 1, 1, 0], scale: [0.6, 1, 0.82], rotate: [-22, 6, 192] }}
+              transition={{ duration: 0.66, ease: [0.4, 0, 0.5, 1], times: [0, 0.44, 1], opacity: { duration: 0.66, times: [0, 0.12, 0.72, 1] } }}
+              transformTemplate={(_, generated) => `translateX(-50%) ${generated}`}
+              style={{ position: 'absolute', left: fish.x, top: 0, zIndex: 4, pointerEvents: 'none', willChange: 'transform', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.4))' }}
+            >
+              <PondFish color={fish.color} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Orbs overlay (not clipped, so the fish can leap past the edge) */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '14px 12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: isMobile ? 14 : 22, flexWrap: 'wrap' }}>
+            {POND_ITEMS.map((item, i) => {
+              const Icon = item.icon
+              const isActive = active === item.id
+              const isHidden = fish?.id === item.id // hide the orb while its fish is leaping
+              return (
+                <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {!calm && !isActive && (
+                      <motion.div
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.45, 0, 0.45] }}
+                        transition={{ repeat: Infinity, duration: 2.6 + i * 0.4, delay: i * 0.6 }}
+                        style={{ position: 'absolute', width: 56, height: 56, borderRadius: '50%', border: `1.5px solid ${item.ripple}`, pointerEvents: 'none' }}
+                      />
+                    )}
+                    <motion.button
+                      onClick={(e) => handleOrb(item, e)}
+                      animate={calm ? undefined : isActive ? { scale: 1.1 } : { y: [0, -4, 0] }}
+                      transition={isActive ? { type: 'spring', stiffness: 300 } : { repeat: Infinity, duration: 3 + i * 0.35, ease: 'easeInOut' }}
+                      style={{
+                        position: 'relative', zIndex: 3,
+                        width: 54, height: 54, borderRadius: '50%',
+                        backgroundColor: isActive ? item.color : 'rgba(10,32,34,0.55)',
+                        border: `2px solid ${isActive ? item.color : `${item.color}88`}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', backdropFilter: 'blur(3px)',
+                        boxShadow: isActive ? `0 0 22px ${item.color}66` : `0 3px 12px rgba(0,0,0,0.45)`,
+                        opacity: isHidden ? 0 : 1,
+                        transition: 'background-color 0.25s, border-color 0.25s, box-shadow 0.25s, opacity 0.15s',
+                      }}
+                    >
+                      {item.image ? (
+                        <img src={item.image} alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} />
+                      ) : Icon ? (
+                        <Icon size={22} color={isActive ? '#0d2420' : '#f5f0e8'} />
+                      ) : null}
+                    </motion.button>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: isActive ? item.color : CREAM, letterSpacing: '0.06em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>{item.label}</span>
+                </div>
+              )
+            })}
+          </div>
+          <p style={{ textAlign: 'center', margin: '14px 0 0', fontSize: 9.5, color: 'rgba(230,245,248,0.7)', letterSpacing: '0.16em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
+            tap a ritual to begin
+          </p>
+        </div>
       </div>
 
       {/* Open widget — slides in below the pond */}
@@ -199,7 +293,7 @@ function KoiPond({ calm }: { calm: boolean }) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-            style={{ overflow: 'hidden', marginTop: 10 }}
+            style={{ overflow: 'hidden', marginTop: 12 }}
           >
             <div style={{ borderRadius: 18, overflow: 'hidden', border: `1px solid ${BORDER}` }}>
               {active === 'intention'  && <IntentionWidget />}
@@ -227,9 +321,7 @@ export default function Cur8Home() {
   const [searching,   setSearching]   = useState(false)
   const [results,     setResults]     = useState<SearchResults | null>(null)
   const [searchOpen,  setSearchOpen]  = useState(false)
-  const [wordMapOpen, setWordMapOpen] = useState(false)
   const [activeWord,  setActiveWord]  = useState<string | null>(null)
-  const [recentOpen,  setRecentOpen]  = useState(true)
   const [leap,        setLeap]        = useState<{ href: string; origin: DOMRect } | null>(null)
   const [tabScroll,   setTabScroll]   = useState({ left: false, right: false })
   const tabScrollRef = useRef<HTMLDivElement>(null)
@@ -562,86 +654,59 @@ export default function Cur8Home() {
         </div>
 
         {/* ── KNOW YOURSELF — AI insights (most prominent section) ── */}
-        <section style={{ padding: isMobile ? '44px 20px 0' : `52px ${pad}px 0` }}>
-          <div style={{ marginBottom: 8 }}>
-            <SectionLabel prominent>Know Yourself</SectionLabel>
-            <p style={{ margin: '0 0 24px', fontSize: 13, color: MUTED, lineHeight: 1.7, maxWidth: 540 }}>
-              Your AI companion reads everything you have saved and helps you see patterns, ask questions, and deepen understanding — across your whole library.
-            </p>
-          </div>
+        <CollapsibleSection
+          title="Know Yourself"
+          icon={Sparkles}
+          prominent
+          meta="AI across your whole library"
+          description="Your AI companion reads everything you have saved and helps you see patterns, ask questions, and deepen understanding — across your whole library."
+          padX={pad}
+        >
           <AiHub items={items} />
-        </section>
+        </CollapsibleSection>
 
         {/* ── THE POND — rituals ── */}
-        <section style={{ padding: isMobile ? '48px 20px 0' : `52px ${pad}px 0` }}>
-          <SectionLabel sub="your daily rituals">The Pond</SectionLabel>
-          <KoiPond calm={calm} />
-        </section>
+        <CollapsibleSection title="The Pond" icon={Leaf} meta="your daily rituals" padX={pad}>
+          <KoiPond calm={calm} isMobile={isMobile} />
+        </CollapsibleSection>
 
-        {/* ── RECENTLY VISITED ── collapsible */}
+        {/* ── RECENTLY VISITED ── */}
         {recent.length > 0 && (
-          <section style={{ padding: isMobile ? '44px 0 0' : `48px 0 0` }}>
-            <div style={{ padding: isMobile ? '0 20px' : `0 ${pad}px`, marginBottom: recentOpen ? 0 : 0 }}>
-              <button
-                onClick={() => setRecentOpen((o) => !o)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 20px', width: '100%', textAlign: 'left' }}
-              >
-                <div style={{ width: 2, height: 20, backgroundColor: recentOpen ? GOLD : 'rgba(245,240,232,0.2)', borderRadius: 2, flexShrink: 0 }} />
-                <Clock size={14} color={recentOpen ? SAGE : MUTED} style={{ flexShrink: 0 }} />
-                <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: recentOpen ? CREAM : MUTED, transition: 'color 0.2s' }}>
-                  Recently visited
-                </span>
-                <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', flex: 1 }}>{recent.length} items</span>
-                {recentOpen ? <ChevronUp size={15} color={MUTED} /> : <ChevronDown size={15} color={MUTED} />}
-              </button>
+          <CollapsibleSection title="Recently visited" icon={Clock} meta={`${recent.length} items`} padX={pad} bleed>
+            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', paddingLeft: pad, paddingRight: pad }}>
+              {recent.map((item, i) => {
+                const accent = TILE_ACCENT[item.category] ?? SAGE
+                return (
+                  <motion.a
+                    key={item.id}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    whileHover={calm ? undefined : { y: -4, scale: 1.02 }}
+                    style={{ flexShrink: 0, width: isMobile ? 148 : 172, height: 118, borderRadius: 14, overflow: 'hidden', position: 'relative', textDecoration: 'none', display: 'block', border: `1px solid ${BORDER}` }}
+                  >
+                    {item.thumbnail ? (
+                      <img src={item.thumbnail} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', backgroundColor: SURFACE2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Globe size={22} color={accent} />
+                      </div>
+                    )}
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,30,27,0.95) 0%, transparent 52%)' }} />
+                    <div style={{ position: 'absolute', top: 8, left: 8, width: 5, height: 5, borderRadius: '50%', backgroundColor: accent }} />
+                    <p style={{ position: 'absolute', bottom: 8, left: 9, right: 9, fontSize: 10, fontWeight: 600, color: CREAM, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+                  </motion.a>
+                )
+              })}
             </div>
-
-            <AnimatePresence>
-              {recentOpen && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', paddingLeft: pad, paddingRight: pad }}>
-                    {recent.map((item, i) => {
-                      const accent = TILE_ACCENT[item.category] ?? SAGE
-                      return (
-                        <motion.a
-                          key={item.id}
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.04 }}
-                          whileHover={calm ? undefined : { y: -4, scale: 1.02 }}
-                          style={{ flexShrink: 0, width: isMobile ? 148 : 172, height: 118, borderRadius: 14, overflow: 'hidden', position: 'relative', textDecoration: 'none', display: 'block', border: `1px solid ${BORDER}` }}
-                        >
-                          {item.thumbnail ? (
-                            <img src={item.thumbnail} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: '100%', height: '100%', backgroundColor: SURFACE2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <Globe size={22} color={accent} />
-                            </div>
-                          )}
-                          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,30,27,0.95) 0%, transparent 52%)' }} />
-                          <div style={{ position: 'absolute', top: 8, left: 8, width: 5, height: 5, borderRadius: '50%', backgroundColor: accent }} />
-                          <p style={{ position: 'absolute', bottom: 8, left: 9, right: 9, fontSize: 10, fontWeight: 600, color: CREAM, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
-                        </motion.a>
-                      )
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* ── YOUR HAVENS ── bento grid */}
-        <section style={{ padding: isMobile ? '44px 20px 0' : `52px ${pad}px 0` }}>
-          <SectionLabel sub="8 spaces to curate">Your havens</SectionLabel>
+        <CollapsibleSection title="Your havens" icon={FolderOpen} meta="8 spaces to curate" padX={pad}>
 
           {/* 2 large tiles */}
           <div style={{ display: 'grid', gridTemplateColumns: bentoCols, gap: isMobile ? 12 : 16, marginBottom: isMobile ? 12 : 16 }}>
@@ -705,47 +770,32 @@ export default function Cur8Home() {
               )
             })}
           </div>
-        </section>
+        </CollapsibleSection>
 
         {/* ── WORD MAP ── collapsible */}
         {items.length >= 3 && (
-          <section style={{ padding: isMobile ? '44px 20px 0' : `48px ${pad}px 0` }}>
-            <button
-              onClick={() => setWordMapOpen((o) => !o)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 20px', width: '100%', textAlign: 'left' }}
-            >
-              <div style={{ width: 2, height: 20, backgroundColor: wordMapOpen ? GOLD : 'rgba(245,240,232,0.2)', borderRadius: 2, flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: wordMapOpen ? CREAM : MUTED, transition: 'color 0.2s' }}>Word map</span>
-              <span style={{ fontSize: 11, color: MUTED, letterSpacing: '0.04em', flex: 1 }}>tap a word to filter across all havens</span>
-              {wordMapOpen ? <ChevronUp size={15} color={MUTED} /> : <ChevronDown size={15} color={MUTED} />}
-            </button>
-            <AnimatePresence>
-              {wordMapOpen && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
-                  <WordMap items={items} onFilter={setActiveWord} activeWord={activeWord} />
-                  {activeWord && (
-                    <div style={{ marginTop: 14 }}>
-                      <p style={{ margin: '0 0 8px', fontSize: 11, color: MUTED, letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
-                        Saves containing &ldquo;{activeWord}&rdquo; — {items.filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord!)).length} items
-                      </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {items
-                          .filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord!))
-                          .slice(0, 8)
-                          .map(it => (
-                            <a key={it.id} href={it.url} target="_blank" rel="noopener noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 12, backgroundColor: GOLD_DIM, border: `1px solid rgba(201,168,76,0.18)`, textDecoration: 'none' }}>
-                              <span style={{ flex: 1, fontSize: 12.5, color: CREAM, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
-                              <span style={{ flexShrink: 0, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{it.category}</span>
-                            </a>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
+          <CollapsibleSection title="Word map" meta="tap a word to filter across all havens" padX={pad} defaultOpen={false}>
+            <WordMap items={items} onFilter={setActiveWord} activeWord={activeWord} />
+            {activeWord && (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: MUTED, letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Saves containing &ldquo;{activeWord}&rdquo; — {items.filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord!)).length} items
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {items
+                    .filter(it => `${it.title ?? ''} ${it.description ?? ''}`.toLowerCase().includes(activeWord!))
+                    .slice(0, 8)
+                    .map(it => (
+                      <a key={it.id} href={it.url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', borderRadius: 12, backgroundColor: GOLD_DIM, border: `1px solid rgba(201,168,76,0.18)`, textDecoration: 'none' }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: CREAM, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
+                        <span style={{ flexShrink: 0, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{it.category}</span>
+                      </a>
+                    ))}
+                </div>
+              </div>
+            )}
+          </CollapsibleSection>
         )}
 
         {/* ── EMPTY STATE ── */}
