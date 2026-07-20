@@ -195,7 +195,7 @@ function KoiPond({ calm, isMobile }: { calm: boolean; isMobile: boolean }) {
       <div ref={pondRef} style={{ position: 'relative', width: '100%', height: pondH, overflow: 'visible' }}>
         {/* Clipped water image */}
         <div style={{ position: 'absolute', inset: 0, borderRadius: 24, overflow: 'hidden', border: `1px solid rgba(111,195,162,0.18)`, boxShadow: 'inset 0 2px 30px rgba(0,0,0,0.35), 0 6px 24px rgba(0,0,0,0.35)' }}>
-          <Image src="/cur8/pond-surface.jpg" alt="" fill priority style={{ objectFit: 'cover' }} sizes="900px" />
+          <Image src="/cur8/pond-surface.jpg" alt="" fill priority quality={95} style={{ objectFit: 'cover' }} sizes="(max-width: 768px) 100vw, 1400px" />
           {/* Depth + readability overlay */}
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(10,40,42,0.42) 0%, rgba(8,32,34,0.58) 100%)' }} />
           {/* Gentle surface shimmer */}
@@ -342,6 +342,7 @@ export default function Cur8Home() {
 
   const [items,       setItems]       = useState<Cur8Item[]>([])
   const [mounted,     setMounted]     = useState(false)
+  const [itemsLoaded, setItemsLoaded] = useState(false)
   const [search,      setSearch]      = useState('')
   const [searching,   setSearching]   = useState(false)
   const [results,     setResults]     = useState<SearchResults | null>(null)
@@ -370,7 +371,7 @@ export default function Cur8Home() {
   useEffect(() => {
     setMounted(true)
     ensureGuideSaved().catch(() => {})
-    getCur8Data().then((d) => setItems((d.items ?? []) as Cur8Item[])).catch(() => {})
+    getCur8Data().then((d) => { setItems((d.items ?? []) as Cur8Item[]); setItemsLoaded(true) }).catch(() => { setItemsLoaded(true) })
   }, [])
 
   // Search
@@ -514,7 +515,7 @@ export default function Cur8Home() {
           </div>
         ))}
         {/* Background image */}
-          <Image src="/cur8/koi-pond.jpg" alt="" fill priority style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
+          <Image src="/cur8/koi-pond.jpg" alt="" fill priority quality={95} style={{ objectFit: 'cover', objectPosition: 'center 40%' }} sizes="100vw" />
         {/* Layered dark overlay — richer depth */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(6,18,16,0.55) 0%, rgba(6,18,16,0.35) 40%, rgba(6,18,16,0.82) 80%, rgba(10,30,27,1) 100%)' }} />
 
@@ -551,11 +552,11 @@ export default function Cur8Home() {
         {/* ── NAV BAR ── */}
         <header style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '18px 20px' : '20px 36px' }}>
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ position: 'relative', width: 36, height: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px 6px 6px', borderRadius: 50, background: 'rgba(142,200,180,0.12)', border: '1px solid rgba(142,200,180,0.2)' }}>
+            <div style={{ position: 'relative', width: 44, height: 44, flexShrink: 0 }}>
               <Image src="/cur8/logo-v2/icon-pair.png" alt="Cur8 logo" fill style={{ objectFit: 'contain' }} />
             </div>
-            <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 20, fontWeight: 700, color: CREAM, letterSpacing: '0.03em' }}>cur8</span>
+            <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 22, fontWeight: 700, color: CREAM, letterSpacing: '0.02em' }}>Cur8</span>
           </div>
 
           {/* Nav actions */}
@@ -981,8 +982,17 @@ export default function Cur8Home() {
           </CollapsibleSection>
         )}
 
-        {/* ── EMPTY STATE ── */}
-        {mounted && items.length === 0 && (
+        {/* ── LOADING SKELETON — shown while fetch is in flight ── */}
+        {mounted && !itemsLoaded && (
+          <div style={{ padding: isMobile ? '40px 16px' : `40px ${pad}px`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[1,2,3].map((i) => (
+              <div key={i} style={{ height: 72, borderRadius: 14, background: 'rgba(245,240,232,0.05)', animation: 'pulse 1.4s ease-in-out infinite', animationDelay: `${i * 0.12}s` }} />
+            ))}
+          </div>
+        )}
+
+        {/* ── EMPTY STATE — only shown once data has loaded and is genuinely empty ── */}
+        {mounted && itemsLoaded && items.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

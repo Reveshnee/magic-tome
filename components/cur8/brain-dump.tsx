@@ -296,11 +296,12 @@ export default function BrainDump() {
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={onKeyDown}
                     placeholder={listening ? 'Listening… just talk' : 'Type or tap the mic to speak…'}
-                    rows={8}
+                    rows={5}
                     style={{
-                      width: '100%', resize: 'vertical', minHeight: 200, padding: '14px 16px', borderRadius: 12,
+                      width: '100%', resize: 'vertical', minHeight: 120, maxHeight: 260, padding: '14px 16px', borderRadius: 12,
                       backgroundColor: '#0a1e1b', border: `1px solid ${listening ? SAGE : 'rgba(245,240,232,0.15)'}`,
                       color: '#f5f0e8', fontSize: 15, lineHeight: 1.6, outline: 'none', fontFamily: 'inherit',
+                      boxSizing: 'border-box',
                     }}
                   />
                   {listening && (
@@ -309,7 +310,9 @@ export default function BrainDump() {
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                {/* Button row — wraps to two rows on narrow screens so nothing is cut off */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  {/* Row 1: Speak / Attach / Tidy */}
                   {sttSupported && (
                     <button
                       onClick={toggleMic}
@@ -318,20 +321,19 @@ export default function BrainDump() {
                         display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 10, cursor: 'pointer',
                         border: `1px solid ${listening ? SAGE : 'rgba(245,240,232,0.2)'}`, fontSize: 13, fontWeight: 600,
                         backgroundColor: listening ? `${SAGE}22` : 'transparent', color: listening ? SAGE : 'rgba(245,240,232,0.8)',
+                        flexShrink: 0,
                       }}
                     >
                       {listening ? <MicOff size={15} /> : <Mic size={15} />} {listening ? 'Stop' : 'Speak'}
                     </button>
                   )}
-                  {/* Attach while drafting */}
                   <button
                     onClick={() => setDraftAttachOpen(true)}
                     title="Attach a file, note, or saved item to this thought"
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 13px', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(245,240,232,0.2)', fontSize: 13, fontWeight: 600, backgroundColor: 'transparent', color: 'rgba(245,240,232,0.8)' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 13px', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(245,240,232,0.2)', fontSize: 13, fontWeight: 600, backgroundColor: 'transparent', color: 'rgba(245,240,232,0.8)', flexShrink: 0 }}
                   >
                     <Paperclip size={14} /> Attach
                   </button>
-                  {/* AI Tidy button */}
                   <button
                     onClick={async () => {
                       if (!draft.trim()) return
@@ -348,15 +350,16 @@ export default function BrainDump() {
                     }}
                     disabled={cleanupLoading || !draft.trim()}
                     title="AI: tidy this thought and pull out action items"
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 13px', borderRadius: 10, cursor: cleanupLoading || !draft.trim() ? 'not-allowed' : 'pointer', border: `1px solid ${ACCENT}55`, fontSize: 13, fontWeight: 600, backgroundColor: `${ACCENT}15`, color: cleanupLoading || !draft.trim() ? 'rgba(245,240,232,0.3)' : ACCENT }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 13px', borderRadius: 10, cursor: cleanupLoading || !draft.trim() ? 'not-allowed' : 'pointer', border: `1px solid ${ACCENT}55`, fontSize: 13, fontWeight: 600, backgroundColor: `${ACCENT}15`, color: cleanupLoading || !draft.trim() ? 'rgba(245,240,232,0.3)' : ACCENT, flexShrink: 0 }}
                   >
                     {cleanupLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={14} />} Tidy
                   </button>
+                  {/* Row 2: Save thought — always full width so it never gets clipped */}
                   <button
                     onClick={handleSave}
                     disabled={!draft.trim() || saving}
                     style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '9px 14px', borderRadius: 10,
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '10px 14px', borderRadius: 10,
                       border: 'none', cursor: draft.trim() && !saving ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 700,
                       backgroundColor: draft.trim() && !saving ? ACCENT : 'rgba(245,240,232,0.1)',
                       color: draft.trim() && !saving ? '#0d2420' : 'rgba(245,240,232,0.4)',
