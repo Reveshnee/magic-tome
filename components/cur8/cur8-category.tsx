@@ -9,7 +9,7 @@ import {
   ArrowLeft, Plus, X, Loader2, ExternalLink, Trash2, FolderPlus,
   Folder, FolderOpen, Check, MoreVertical, Copy, FolderInput, Upload, Paperclip,
   Play, ImageIcon, FileText, Send, ArrowRightLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Pin, MessageSquare,
-  Mail, MessageCircle, Download, Share2,
+  Mail, MessageCircle, Download, Share2, ArrowUpDown,
 } from 'lucide-react'
 import {
   CATEGORIES,
@@ -307,6 +307,10 @@ export default function Cur8Category({ category }: Props) {
   // Active content-type filter (videos / images / documents / sounds) driven by
   // the tappable mini-stats. null = show everything.
   const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
+  // Sort order for all item lanes
+  type SortBy = 'newest' | 'oldest' | 'az' | 'za' | 'recently-opened' | 'type'
+  const [sortBy, setSortBy] = useState<SortBy>('newest')
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
   // Collapsible "overview" rows (stats cards + type pills + recently opened).
   // Collapsed by default on mobile to give the board immediate full height.
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -537,7 +541,24 @@ export default function Cur8Category({ category }: Props) {
   const catItems = allItems.filter((i) => i.category === category)
   const folderItems = activeFolder === null ? catItems : catItems.filter((i) => i.folderId === activeFolder)
   // Apply the tappable type filter (Videos / Images / Sounds / Documents)
-  const visibleItems = typeFilter ? folderItems.filter((i) => getStatKind(i) === typeFilter) : folderItems
+  const filteredItems = typeFilter ? folderItems.filter((i) => getStatKind(i) === typeFilter) : folderItems
+
+  // Apply sort order
+  const visibleItems = [...filteredItems].sort((a, b) => {
+    switch (sortBy) {
+      case 'oldest':   return new Date(a.savedAt ?? 0).getTime() - new Date(b.savedAt ?? 0).getTime()
+      case 'az':       return (a.title || '').localeCompare(b.title || '')
+      case 'za':       return (b.title || '').localeCompare(a.title || '')
+      case 'recently-opened':
+        if (!a.openedAt && !b.openedAt) return 0
+        if (!a.openedAt) return 1
+        if (!b.openedAt) return -1
+        return new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime()
+      case 'type':     return getStatKind(a).localeCompare(getStatKind(b))
+      case 'newest':
+      default:         return new Date(b.savedAt ?? 0).getTime() - new Date(a.savedAt ?? 0).getTime()
+    }
+  })
 
   // Per-type counts for the tappable mini-stats (based on the current folder, not the type filter)
   const typeCounts: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
@@ -1668,14 +1689,57 @@ export default function Cur8Category({ category }: Props) {
             <FolderPlus size={11} /> New
           </button>
         )}
-        {/* Select multiple — sits at the right of the folder bar, beside New folder */}
-        <button
-          onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
-          title={selectMode ? 'Finish selecting' : 'Select multiple items'}
-          style={{ flexShrink: 0, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
-          <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
-        </button>
+          {/* Sort dropdown */}
+          <div style={{ position: 'relative', flexShrink: 0, marginLeft: 'auto' }}>
+            <button
+              onClick={() => setSortMenuOpen((v) => !v)}
+              title="Sort items"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: sortBy !== 'newest' ? '#0d2420' : '#f5f0e8', backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <ArrowUpDown size={11} />
+              {sortBy === 'newest' ? 'Sort' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'az' ? 'A–Z' : sortBy === 'za' ? 'Z–A' : sortBy === 'recently-opened' ? 'Recent' : 'Type'}
+            </button>
+            <AnimatePresence>
+              {sortMenuOpen && (
+                <>
+                  <div onClick={() => setSortMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                    style={{ position: 'absolute', top: 30, right: 0, zIndex: 50, minWidth: 170, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
+                  >
+                    {([
+                      { value: 'newest',         label: 'Newest saved' },
+                      { value: 'oldest',         label: 'Oldest saved' },
+                      { value: 'az',             label: 'A – Z' },
+                      { value: 'za',             label: 'Z – A' },
+                      { value: 'recently-opened', label: 'Recently opened' },
+                      { value: 'type',           label: 'By type' },
+                    ] as { value: SortBy; label: string }[]).map(({ value, label }, i, arr) => (
+                      <button
+                        key={value}
+                        onClick={() => { setSortBy(value); setSortMenuOpen(false) }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 14px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none', cursor: 'pointer', color: sortBy === value ? tileStyle.accent : '#f5f0e8', fontSize: 13, fontWeight: sortBy === value ? 700 : 500, textAlign: 'left' }}
+                      >
+                        {label}
+                        {sortBy === value && <Check size={12} color={tileStyle.accent} />}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Select multiple — sits at the right of the folder bar, beside New folder */}
+          <button
+            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
+            title={selectMode ? 'Finish selecting' : 'Select multiple items'}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
+          </button>
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
