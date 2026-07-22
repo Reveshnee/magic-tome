@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cur8 - Complete Tutorial Guide</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #0d2420 0%, #1a3a35 100%);
+            color: #f5f0e8;
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid rgba(226, 158, 196, 0.3);
+        }
+        h1 {
+            font-size: 3em;
+            color: #e29ec4;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 1.2em;
+            color: rgba(245, 240, 232, 0.7);
+        }
+        .tutorial-section {
+            margin-bottom: 60px;
+            background: rgba(245, 240, 232, 0.03);
+            border: 1px solid rgba(142, 200, 180, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .section-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            display: block;
+            border-bottom: 1px solid rgba(142, 200, 180, 0.2);
+        }
+        .section-content {
+            padding: 30px;
+        }
+        .section-title {
+            font-size: 1.8em;
+            color: #e29ec4;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e29ec4, #e6a94f);
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 1.2em;
+            color: #0d2420;
+            flex-shrink: 0;
+        }
+        .section-description {
+            font-size: 1.1em;
+            color: rgba(245, 240, 232, 0.9);
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+        .instructions {
+            background: rgba(142, 200, 180, 0.1);
+            border-left: 4px solid #8ec8b4;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .instructions strong {
+            color: #8ec8b4;
+        }
+        .script-section {
+            background: rgba(230, 169, 79, 0.1);
+            border-left: 4px solid #e6a94f;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-style: italic;
+            color: rgba(245, 240, 232, 0.85);
+        }
+        .script-section strong {
+            color: #e6a94f;
+            font-style: normal;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .two-column { grid-template-columns: 1fr; }
+            h1 { font-size: 2em; }
+            .tutorial-section { flex-direction: column; }
+            .section-image { max-height: 300px; }
+        }
+        .tip-box {
+            background: rgba(226, 158, 196, 0.1);
+            border-left: 4px solid #e29ec4;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 0.95em;
+        }
+        .tip-box strong {
+            color: #e29ec4;
+        }
+        footer {
+            text-align: center;
+            margin-top: 80px;
+            padding-top: 30px;
+            border-top: 2px solid rgba(226, 158, 196, 0.3);
+            color: rgba(245, 240, 232, 0.6);
+            font-size: 0.9em;
+        }
+        .download-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #e29ec4, #e6a94f);
+            color: #0d2420;
+            padding: 12px 24px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(226, 158, 196, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cur8 Tutorial Guide</h1>
+            <p class="subtitle">Complete walkthrough with screenshots and script</p>
+        </header>
+
+        <!-- SCREEN 1: LOGIN -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-01-login.png" alt="Login screen with annotations" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">1</span> Sign In</h2>
+                <p class="section-description">Start by entering your email and password to access your haven.</p>
+                <div class="instructions">
+                    <strong>Steps:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Enter your email address</li>
+                        <li>Enter your password</li>
+                        <li>Tap the gold "Enter my haven" button</li>
+                    </ol>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Start by opening Cur8 on your phone or desktop. Enter your email and password, then tap 'Enter my haven'. Your session stays active, so once you're in, you stay in."
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: HOME -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-02-home.png" alt="Home screen with stats and havens" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">2</span> Your Home Screen</h2>
+                <p class="section-description">Welcome to your personalized dashboard showing your stats and all 8 gardens.</p>
+                <div class="instructions">
+                    <strong>What you see:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>282 saved</strong> — total items across all havens</li>
+                        <li><strong>0 today</strong> — how many you've saved today</li>
+                        <li><strong>8 havens</strong> — your content gardens</li>
+                        <li>Haven cards below to explore each space</li>
+                    </ul>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Once you're signed in, you land here — your personalized home screen. At the top, you see your stats. Below that are your 8 havens — think of them like folders or rooms in a house. Tap any to explore it."
+                </div>
+                <div class="tip-box">
+                    <strong>Tip:</strong> The 8 havens are: The Koi Pond (learning), The Current (work), Greenhouse (fashion), Sanctuary (wellness), The Grove (psychology), Ember (inspiration), Bloom (entertainment), The Tide (documents).
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: HAVEN -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-03-haven.png" alt="Haven interior with 3-panel layout" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">3</span> Inside a Haven</h2>
+                <p class="section-description">The 3-panel layout: browse items on the left, preview in the center, view details on the right.</p>
+                <div class="instructions">
+                    <strong>The three panels:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>Left:</strong> Thumbnail grid of your saved items</li>
+                        <li><strong>Center:</strong> Full preview (videos play inline, PDFs page-by-page)</li>
+                        <li><strong>Right:</strong> Item details and your saved notes</li>
+                    </ul>
+                </div>
+                <div class="instructions" style="margin-top: 15px;">
+                    <strong>Toolbar buttons (top):</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Brain Dump — capture fleeting thoughts</li>
+                        <li>Reflect (Ask AI) — chat about your saves</li>
+                        <li>Focus Sounds — ambient sounds for focus</li>
+                    </ul>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Inside a haven, you're looking at a three-panel view. On the left are your items. In the center is the full preview. On the right are details. Tap any item to preview it. The app fetches the title, thumbnail, and a smart summary."
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: SAVE -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-04-save.png" alt="Save content dialog with steps" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">4</span> Saving Content</h2>
+                <p class="section-description">Multiple ways to save: paste links, upload files, or share from other apps.</p>
+                <div class="instructions">
+                    <strong>How to save:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Tap the floating "Save" button</li>
+                        <li>Paste a YouTube, TikTok, Instagram, or article link</li>
+                        <li>Add your own notes (optional but recommended)</li>
+                        <li>Choose which haven to save to</li>
+                        <li>Organize into a folder (optional)</li>
+                        <li>Tap Save — done!</li>
+                    </ol>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Now let's save something new. There's a floating 'Save' button. Tap it, paste a link from YouTube or TikTok, add your notes, choose which haven, and save. The app automatically grabs the title and thumbnail."
+                </div>
+                <div class="tip-box">
+                    <strong>Pro tip:</strong> On mobile, you can also share directly from YouTube/TikTok/Instagram — Cur8 appears as a share option.
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 5: BRAIN DUMP -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-05-braindump.png" alt="Brain Dump floating panel" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">5</span> Brain Dump - Capture Thoughts</h2>
+                <p class="section-description">Capture fleeting ideas before they float away. Type, dictate, tidy with AI, and save.</p>
+                <div class="instructions">
+                    <strong>Steps:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Tap the floating Brain Dump pill (bottom-left on mobile)</li>
+                        <li>Type your thought OR tap the mic to dictate</li>
+                        <li>Attach files or saved items (optional)</li>
+                        <li>Tap "Tidy" to let AI clean it up (optional)</li>
+                        <li>Tap "Save thought" and choose where to save it</li>
+                    </ol>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "One of my favorite features is Brain Dump. This is where you capture fleeting thoughts — ideas you don't want to lose. You can type, or tap the mic and speak. Then you can let AI 'tidy' it, and save it locally, email, or to mem.ai."
+                </div>
+                <div class="tip-box">
+                    <strong>Save options:</strong> Local save | Email to yourself | Send to WhatsApp | Send to mem.ai (your external memory).
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 6: ASK AI -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-06-askAI.png" alt="Ask AI chat panel" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">6</span> Ask AI About Your Saves</h2>
+                <p class="section-description">Chat with AI about the content you've saved. It has access to your document text and summaries.</p>
+                <div class="instructions">
+                    <strong>How to use:</strong>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>While in a haven, tap the "Ask AI" button (speech bubble icon)</li>
+                        <li>Type a question like "Summarize this" or "What are the key points?"</li>
+                        <li>Read the AI response — it's personalized to your actual content</li>
+                        <li>Copy, save to brain dump, or save as a reflection</li>
+                    </ol>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "While browsing a haven, tap the 'Ask AI' button. You can ask questions about your saves. The AI has access to your document text, so you get detailed, personalized answers. Every answer can be saved to your brain dump."
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 7: FOCUS SOUNDS -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-07-focus.png" alt="Focus sounds selector" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">7</span> Focus Sounds - Create Rituals</h2>
+                <p class="section-description">Ambient sounds to help you focus and build work rituals.</p>
+                <div class="instructions">
+                    <strong>Available sounds:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Rain</li>
+                        <li>Ocean</li>
+                        <li>Forest</li>
+                        <li>Stream</li>
+                        <li>Binaural 18Hz (focus)</li>
+                        <li>Binaural 40Hz (clarity)</li>
+                    </ul>
+                </div>
+                <div class="instructions" style="margin-top: 15px;">
+                    <strong>How to use:</strong>
+                    <ol style="margin-left: 20px;">
+                        <li>Tap Focus Sounds button in the toolbar</li>
+                        <li>Choose your sound</li>
+                        <li>Let it loop while you work</li>
+                    </ol>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Cur8 has ambient sounds — rain, ocean, forest, stream, or binaural beats. Choose one, let it loop, and focus on your work. Your brain starts associating that sound with deep work."
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 8: MOBILE -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-08-mobile.png" alt="Mobile view with tabs" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">8</span> Mobile View - Tabs</h2>
+                <p class="section-description">On mobile, the 3-panel layout adapts to tabs so you can swipe between views.</p>
+                <div class="instructions">
+                    <strong>Mobile tabs:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>Videos tab</strong> — browse item thumbnails</li>
+                        <li><strong>Preview tab</strong> — full preview of selected item</li>
+                        <li><strong>Docs tab</strong> — item details and notes</li>
+                    </ul>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "On mobile, you swipe between tabs at the bottom. Videos, Preview, Docs. Everything works the same, just adapted for the smaller screen."
+                </div>
+                <div class="tip-box">
+                    <strong>Tip:</strong> Swipe left/right or tap the tabs to switch between views.
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 9: SEARCH & SORT -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-09-search.png" alt="Search and sort controls" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">9</span> Search & Sort</h2>
+                <p class="section-description">Find what you need and organize the view to suit your workflow.</p>
+                <div class="instructions">
+                    <strong>Search:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Tap the search bar at the top</li>
+                        <li>Type what you're looking for</li>
+                        <li>Searches titles, descriptions, and content</li>
+                    </ul>
+                </div>
+                <div class="instructions" style="margin-top: 15px;">
+                    <strong>Sort options:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Newest saved</li>
+                        <li>Oldest saved</li>
+                        <li>A–Z (alphabetical)</li>
+                        <li>Z–A (reverse alphabetical)</li>
+                        <li>Recently opened</li>
+                        <li>By type (videos, images, docs, sounds)</li>
+                    </ul>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Can't remember where you saved something? Use the search bar. Or tap the Sort button to arrange by newest, oldest, A–Z, or by type."
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 10: CALM & DISCOVER -->
+        <div class="tutorial-section">
+            <img src="./public/tutorial-10-calm.png" alt="Calm mode and discover buttons" class="section-image">
+            <div class="section-content">
+                <h2 class="section-title"><span class="step-number">10</span> Calm Mode & Discover</h2>
+                <p class="section-description">Two special modes: Calm for focus, Surprise Me for serendipity.</p>
+                <div class="instructions">
+                    <strong>Calm Mode:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Disables all animations</li>
+                        <li>Hides notifications</li>
+                        <li>Distraction-free view</li>
+                        <li>Perfect when overwhelmed</li>
+                    </ul>
+                </div>
+                <div class="instructions" style="margin-top: 15px;">
+                    <strong>Surprise Me:</strong>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Tap the gold button on home screen</li>
+                        <li>Get a random saved item</li>
+                        <li>Great for rediscovering forgotten saves</li>
+                    </ul>
+                </div>
+                <div class="script-section">
+                    <strong>What to say:</strong> "Cur8 has two special features. Calm mode disables animations and notifications. Perfect for focus. And 'Surprise Me' gives you a random item to explore."
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Created for recording your Cur8 tutorial video</p>
+            <p style="margin-top: 10px; font-size: 0.85em;">Use the script sections as a teleprompter while recording. Pause on each screenshot for 5-8 seconds so viewers can follow along.</p>
+        </footer>
+    </div>
+</body>
+</html>
