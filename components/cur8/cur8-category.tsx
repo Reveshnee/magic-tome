@@ -311,6 +311,13 @@ export default function Cur8Category({ category }: Props) {
   type SortBy = 'newest' | 'oldest' | 'az' | 'za' | 'recently-opened' | 'type'
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  const [sortMenuPos, setSortMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const sortBtnRef = useRef<HTMLButtonElement>(null)
+  const openSortMenu = () => {
+    const r = sortBtnRef.current?.getBoundingClientRect()
+    if (r) setSortMenuPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) })
+    setSortMenuOpen((v) => !v)
+  }
   // Collapsible "overview" rows (stats cards + type pills + recently opened).
   // Collapsed by default on mobile to give the board immediate full height.
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -1692,10 +1699,12 @@ export default function Cur8Category({ category }: Props) {
           {/* Sort + Select pinned to the right edge so they stay visible while the
               folder chips scroll horizontally underneath (was getting pushed off-screen). */}
           <div style={{ position: 'sticky', right: 0, marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#0a1e1b', paddingLeft: 10, boxShadow: '-10px 0 10px -4px #0a1e1b' }}>
-          {/* Sort dropdown */}
+          {/* Sort dropdown — menu is a FIXED overlay (folder bar has overflow:auto
+              which would otherwise clip an absolutely-positioned dropdown). */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
-              onClick={() => setSortMenuOpen((v) => !v)}
+              ref={sortBtnRef}
+              onClick={openSortMenu}
               title="Sort items"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: sortBy !== 'newest' ? '#0d2420' : '#f5f0e8', backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
@@ -1703,14 +1712,14 @@ export default function Cur8Category({ category }: Props) {
               {sortBy === 'newest' ? 'Sort' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'az' ? 'A–Z' : sortBy === 'za' ? 'Z–A' : sortBy === 'recently-opened' ? 'Recent' : 'Type'}
             </button>
             <AnimatePresence>
-              {sortMenuOpen && (
+              {sortMenuOpen && sortMenuPos && (
                 <>
-                  <div onClick={() => setSortMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+                  <div onClick={() => setSortMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
                   <motion.div
                     initial={{ opacity: 0, scale: 0.92, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                    style={{ position: 'absolute', top: 30, right: 0, zIndex: 50, minWidth: 170, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
+                    style={{ position: 'fixed', top: sortMenuPos.top, right: sortMenuPos.right, zIndex: 1000, minWidth: 170, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
                   >
                     {([
                       { value: 'newest',         label: 'Newest saved' },
