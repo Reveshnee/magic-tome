@@ -308,7 +308,7 @@ export default function Cur8Category({ category }: Props) {
   // the tappable mini-stats. null = show everything.
   const [typeFilter, setTypeFilter] = useState<StatKind | null>(null)
   // Sort order for all item lanes
-  type SortBy = 'newest' | 'oldest' | 'az' | 'za' | 'recently-opened' | 'type'
+  type SortBy = 'newest' | 'oldest' | 'az' | 'za' | 'recently-opened' | 'recently-edited' | 'type'
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
   // Tracks which item's embed has been explicitly activated (poster → real iframe).
@@ -569,6 +569,12 @@ export default function Cur8Category({ category }: Props) {
       case 'za':       return (b.title || '').localeCompare(a.title || '')
       case 'recently-opened':
         if (!a.openedAt && !b.openedAt) return 0
+        if (!a.openedAt) return 1
+        if (!b.openedAt) return -1
+        return toMs(b.openedAt) - toMs(a.openedAt)
+      // "recently edited" = last time you interacted with it (openedAt is updated on open/edit)
+      case 'recently-edited':
+        if (!a.openedAt && !b.openedAt) return toMs(b.savedAt) - toMs(a.savedAt)
         if (!a.openedAt) return 1
         if (!b.openedAt) return -1
         return toMs(b.openedAt) - toMs(a.openedAt)
@@ -1753,46 +1759,77 @@ export default function Cur8Category({ category }: Props) {
             <FolderPlus size={11} /> New
           </button>
         )}
-          {/* Sort + Select pinned to the right edge so they stay visible while the
-              folder chips scroll horizontally underneath (was getting pushed off-screen). */}
-          <div style={{ position: 'sticky', right: 0, marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#0a1e1b', paddingLeft: 10, boxShadow: '-10px 0 10px -4px #0a1e1b' }}>
-          {/* Sort dropdown — menu is a FIXED overlay (folder bar has overflow:auto
-              which would otherwise clip an absolutely-positioned dropdown). */}
+          {/* Select multiple */}
+          <button
+            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
+            title={selectMode ? 'Finish selecting' : 'Select multiple items'}
+            style={{ flexShrink: 0, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
+          </button>
+      </div>
+
+      {/* ── Sort + Filter bar — always visible above the panels ── */}
+      {!mediaFocus && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', backgroundColor: 'rgba(10,30,27,0.95)', borderBottom: '1px solid rgba(245,240,232,0.07)', flexShrink: 0, flexWrap: 'nowrap', overflowX: 'auto' }}>
+          {/* Type filter pills */}
+          {(['video','image','sound','doc'] as StatKind[]).map((k) => {
+            const labels: Record<StatKind,string> = { video:'Videos', image:'Images', sound:'Sounds', doc:'Docs' }
+            const count = typeCounts[k]
+            if (count === 0) return null
+            const active = typeFilter === k
+            return (
+              <button key={k} onClick={() => { const next = active ? null : k; setTypeFilter(next); setSelectedItem(null); setMiddleView('preview'); if (isMobile) setMobileTab('browse') }}
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none', backgroundColor: active ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: active ? '#0d2420' : 'rgba(245,240,232,0.7)', transition: 'all 0.15s' }}>
+                {labels[k]} <span style={{ opacity: 0.65, fontSize: 10 }}>{count}</span>
+              </button>
+            )
+          })}
+          {typeFilter && (
+            <button onClick={() => setTypeFilter(null)} title="Clear filter"
+              style={{ flexShrink: 0, fontSize: 10, color: 'rgba(245,240,232,0.45)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
+              × Clear
+            </button>
+          )}
+          {/* Divider */}
+          <div style={{ width: 1, height: 16, backgroundColor: 'rgba(245,240,232,0.1)', flexShrink: 0, marginLeft: 2 }} />
+          {/* Sort button */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
               ref={sortBtnRef}
               onClick={openSortMenu}
               title="Sort items"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: sortBy !== 'newest' ? '#0d2420' : '#f5f0e8', backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.15)'}`, backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.06)', color: sortBy !== 'newest' ? '#0d2420' : 'rgba(245,240,232,0.8)', transition: 'all 0.15s' }}
             >
-              <ArrowUpDown size={11} />
-              {sortBy === 'newest' ? 'Sort' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'az' ? 'A–Z' : sortBy === 'za' ? 'Z–A' : sortBy === 'recently-opened' ? 'Recent' : 'Type'}
+              <ArrowUpDown size={12} />
+              {sortBy === 'newest' ? 'Newest first' : sortBy === 'oldest' ? 'Oldest first' : sortBy === 'az' ? 'A – Z' : sortBy === 'za' ? 'Z – A' : sortBy === 'recently-opened' ? 'Recently opened' : sortBy === 'recently-edited' ? 'Recently edited' : 'By type'}
             </button>
             <AnimatePresence>
               {sortMenuOpen && sortMenuPos && (
                 <>
                   <div onClick={() => setSortMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                    style={{ position: 'fixed', top: sortMenuPos.top, right: sortMenuPos.right, zIndex: 1000, minWidth: 170, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    style={{ position: 'fixed', top: sortMenuPos.top, right: sortMenuPos.right, zIndex: 1000, minWidth: 190, backgroundColor: 'rgba(8,24,22,0.98)', backdropFilter: 'blur(24px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}
                   >
                     {([
-                      { value: 'newest',         label: 'Newest saved' },
-                      { value: 'oldest',         label: 'Oldest saved' },
-                      { value: 'az',             label: 'A – Z' },
-                      { value: 'za',             label: 'Z – A' },
+                      { value: 'newest',          label: 'Newest saved' },
+                      { value: 'oldest',          label: 'Oldest saved' },
+                      { value: 'az',              label: 'A – Z' },
+                      { value: 'za',              label: 'Z – A' },
                       { value: 'recently-opened', label: 'Recently opened' },
-                      { value: 'type',           label: 'By type' },
+                      { value: 'recently-edited', label: 'Recently edited' },
+                      { value: 'type',            label: 'By type' },
                     ] as { value: SortBy; label: string }[]).map(({ value, label }, i, arr) => (
                       <button
                         key={value}
-                        onClick={() => { setSortBy(value); setSortMenuOpen(false) }}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 14px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none', cursor: 'pointer', color: sortBy === value ? tileStyle.accent : '#f5f0e8', fontSize: 13, fontWeight: sortBy === value ? 700 : 500, textAlign: 'left' }}
+                        onClick={() => { setSortBy(value); setSortMenuOpen(false); if (isMobile) setMobileTab('browse') }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 16px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none', cursor: 'pointer', color: sortBy === value ? tileStyle.accent : '#f5f0e8', fontSize: 13, fontWeight: sortBy === value ? 700 : 400, textAlign: 'left' }}
                       >
                         {label}
-                        {sortBy === value && <Check size={12} color={tileStyle.accent} />}
+                        {sortBy === value && <Check size={13} color={tileStyle.accent} />}
                       </button>
                     ))}
                   </motion.div>
@@ -1800,17 +1837,8 @@ export default function Cur8Category({ category }: Props) {
               )}
             </AnimatePresence>
           </div>
-
-          {/* Select multiple — sits at the right of the folder bar, beside New folder */}
-          <button
-            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
-            title={selectMode ? 'Finish selecting' : 'Select multiple items'}
-            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
-          </button>
-          </div>
-      </div>
+        </div>
+      )}
 
       {/* ── Three-panel body (stacks on mobile) ── */}
       {/* paddingTop clears the fixed mediaFocus overlay bar (~56px) on mobile.
