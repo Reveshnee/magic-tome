@@ -311,6 +311,16 @@ export default function Cur8Category({ category }: Props) {
   type SortBy = 'newest' | 'oldest' | 'az' | 'za' | 'recently-opened' | 'type'
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
+  // Tracks which item's embed has been explicitly activated (poster → real iframe).
+  // Reset when selectedItem changes so switching items starts with a poster again.
+  const [embedActive, setEmbedActive] = useState(false)
+  const [sortMenuPos, setSortMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const sortBtnRef = useRef<HTMLButtonElement>(null)
+  const openSortMenu = () => {
+    const r = sortBtnRef.current?.getBoundingClientRect()
+    if (r) setSortMenuPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) })
+    setSortMenuOpen((v) => !v)
+  }
   // Collapsible "overview" rows (stats cards + type pills + recently opened).
   // Collapsed by default on mobile to give the board immediate full height.
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -345,6 +355,7 @@ export default function Cur8Category({ category }: Props) {
     setSummaryError('')
     setSummaryLoading(false)
     setSummaryOpen(!!selectedItem?.summary)
+    setEmbedActive(false) // reset lazy-load so new item shows poster first
   }, [selectedItem?.id, selectedItem?.summary])
 
   async function handleSummarise(item: Cur8Item, regenerate = false) {
@@ -544,19 +555,26 @@ export default function Cur8Category({ category }: Props) {
   const filteredItems = typeFilter ? folderItems.filter((i) => getStatKind(i) === typeFilter) : folderItems
 
   // Apply sort order
+  // savedAt is always an ISO string from the server action. Guard against
+  // missing/invalid values so sorts degrade gracefully.
+  function toMs(v: string | undefined | null): number {
+    if (!v) return 0
+    const t = new Date(v).getTime()
+    return isNaN(t) ? 0 : t
+  }
   const visibleItems = [...filteredItems].sort((a, b) => {
     switch (sortBy) {
-      case 'oldest':   return new Date(a.savedAt ?? 0).getTime() - new Date(b.savedAt ?? 0).getTime()
+      case 'oldest':   return toMs(a.savedAt) - toMs(b.savedAt)
       case 'az':       return (a.title || '').localeCompare(b.title || '')
       case 'za':       return (b.title || '').localeCompare(a.title || '')
       case 'recently-opened':
         if (!a.openedAt && !b.openedAt) return 0
         if (!a.openedAt) return 1
         if (!b.openedAt) return -1
-        return new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime()
+        return toMs(b.openedAt) - toMs(a.openedAt)
       case 'type':     return getStatKind(a).localeCompare(getStatKind(b))
       case 'newest':
-      default:         return new Date(b.savedAt ?? 0).getTime() - new Date(a.savedAt ?? 0).getTime()
+      default:         return toMs(b.savedAt) - toMs(a.savedAt)
     }
   })
 
@@ -986,12 +1004,36 @@ export default function Cur8Category({ category }: Props) {
           </div>
         )
       }
+      // Lazy-load: show poster + play button first. Only mount the iframe once
+      // the user explicitly taps Play (avoids loading all videos on scroll).
+      const poster = getThumbnailFromUrl(item.url, item.thumbnail)
+      if (!embedActive) {
+        return (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setEmbedActive(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setEmbedActive(true) }}
+            title="Play video"
+            style={{ width: '100%', height: '100%', position: 'relative', cursor: 'pointer', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {poster && (
+              <img src={poster} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            )}
+            <div style={{ position: 'relative', zIndex: 2, width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(4px)' }}>
+              <Play size={28} color="#fff" style={{ marginLeft: 4 }} />
+            </div>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 40%)', zIndex: 1 }} />
+            <p style={{ position: 'absolute', bottom: 14, left: 16, right: 16, zIndex: 3, fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+          </div>
+        )
+      }
       // Use only the video ID — strip list/index params so YouTube's embed
       // doesn't throw "An error occurred" for playlist-sourced videos.
       return (
         <iframe
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-          src={`https://www.youtube.com/embed/${ytId}?autoplay=0&rel=0`}
+          src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
           title={item.title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
@@ -1003,6 +1045,28 @@ export default function Cur8Category({ category }: Props) {
       const tkId = extractTikTokId(item.url)
       // Full /video/ links embed & play inline via TikTok's player.
       if (tkId) {
+        const poster = getThumbnailFromUrl(item.url, item.thumbnail)
+        if (!embedActive) {
+          return (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setEmbedActive(true)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setEmbedActive(true) }}
+              title="Play TikTok"
+              style={{ width: '100%', height: '100%', position: 'relative', cursor: 'pointer', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {poster && (
+                <img src={poster} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              )}
+              <div style={{ position: 'relative', zIndex: 2, width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(4px)' }}>
+                <Play size={28} color="#fff" style={{ marginLeft: 4 }} />
+              </div>
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 40%)', zIndex: 1 }} />
+              <p style={{ position: 'absolute', bottom: 14, left: 16, right: 16, zIndex: 3, fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
+            </div>
+          )
+        }
         return (
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
             <iframe
@@ -1689,10 +1753,15 @@ export default function Cur8Category({ category }: Props) {
             <FolderPlus size={11} /> New
           </button>
         )}
-          {/* Sort dropdown */}
-          <div style={{ position: 'relative', flexShrink: 0, marginLeft: 'auto' }}>
+          {/* Sort + Select pinned to the right edge so they stay visible while the
+              folder chips scroll horizontally underneath (was getting pushed off-screen). */}
+          <div style={{ position: 'sticky', right: 0, marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#0a1e1b', paddingLeft: 10, boxShadow: '-10px 0 10px -4px #0a1e1b' }}>
+          {/* Sort dropdown — menu is a FIXED overlay (folder bar has overflow:auto
+              which would otherwise clip an absolutely-positioned dropdown). */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
-              onClick={() => setSortMenuOpen((v) => !v)}
+              ref={sortBtnRef}
+              onClick={openSortMenu}
               title="Sort items"
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: sortBy !== 'newest' ? '#0d2420' : '#f5f0e8', backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
@@ -1700,14 +1769,14 @@ export default function Cur8Category({ category }: Props) {
               {sortBy === 'newest' ? 'Sort' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'az' ? 'A–Z' : sortBy === 'za' ? 'Z–A' : sortBy === 'recently-opened' ? 'Recent' : 'Type'}
             </button>
             <AnimatePresence>
-              {sortMenuOpen && (
+              {sortMenuOpen && sortMenuPos && (
                 <>
-                  <div onClick={() => setSortMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 49 }} />
+                  <div onClick={() => setSortMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
                   <motion.div
                     initial={{ opacity: 0, scale: 0.92, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                    style={{ position: 'absolute', top: 30, right: 0, zIndex: 50, minWidth: 170, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
+                    style={{ position: 'fixed', top: sortMenuPos.top, right: sortMenuPos.right, zIndex: 1000, minWidth: 170, backgroundColor: 'rgba(10,28,24,0.97)', backdropFilter: 'blur(20px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.1)', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.55)' }}
                   >
                     {([
                       { value: 'newest',         label: 'Newest saved' },
@@ -1740,6 +1809,7 @@ export default function Cur8Category({ category }: Props) {
           >
             <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
           </button>
+          </div>
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
