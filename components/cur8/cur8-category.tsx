@@ -1689,8 +1689,11 @@ export default function Cur8Category({ category }: Props) {
             <FolderPlus size={11} /> New
           </button>
         )}
+          {/* Sort + Select pinned to the right edge so they stay visible while the
+              folder chips scroll horizontally underneath (was getting pushed off-screen). */}
+          <div style={{ position: 'sticky', right: 0, marginLeft: 'auto', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#0a1e1b', paddingLeft: 10, boxShadow: '-10px 0 10px -4px #0a1e1b' }}>
           {/* Sort dropdown */}
-          <div style={{ position: 'relative', flexShrink: 0, marginLeft: 'auto' }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
               onClick={() => setSortMenuOpen((v) => !v)}
               title="Sort items"
@@ -1740,6 +1743,7 @@ export default function Cur8Category({ category }: Props) {
           >
             <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
           </button>
+          </div>
       </div>
 
       {/* ── Three-panel body (stacks on mobile) ── */}
