@@ -1720,9 +1720,9 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
-      {/* ── Unified filter bar: folders dropdown + type pills + sort + new + select ── */}
+      {/* ── Row 1: Folders bar ── */}
       {!mediaFocus && (
-        <div style={{ flexShrink: 0, padding: '7px 12px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 7, overflowX: 'auto' }}>
+        <div style={{ flexShrink: 0, padding: '6px 12px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 8 }}>
 
           {/* Folders dropdown button */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -1816,8 +1816,12 @@ export default function Cur8Category({ category }: Props) {
             </AnimatePresence>
           </div>
 
-          {/* Thin divider */}
-          <div style={{ width: 1, height: 16, backgroundColor: 'rgba(245,240,232,0.1)', flexShrink: 0 }} />
+        </div>
+      )}
+
+      {/* ── Row 2: Type filter pills + Sort + Select ── */}
+      {!mediaFocus && (
+        <div style={{ flexShrink: 0, padding: '5px 12px', backgroundColor: 'rgba(8,20,18,0.98)', borderBottom: '1px solid rgba(245,240,232,0.06)', display: 'flex', alignItems: 'center', gap: 7, overflowX: 'auto' }}>
 
           {/* Type filter pills */}
           {(['video','image','sound','doc'] as StatKind[]).map((k) => {
