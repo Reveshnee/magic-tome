@@ -311,8 +311,26 @@ export default function Cur8Category({ category }: Props) {
   type SortBy = 'newest' | 'oldest' | 'az' | 'za' | 'recently-opened' | 'recently-edited' | 'type'
   const [sortBy, setSortBy] = useState<SortBy>('newest')
   const [sortMenuOpen, setSortMenuOpen] = useState(false)
-  // Tracks which item's embed has been explicitly activated (poster → real iframe).
-  // Reset when selectedItem changes so switching items starts with a poster again.
+  const [sortMenuPos, setSortMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const sortBtnRef = useRef<HTMLButtonElement>(null)
+  const openSortMenu = () => {
+    const r = sortBtnRef.current?.getBoundingClientRect()
+    if (r) setSortMenuPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) })
+    setSortMenuOpen((v) => !v)
+  }
+
+  // Folder dropdown
+  const [folderDropdownOpen, setFolderDropdownOpen] = useState(false)
+  const [folderDropdownPos, setFolderDropdownPos] = useState<{ top: number; left: number } | null>(null)
+  const folderBtnRef = useRef<HTMLButtonElement>(null)
+  const openFolderDropdown = () => {
+    const r = folderBtnRef.current?.getBoundingClientRect()
+    if (r) setFolderDropdownPos({ top: r.bottom + 4, left: r.left })
+    setFolderDropdownOpen((v) => !v)
+  }
+
+  // Lazy-load embed — only mount the iframe when the user explicitly taps Play.
+  // Reset to false whenever the selected item changes.
   const [embedActive, setEmbedActive] = useState(false)
 
   // Pagination — 10 items per page for each lane
@@ -323,13 +341,6 @@ export default function Cur8Category({ category }: Props) {
 
   // Reset pages when filter/sort/folder changes so you always start at page 1
   useEffect(() => { setVideoPage(1); setDocPage(1); setCentrePage(1) }, [typeFilter, sortBy, activeFolder])
-  const [sortMenuPos, setSortMenuPos] = useState<{ top: number; right: number } | null>(null)
-  const sortBtnRef = useRef<HTMLButtonElement>(null)
-  const openSortMenu = () => {
-    const r = sortBtnRef.current?.getBoundingClientRect()
-    if (r) setSortMenuPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) })
-    setSortMenuOpen((v) => !v)
-  }
   // Collapsible "overview" rows (stats cards + type pills + recently opened).
   // Collapsed by default on mobile to give the board immediate full height.
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -1709,118 +1720,138 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
-      {/* ── Full-width folder filter bar (filters all three lanes) ── */}
-      <div style={{ flexShrink: 0, padding: '8px 14px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: mediaFocus ? 'none' : 'flex', alignItems: 'center', gap: 8, overflowX: 'auto' }}>
-        {/* "All" chip — shows total count, acts as clear-folder filter.
-            Highlighted in accent when no folder is active so it's clear it's the active state. */}
-        <button
-          onClick={() => setActiveFolder(null)}
-          title="Show all items across all folders"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', padding: '4px 12px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === null ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: activeFolder === null ? '#0d2420' : 'rgba(245,240,232,0.7)' }}
-        >
-          <Folder size={11} /> All {catItems.length}
-        </button>
-        {folders.map((f) => {
-          const inFolder = catItems.filter((i) => i.folderId === f.id)
-          const folderCount = inFolder.length
-          // Type breakdown for the folder, shown on hover (e.g. "19 videos · 8 documents")
-          const fb: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
-          for (const i of inFolder) fb[getStatKind(i)]++
-          const breakdown = ([['video', 'videos'], ['image', 'images'], ['sound', 'sounds'], ['doc', 'documents']] as const)
-            .filter(([k]) => fb[k] > 0)
-            .map(([k, label]) => `${fb[k]} ${label}`)
-            .join(' · ') || 'empty'
-          if (renameFolderId === f.id) {
-            return (
-              <div key={f.id} style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                <input type="text" value={renameFolderDraft} onChange={(e) => setRenameFolderDraft(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleRenameFolder(f.id, renameFolderDraft); if (e.key === 'Escape') setRenameFolderId(null) }}
-                  autoFocus
-                  style={{ border: `1px solid ${tileStyle.accent}`, borderRadius: 8, padding: '3px 8px', fontSize: 11, outline: 'none', width: 110, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
-                <button onClick={() => handleRenameFolder(f.id, renameFolderDraft)} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '3px 7px', cursor: 'pointer', color: '#fff', display: 'flex' }}>
-                  <Check size={11} />
-                </button>
-              </div>
-            )
-          }
-          return (
-          <div key={f.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <button onClick={() => setActiveFolder(f.id)} title={`${f.name}: ${breakdown}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 50, cursor: 'pointer', border: 'none', backgroundColor: activeFolder === f.id ? tileStyle.accent : 'rgba(245,240,232,0.1)', color: '#f5f0e8' }}>
-              {f.pinned && <Pin size={9} style={{ opacity: 0.85 }} />}
-              {f.name} <span style={{ opacity: 0.6 }}>{folderCount}</span>
-            </button>
-            <button onClick={(e) => {
-                const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                setFolderMenuAnchor({ x: r.left, y: r.bottom })
-                setMenuFolderId(menuFolderId === f.id ? null : f.id)
-              }} title="Folder options"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.4)', display: 'flex', padding: '0 2px' }}>
-              <MoreVertical size={12} />
-            </button>
-          </div>
-          )
-        })}
-        {showNewFolder ? (
-          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-            <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) createFolder(); if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName('') } }}
-              placeholder="Folder name" autoFocus
-              style={{ border: '1px solid rgba(245,240,232,0.15)', borderRadius: 8, padding: '3px 8px', fontSize: 11, outline: 'none', width: 110, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
-            <button onClick={createFolder} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '3px 7px', cursor: 'pointer', color: '#fff', display: 'flex' }}>
-              <Check size={11} />
-            </button>
-          </div>
-        ) : (
-          <button onClick={() => setShowNewFolder(true)} title="New folder"
-            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: '1px dashed rgba(245,240,232,0.2)', borderRadius: 50, padding: '3px 10px', cursor: 'pointer', color: 'rgba(245,240,232,0.55)', fontSize: 10, fontWeight: 600 }}>
-            <FolderPlus size={11} /> New
-          </button>
-        )}
-          {/* Select multiple */}
-          <button
-            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
-            title={selectMode ? 'Finish selecting' : 'Select multiple items'}
-            style={{ flexShrink: 0, marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 50, fontSize: 10, fontWeight: 600, color: selectMode ? '#0d2420' : '#f5f0e8', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.1)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.12)'}`, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
-          </button>
-      </div>
-
-      {/* ── Sort + Filter bar — always visible above the panels ── */}
+      {/* ── Unified filter bar: folders dropdown + type pills + sort + new + select ── */}
       {!mediaFocus && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', backgroundColor: 'rgba(10,30,27,0.95)', borderBottom: '1px solid rgba(245,240,232,0.07)', flexShrink: 0, flexWrap: 'nowrap', overflowX: 'auto' }}>
+        <div style={{ flexShrink: 0, padding: '7px 12px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 7, overflowX: 'auto' }}>
+
+          {/* Folders dropdown button */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              ref={folderBtnRef}
+              onClick={openFolderDropdown}
+              title="Browse folders"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontSize: 11, fontWeight: 600, padding: '4px 11px', borderRadius: 50, cursor: 'pointer', border: `1px solid ${activeFolder !== null ? tileStyle.accent : 'rgba(245,240,232,0.15)'}`, backgroundColor: activeFolder !== null ? tileStyle.accent : 'rgba(245,240,232,0.06)', color: activeFolder !== null ? '#0d2420' : 'rgba(245,240,232,0.8)', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+            >
+              <Folder size={12} />
+              {activeFolder !== null ? (folders.find(f => f.id === activeFolder)?.name ?? 'Folder') : 'All folders'}
+              <ChevronDown size={11} style={{ opacity: 0.6, transition: 'transform 0.2s', transform: folderDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+            </button>
+            <AnimatePresence>
+              {folderDropdownOpen && folderDropdownPos && (
+                <>
+                  <div onClick={() => setFolderDropdownOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 999 }} />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    style={{ position: 'fixed', top: folderDropdownPos.top, left: folderDropdownPos.left, zIndex: 1000, minWidth: 220, maxWidth: 280, backgroundColor: 'rgba(8,24,22,0.98)', backdropFilter: 'blur(24px)', borderRadius: 14, border: '1px solid rgba(245,240,232,0.12)', overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.6)' }}
+                  >
+                    {/* All items row */}
+                    <button
+                      onClick={() => { setActiveFolder(null); setFolderDropdownOpen(false) }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 16px', background: 'none', border: 'none', borderBottom: '1px solid rgba(245,240,232,0.07)', cursor: 'pointer', color: activeFolder === null ? tileStyle.accent : '#f5f0e8', fontSize: 13, fontWeight: activeFolder === null ? 700 : 400, textAlign: 'left' }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Folder size={13} /> All items</span>
+                      <span style={{ fontSize: 11, opacity: 0.5 }}>{catItems.length}</span>
+                    </button>
+                    {/* Folder rows */}
+                    {folders.map((f, i) => {
+                      const inFolder = catItems.filter((it) => it.folderId === f.id)
+                      const folderCount = inFolder.length
+                      const fb: Record<StatKind, number> = { video: 0, image: 0, sound: 0, doc: 0 }
+                      for (const it of inFolder) fb[getStatKind(it)]++
+                      const breakdown = ([['video', 'videos'], ['image', 'images'], ['sound', 'sounds'], ['doc', 'documents']] as const)
+                        .filter(([k]) => fb[k] > 0).map(([k, label]) => `${fb[k]} ${label}`).join(' · ') || 'empty'
+                      const isActive = activeFolder === f.id
+                      if (renameFolderId === f.id) {
+                        return (
+                          <div key={f.id} style={{ display: 'flex', gap: 6, padding: '8px 12px', borderBottom: i < folders.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none' }}>
+                            <input type="text" value={renameFolderDraft} onChange={(e) => setRenameFolderDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { handleRenameFolder(f.id, renameFolderDraft); setFolderDropdownOpen(false) }; if (e.key === 'Escape') setRenameFolderId(null) }}
+                              autoFocus style={{ border: `1px solid ${tileStyle.accent}`, borderRadius: 8, padding: '3px 8px', fontSize: 11, outline: 'none', flex: 1, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
+                            <button onClick={() => { handleRenameFolder(f.id, renameFolderDraft); setFolderDropdownOpen(false) }} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '3px 7px', cursor: 'pointer', color: '#fff', display: 'flex' }}><Check size={11} /></button>
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={f.id} style={{ display: 'flex', alignItems: 'center', borderBottom: i < folders.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none' }}>
+                          <button
+                            onClick={() => { setActiveFolder(f.id); setFolderDropdownOpen(false) }}
+                            title={breakdown}
+                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 16px', background: 'none', border: 'none', cursor: 'pointer', color: isActive ? tileStyle.accent : '#f5f0e8', fontSize: 13, fontWeight: isActive ? 700 : 400, textAlign: 'left' }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              {f.pinned && <Pin size={10} style={{ opacity: 0.7 }} />}
+                              {f.name}
+                            </span>
+                            <span style={{ fontSize: 11, opacity: 0.5 }}>{folderCount}</span>
+                          </button>
+                          <button onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setFolderMenuAnchor({ x: r.left, y: r.bottom }); setMenuFolderId(menuFolderId === f.id ? null : f.id) }} title="Folder options"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.35)', display: 'flex', padding: '0 12px 0 4px' }}>
+                            <MoreVertical size={13} />
+                          </button>
+                        </div>
+                      )
+                    })}
+                    {/* New folder inline input or button */}
+                    <div style={{ borderTop: '1px solid rgba(245,240,232,0.07)', padding: '8px 12px' }}>
+                      {showNewFolder ? (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { createFolder(); setFolderDropdownOpen(false) }; if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName('') } }}
+                            placeholder="Folder name" autoFocus
+                            style={{ border: '1px solid rgba(245,240,232,0.15)', borderRadius: 8, padding: '4px 8px', fontSize: 11, outline: 'none', flex: 1, backgroundColor: 'rgba(245,240,232,0.08)', color: '#f5f0e8' }} />
+                          <button onClick={() => { createFolder(); setFolderDropdownOpen(false) }} style={{ background: tileStyle.accent, border: 'none', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: '#fff', display: 'flex' }}><Check size={11} /></button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowNewFolder(true)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', fontSize: 12, padding: '2px 0' }}>
+                          <FolderPlus size={13} /> New folder
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Thin divider */}
+          <div style={{ width: 1, height: 16, backgroundColor: 'rgba(245,240,232,0.1)', flexShrink: 0 }} />
+
           {/* Type filter pills */}
           {(['video','image','sound','doc'] as StatKind[]).map((k) => {
-            const labels: Record<StatKind,string> = { video:'Videos', image:'Images', sound:'Sounds', doc:'Docs' }
+            const labels: Record<StatKind,string> = { video: 'Videos', image: 'Images', sound: 'Sounds', doc: 'Docs' }
             const count = typeCounts[k]
             if (count === 0) return null
             const active = typeFilter === k
             return (
               <button key={k} onClick={() => { const next = active ? null : k; setTypeFilter(next); setSelectedItem(null); setMiddleView('preview'); if (isMobile) setMobileTab('browse') }}
-                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none', backgroundColor: active ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: active ? '#0d2420' : 'rgba(245,240,232,0.7)', transition: 'all 0.15s' }}>
-                {labels[k]} <span style={{ opacity: 0.65, fontSize: 10 }}>{count}</span>
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none', backgroundColor: active ? tileStyle.accent : 'rgba(245,240,232,0.08)', color: active ? '#0d2420' : 'rgba(245,240,232,0.65)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                {labels[k]} <span style={{ opacity: 0.6, fontSize: 10 }}>{count}</span>
               </button>
             )
           })}
           {typeFilter && (
             <button onClick={() => setTypeFilter(null)} title="Clear filter"
-              style={{ flexShrink: 0, fontSize: 10, color: 'rgba(245,240,232,0.45)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>
-              × Clear
+              style={{ flexShrink: 0, fontSize: 11, color: 'rgba(245,240,232,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px' }}>
+              ×
             </button>
           )}
-          {/* Divider */}
-          <div style={{ width: 1, height: 16, backgroundColor: 'rgba(245,240,232,0.1)', flexShrink: 0, marginLeft: 2 }} />
+
+          {/* Push remaining controls to the right */}
+          <div style={{ flex: 1 }} />
+
           {/* Sort button */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <button
               ref={sortBtnRef}
               onClick={openSortMenu}
               title="Sort items"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.15)'}`, backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.06)', color: sortBy !== 'newest' ? '#0d2420' : 'rgba(245,240,232,0.8)', transition: 'all 0.15s' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 11px', borderRadius: 50, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: `1px solid ${sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.15)'}`, backgroundColor: sortBy !== 'newest' ? tileStyle.accent : 'rgba(245,240,232,0.06)', color: sortBy !== 'newest' ? '#0d2420' : 'rgba(245,240,232,0.75)', transition: 'all 0.15s', whiteSpace: 'nowrap' }}
             >
               <ArrowUpDown size={12} />
-              {sortBy === 'newest' ? 'Newest first' : sortBy === 'oldest' ? 'Oldest first' : sortBy === 'az' ? 'A – Z' : sortBy === 'za' ? 'Z – A' : sortBy === 'recently-opened' ? 'Recently opened' : sortBy === 'recently-edited' ? 'Recently edited' : 'By type'}
+              {sortBy === 'newest' ? 'Sort' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'az' ? 'A–Z' : sortBy === 'za' ? 'Z–A' : sortBy === 'recently-opened' ? 'Opened' : sortBy === 'recently-edited' ? 'Edited' : 'Type'}
             </button>
             <AnimatePresence>
               {sortMenuOpen && sortMenuPos && (
@@ -1841,8 +1872,7 @@ export default function Cur8Category({ category }: Props) {
                       { value: 'recently-edited', label: 'Recently edited' },
                       { value: 'type',            label: 'By type' },
                     ] as { value: SortBy; label: string }[]).map(({ value, label }, i, arr) => (
-                      <button
-                        key={value}
+                      <button key={value}
                         onClick={() => { setSortBy(value); setSortMenuOpen(false); if (isMobile) setMobileTab('browse') }}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '11px 16px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '1px solid rgba(245,240,232,0.07)' : 'none', cursor: 'pointer', color: sortBy === value ? tileStyle.accent : '#f5f0e8', fontSize: 13, fontWeight: sortBy === value ? 700 : 400, textAlign: 'left' }}
                       >
@@ -1855,6 +1885,15 @@ export default function Cur8Category({ category }: Props) {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Select multiple */}
+          <button
+            onClick={() => (selectMode ? exitSelectMode() : enterSelectMode())}
+            title={selectMode ? 'Finish selecting' : 'Select multiple items'}
+            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 50, fontSize: 11, fontWeight: 600, color: selectMode ? '#0d2420' : 'rgba(245,240,232,0.75)', backgroundColor: selectMode ? tileStyle.accent : 'rgba(245,240,232,0.06)', border: `1px solid ${selectMode ? tileStyle.accent : 'rgba(245,240,232,0.15)'}`, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+          >
+            <CheckSquare size={11} /> {selectMode ? 'Done' : 'Select'}
+          </button>
         </div>
       )}
 
