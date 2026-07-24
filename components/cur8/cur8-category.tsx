@@ -314,6 +314,15 @@ export default function Cur8Category({ category }: Props) {
   // Tracks which item's embed has been explicitly activated (poster → real iframe).
   // Reset when selectedItem changes so switching items starts with a poster again.
   const [embedActive, setEmbedActive] = useState(false)
+
+  // Pagination — 10 items per page for each lane
+  const PAGE_SIZE = 10
+  const [videoPage, setVideoPage] = useState(1)
+  const [docPage, setDocPage] = useState(1)
+  const [centrePage, setCentrePage] = useState(1)
+
+  // Reset pages when filter/sort/folder changes so you always start at page 1
+  useEffect(() => { setVideoPage(1); setDocPage(1); setCentrePage(1) }, [typeFilter, sortBy, activeFolder])
   const [sortMenuPos, setSortMenuPos] = useState<{ top: number; right: number } | null>(null)
   const sortBtnRef = useRef<HTMLButtonElement>(null)
   const openSortMenu = () => {
@@ -598,6 +607,15 @@ export default function Cur8Category({ category }: Props) {
   const videoItems = visibleItems.filter((i) => getContentKind(i) === 'video')
   const imageItems = visibleItems.filter((i) => getContentKind(i) === 'image')
   const docItems = visibleItems.filter((i) => getContentKind(i) === 'doc')
+
+  // Paginated slices — 10 per page
+  const videoTotalPages = Math.max(1, Math.ceil(videoItems.length / PAGE_SIZE))
+  const docTotalPages   = Math.max(1, Math.ceil(docItems.length / PAGE_SIZE))
+  const centreTotalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE))
+
+  const pagedVideoItems  = videoItems.slice((videoPage  - 1) * PAGE_SIZE, videoPage  * PAGE_SIZE)
+  const pagedDocItems    = docItems.slice((docPage    - 1) * PAGE_SIZE, docPage    * PAGE_SIZE)
+  const pagedCentreItems = visibleItems.slice((centrePage - 1) * PAGE_SIZE, centrePage * PAGE_SIZE)
 
   // Image URLs for the rotating idle moodboard (use stored thumb or the image url itself)
   const moodImages = imageItems
@@ -1885,6 +1903,7 @@ export default function Cur8Category({ category }: Props) {
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.55)' }}>Videos</span>
             <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.35)', marginLeft: 'auto' }}>{videoItems.length}</span>
             {/* Desktop collapse — hide panel */}
+
             {!isMobile && (
               <button
                 onClick={() => setLeftOpen(false)}
@@ -1903,7 +1922,7 @@ export default function Cur8Category({ category }: Props) {
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 1fr' : '1fr 1fr', gap: 6 }}>
-                {videoItems.map((item) => {
+                {pagedVideoItems.map((item) => {
                   const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                   const isActive = selectedItem?.id === item.id
                   const isChecked = selectedIds.has(item.id)
@@ -1948,6 +1967,20 @@ export default function Cur8Category({ category }: Props) {
                     </div>
                   )
                 })}
+              </div>
+            )}
+            {/* Video pagination */}
+            {videoTotalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0 4px' }}>
+                <button onClick={() => setVideoPage((p) => Math.max(1, p - 1))} disabled={videoPage === 1}
+                  style={{ padding: '3px 8px', borderRadius: 6, border: 'none', background: videoPage === 1 ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: videoPage === 1 ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: videoPage === 1 ? 'default' : 'pointer', fontSize: 11 }}>
+                  <ChevronLeft size={12} />
+                </button>
+                <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.45)', minWidth: 48, textAlign: 'center' }}>{videoPage} / {videoTotalPages}</span>
+                <button onClick={() => setVideoPage((p) => Math.min(videoTotalPages, p + 1))} disabled={videoPage === videoTotalPages}
+                  style={{ padding: '3px 8px', borderRadius: 6, border: 'none', background: videoPage === videoTotalPages ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: videoPage === videoTotalPages ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: videoPage === videoTotalPages ? 'default' : 'pointer', fontSize: 11 }}>
+                  <ChevronRight size={12} />
+                </button>
               </div>
             )}
           </div>
@@ -2204,6 +2237,7 @@ export default function Cur8Category({ category }: Props) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
                 <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
                   {visibleItems.length} {TYPE_LABEL[typeFilter]}{visibleItems.length === 1 ? '' : 's'} · tap to open
+                  {centreTotalPages > 1 && <span style={{ fontWeight: 400, marginLeft: 6, opacity: 0.6 }}>page {centrePage} of {centreTotalPages}</span>}
                 </p>
                 <button
                   onClick={() => setTypeFilter(null)}
@@ -2216,7 +2250,7 @@ export default function Cur8Category({ category }: Props) {
                 <p style={{ fontSize: 13, color: 'rgba(245,240,232,0.4)', fontStyle: 'italic', textAlign: 'center', marginTop: 32 }}>Nothing of this kind here yet.</p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-                  {visibleItems.map((item) => {
+                  {pagedCentreItems.map((item) => {
                     const kind = getContentKind(item)
                     const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                     const KindIcon = kind === 'image' ? ImageIcon : kind === 'doc' ? FileText : kind === 'video' ? Clapperboard : Music
@@ -2247,16 +2281,33 @@ export default function Cur8Category({ category }: Props) {
                   })}
                 </div>
               )}
+              {/* Centre type-filter pagination */}
+              {centreTotalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0 4px' }}>
+                  <button onClick={() => setCentrePage((p) => Math.max(1, p - 1))} disabled={centrePage === 1}
+                    style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: centrePage === 1 ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: centrePage === 1 ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: centrePage === 1 ? 'default' : 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ChevronLeft size={13} /> Prev
+                  </button>
+                  <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', minWidth: 64, textAlign: 'center' }}>{centrePage} of {centreTotalPages}</span>
+                  <button onClick={() => setCentrePage((p) => Math.min(centreTotalPages, p + 1))} disabled={centrePage === centreTotalPages}
+                    style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: centrePage === centreTotalPages ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: centrePage === centreTotalPages ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: centrePage === centreTotalPages ? 'default' : 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    Next <ChevronRight size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           ) : videoItems.length > 0 ? (
             /* ── Idle: video grid so a video-only haven/folder is instantly
                  playable from the big centre panel (not just the narrow left lane) ── */
             <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
-              <p style={{ margin: '0 0 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
-                {videoItems.length} {videoItems.length === 1 ? 'video' : 'videos'} · tap to play
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
+                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.4)' }}>
+                  {videoItems.length} {videoItems.length === 1 ? 'video' : 'videos'} · tap to play
+                  {videoTotalPages > 1 && <span style={{ fontWeight: 400, marginLeft: 6, opacity: 0.6 }}>page {videoPage} of {videoTotalPages}</span>}
+                </p>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
-                {videoItems.map((item) => {
+                {pagedVideoItems.map((item) => {
                   const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
                   return (
                     <div
@@ -2282,6 +2333,20 @@ export default function Cur8Category({ category }: Props) {
                   )
                 })}
               </div>
+              {/* Centre idle-video pagination */}
+              {videoTotalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0 4px' }}>
+                  <button onClick={() => setVideoPage((p) => Math.max(1, p - 1))} disabled={videoPage === 1}
+                    style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: videoPage === 1 ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: videoPage === 1 ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: videoPage === 1 ? 'default' : 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ChevronLeft size={13} /> Prev
+                  </button>
+                  <span style={{ fontSize: 11, color: 'rgba(245,240,232,0.5)', minWidth: 64, textAlign: 'center' }}>{videoPage} of {videoTotalPages}</span>
+                  <button onClick={() => setVideoPage((p) => Math.min(videoTotalPages, p + 1))} disabled={videoPage === videoTotalPages}
+                    style={{ padding: '5px 14px', borderRadius: 8, border: 'none', background: videoPage === videoTotalPages ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: videoPage === videoTotalPages ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: videoPage === videoTotalPages ? 'default' : 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    Next <ChevronRight size={13} />
+                  </button>
+                </div>
+              )}
             </div>
           ) : moodImages.length > 0 ? (
             /* ── Idle: rotating moodboard of saved images ── */
@@ -2362,7 +2427,7 @@ export default function Cur8Category({ category }: Props) {
           <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto', padding: '8px 8px', minHeight: isMobile ? 'auto' : 0 }}>
             {docItems.length === 0 ? (
               <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.35)', textAlign: 'center', marginTop: 24, fontStyle: 'italic', lineHeight: 1.5 }}>No docs or links here yet. Articles, PDFs, Google Docs and web links land here.</p>
-            ) : docItems.map((item) => {
+            ) : pagedDocItems.map((item) => {
               const thumb = getThumbnailFromUrl(item.url, item.thumbnail)
               const isActive = selectedItem?.id === item.id
               const isChecked = selectedIds.has(item.id)
@@ -2409,6 +2474,20 @@ export default function Cur8Category({ category }: Props) {
                 </div>
               )
             })}
+            {/* Docs pagination */}
+            {docTotalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 0 4px' }}>
+                <button onClick={() => setDocPage((p) => Math.max(1, p - 1))} disabled={docPage === 1}
+                  style={{ padding: '3px 8px', borderRadius: 6, border: 'none', background: docPage === 1 ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: docPage === 1 ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: docPage === 1 ? 'default' : 'pointer', fontSize: 11 }}>
+                  <ChevronLeft size={12} />
+                </button>
+                <span style={{ fontSize: 10, color: 'rgba(245,240,232,0.45)', minWidth: 48, textAlign: 'center' }}>{docPage} / {docTotalPages}</span>
+                <button onClick={() => setDocPage((p) => Math.min(docTotalPages, p + 1))} disabled={docPage === docTotalPages}
+                  style={{ padding: '3px 8px', borderRadius: 6, border: 'none', background: docPage === docTotalPages ? 'rgba(245,240,232,0.05)' : 'rgba(245,240,232,0.12)', color: docPage === docTotalPages ? 'rgba(245,240,232,0.25)' : '#f5f0e8', cursor: docPage === docTotalPages ? 'default' : 'pointer', fontSize: 11 }}>
+                  <ChevronRight size={12} />
+                </button>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
