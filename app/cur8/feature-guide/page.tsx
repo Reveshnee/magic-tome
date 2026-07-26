@@ -169,7 +169,9 @@ export default function FeatureGuidePage() {
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .no-print { display: none !important; }
-          @page { margin: 20mm 18mm; size: A4; }
+          @page { margin: 14mm 16mm; size: A4; }
+          .page-break { page-break-after: always; break-after: page; }
+          .page-2 { page-break-before: always; break-before: page; }
         }
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
       `}</style>
@@ -294,6 +296,26 @@ export default function FeatureGuidePage() {
           </div>
         </Section>
 
+        {/* ── Page 1 footer ── */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 }}>
+          <p style={{ fontSize: 10, color: '#aaa', margin: 0 }}>cur8 · Feature Guide</p>
+          <p style={{ fontSize: 10, color: '#aaa', margin: 0 }}>Page 1 of 2</p>
+        </div>
+
+        {/* ── Page break ── */}
+        <div className="page-break" style={{ height: 40 }} />
+
+        {/* ── Page 2: header strip ── */}
+        <div className="page-2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40, paddingBottom: 16, borderBottom: '2px solid rgba(201,168,76,0.25)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 7, background: '#0d2420', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontFamily: 'Georgia, serif', fontSize: 12, fontWeight: 700, color: '#c9a84c' }}>c8</span>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#888' }}>cur8 · Feature Guide</span>
+          </div>
+          <span style={{ fontSize: 10, color: '#aaa' }}>Continued — Page 2 of 2</span>
+        </div>
+
         {/* ── Section 3: Reflections ── */}
         <Section number="03" title="Reflections" accent="#8ec8b4">
           <div style={{ display: 'flex', gap: 36, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -366,10 +388,10 @@ export default function FeatureGuidePage() {
           </div>
         </section>
 
-        {/* Footer */}
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <p style={{ fontSize: 11, color: '#999', margin: 0 }}>cur8 · Feature Guide</p>
-          <p style={{ fontSize: 11, color: '#999', margin: 0 }}>Internal use · Not for distribution</p>
+        {/* Footer — Page 2 */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: 10, color: '#aaa', margin: 0 }}>cur8 · Feature Guide</p>
+          <p style={{ fontSize: 10, color: '#aaa', margin: 0 }}>Page 2 of 2</p>
         </div>
 
         {/* Print button — hidden when printing */}
