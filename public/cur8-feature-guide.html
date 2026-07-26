@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cur8 — Feature Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #e8e4de;
+      color: #1a1a1a;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* ── Page shell ── */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: #faf8f5;
+      margin: 24px auto;
+      padding: 18mm 18mm 16mm;
+      position: relative;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+    }
+
+    /* ── Cover strip ── */
+    .cover {
+      background: #0d2420;
+      border-radius: 14px;
+      padding: 32px 36px;
+      margin-bottom: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+    .cover-left { flex: 1; }
+    .cover-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .cover-logo-mark {
+      width: 36px; height: 36px;
+      background: #c9a84c;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 15px; font-weight: 700;
+      color: #0d2420;
+    }
+    .cover-logo-name {
+      font-size: 22px; font-weight: 700;
+      color: #f5f0e8;
+      letter-spacing: -0.02em;
+    }
+    .cover-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 26px; font-weight: 700;
+      color: #f5f0e8;
+      line-height: 1.25;
+      margin-bottom: 8px;
+    }
+    .cover-sub {
+      font-size: 12px;
+      color: rgba(245,240,232,0.55);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .cover-koi {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      background: rgba(201,168,76,0.12);
+      border: 2px solid rgba(201,168,76,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 42px;
+      flex-shrink: 0;
+    }
+
+    /* ── Section ── */
+    .section {
+      margin-bottom: 32px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1.5px solid #ede9e2;
+    }
+    .section-num {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #aaa;
+      width: 28px;
+    }
+    .section-icon {
+      width: 34px; height: 34px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; flex-shrink: 0;
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px; font-weight: 700;
+      color: #1a1a1a;
+    }
+    .section-tag {
+      margin-left: auto;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+    }
+
+    .section-body {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .section-widget { flex: 0 0 200px; }
+    .section-copy { flex: 1; }
+
+    /* ── Widget mockups ── */
+    .widget-shell {
+      border-radius: 16px;
+      padding: 20px;
+      background: #0d2420;
+      color: #f5f0e8;
+    }
+    .widget-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: rgba(245,240,232,0.45);
+      margin-bottom: 14px;
+    }
+
+    /* Breathwork orb */
+    .breathwork-orb-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .breathwork-orb {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 38%, #6fc3a2 0%, #2a7a5c 60%, #1a5040 100%);
+      box-shadow: 0 0 28px rgba(111,195,162,0.35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.9);
+      letter-spacing: 0.04em;
+    }
+    .breathwork-label {
+      font-size: 13px; font-weight: 600; color: #6fc3a2; text-align: center;
+    }
+    .breathwork-pattern {
+      display: flex; gap: 4px; margin-top: 4px;
+    }
+    .bp-step {
+      flex: 1; text-align: center; padding: 5px 4px;
+      border-radius: 7px;
+      background: rgba(111,195,162,0.12);
+      font-size: 9px; color: rgba(245,240,232,0.55);
+      line-height: 1.3;
+    }
+    .bp-step strong { display: block; font-size: 11px; color: #6fc3a2; }
+
+    /* Focus timer */
+    .timer-ring-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .timer-ring {
+      width: 88px; height: 88px; position: relative;
+    }
+    .timer-ring svg { width: 88px; height: 88px; transform: rotate(-90deg); }
+    .timer-ring-text {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; color: #f5f0e8;
+      letter-spacing: -0.03em;
+    }
+    .timer-controls {
+      display: flex; gap: 8px; margin-top: 2px;
+    }
+    .timer-btn {
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 10px; font-weight: 600; border: none; cursor: default;
+    }
+    .timer-sessions {
+      display: flex; gap: 4px; margin-top: 4px;
+    }
+    .timer-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+    }
+
+    /* Reflections */
+    .reflection-card {
+      background: rgba(245,240,232,0.05);
+      border: 1px solid rgba(245,240,232,0.1);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .reflection-prompt {
+      font-size: 10px; color: rgba(245,240,232,0.45); margin-bottom: 4px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .reflection-text {
+      font-size: 11px; color: rgba(245,240,232,0.85);
+      line-height: 1.55; font-style: italic;
+    }
+    .reflection-meta {
+      font-size: 9px; color: rgba(245,240,232,0.3); margin-top: 6px;
+    }
+    .reflection-composer {
+      background: rgba(245,240,232,0.04);
+      border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 10px; color: rgba(245,240,232,0.35);
+      font-style: italic;
+    }
+
+    /* ── Copy styles ── */
+    .copy-purpose {
+      font-size: 12.5px; color: #444; line-height: 1.7;
+      margin-bottom: 14px;
+    }
+    .copy-how-title {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #aaa; margin-bottom: 8px;
+    }
+    .copy-steps {
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .copy-step {
+      display: flex; gap: 9px; align-items: flex-start;
+    }
+    .step-num {
+      width: 18px; height: 18px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .copy-step p { font-size: 11.5px; color: #444; line-height: 1.55; }
+    .copy-step strong { color: #1a1a1a; }
+
+    .callout {
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 14px;
+      font-size: 11px; line-height: 1.6;
+    }
+    .callout strong { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }
+
+    /* ── Page divider ── */
+    .page-divider {
+      border: none;
+      border-top: 1.5px dashed #d5cfc6;
+      margin: 8px 0 30px;
+    }
+
+    /* ── Rhythm section ── */
+    .rhythm {
+      background: #0d2420;
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 28px;
+    }
+    .rhythm-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 15px; font-weight: 700; color: #c9a84c;
+      margin-bottom: 18px;
+    }
+    .rhythm-steps {
+      display: flex; gap: 0; align-items: flex-start;
+    }
+    .rhythm-step {
+      flex: 1; text-align: center;
+      padding: 0 10px;
+    }
+    .rhythm-step + .rhythm-step {
+      border-left: 1px solid rgba(245,240,232,0.1);
+    }
+    .rhythm-icon {
+      font-size: 24px; margin-bottom: 8px;
+    }
+    .rhythm-name {
+      font-size: 11px; font-weight: 700; color: #f5f0e8;
+      margin-bottom: 4px;
+    }
+    .rhythm-desc {
+      font-size: 10px; color: rgba(245,240,232,0.5); line-height: 1.5;
+    }
+    .rhythm-arrow {
+      font-size: 14px; color: #c9a84c; opacity: 0.5;
+      padding-top: 8px; flex-shrink: 0;
+    }
+
+    /* ── Page footer ── */
+    .page-footer {
+      position: absolute;
+      bottom: 14mm; left: 18mm; right: 18mm;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid #e8e3db;
+      padding-top: 10px;
+    }
+    .page-footer span { font-size: 9px; color: #bbb; letter-spacing: 0.04em; }
+
+    /* ── Page 2 header ── */
+    .page2-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 30px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid rgba(201,168,76,0.2);
+    }
+    .page2-header-left {
+      display: flex; align-items: center; gap: 9px;
+    }
+    .page2-logo-mark {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: #0d2420;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-size: 10px; font-weight: 700; color: #c9a84c;
+    }
+    .page2-header span {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #aaa;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: white; }
+      .page { margin: 0; box-shadow: none; page-break-after: always; }
+      .page:last-child { page-break-after: auto; }
+      @page { size: A4; margin: 0; }
+    }
+
+    /* ── Screen bar ── */
+    .screen-bar {
+      width: 210mm;
+      margin: 0 auto 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    @media print { .screen-bar { display: none; } }
+    .screen-btn {
+      padding: 7px 18px;
+      border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer; border: none;
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="screen-bar">
+    <button class="screen-btn" style="background:#0d2420;color:#c9a84c;" onclick="window.print()">Save as PDF</button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 1
+  ═══════════════════════════════════════════════ -->
+  <div class="page">
+
+    <!-- Cover -->
+    <div class="cover">
+      <div class="cover-left">
+        <div class="cover-logo">
+          <div class="cover-logo-mark">c8</div>
+          <span class="cover-logo-name">cur8</span>
+        </div>
+        <div class="cover-title">Wellness &amp; Focus<br/>Feature Guide</div>
+        <p class="cover-sub">Breathwork · Focus Timer · Reflections</p>
+      </div>
+      <div class="cover-koi">🐟</div>
+    </div>
+
+    <!-- Section 01: Breathwork -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <div class="section-icon" style="background:rgba(111,195,162,0.15);">🌬</div>
+        <span class="section-title">Breathwork</span>
+        <span class="section-tag" style="background:rgba(111,195,162,0.12);color:#2a7a5c;">Nervous system</span>
+      </div>
+      <div class="section-body">
+        <div class="section-widget">
+          <div class="widget-shell">
+            <div class="widget-title">Breathwork</div>
+            <div class="breathwork-orb-wrap">
+              <div class="breathwork-orb">Inhale</div>
+              <div class="breathwork-label">Box Breathing</div>
+              <div class="breathwork-pattern">
+                <div class="bp-step"><strong>4s</strong>Inhale</div>
+                <div class="bp-step"><strong>4s</strong>Hold</div>
+                <div class="bp-step"><strong>4s</strong>Exhale</div>
+                <div class="bp-step"><strong>4s</strong>Hold</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-copy">
+          <p class="copy-purpose">
+            The Breathwork widget gives you a visual, guided breathing exercise you can start in seconds — directly inside your haven. It regulates your nervous system before a study or work session, helping you move from scattered to settled.
+          </p>
+          <div class="copy-how-title">How it works</div>
+          <div class="copy-steps">
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(111,195,162,0.15);color:#2a7a5c;">1</div>
+              <p>Open the <strong>Breathwork</strong> widget from the haven toolbar or The Pond on the home screen.</p>
+            </div>
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(111,195,162,0.15);color:#2a7a5c;">2</div>
+              <p>Choose a pattern — <strong>Box, 4-7-8, or Deep</strong>. The animated orb expands and contracts to guide each breath.</p>
+            </div>
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(111,195,162,0.15);color:#2a7a5c;">3</div>
+              <p>Follow along for 2–5 minutes. Your body settles — then move into focused work.</p>
+            </div>
+          </div>
+          <div class="callout" style="background:rgba(111,195,162,0.08);border-left:3px solid #6fc3a2;">
+            <strong>Best used for</strong>
+            Before deep work, after difficult calls, or any time you feel overwhelmed and need to reset quickly.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 02: Focus Timer -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <div class="section-icon" style="background:rgba(230,169,79,0.15);">⏱</div>
+        <span class="section-title">Focus Timer</span>
+        <span class="section-tag" style="background:rgba(230,169,79,0.12);color:#b87d1a;">Deep work</span>
+      </div>
+      <div class="section-body">
+        <div class="section-widget">
+          <div class="widget-shell">
+            <div class="widget-title">Focus Timer</div>
+            <div class="timer-ring-wrap">
+              <div class="timer-ring">
+                <svg viewBox="0 0 88 88">
+                  <circle cx="44" cy="44" r="36" fill="none" stroke="rgba(245,240,232,0.06)" stroke-width="6"/>
+                  <circle cx="44" cy="44" r="36" fill="none" stroke="#e6a94f" stroke-width="6"
+                    stroke-dasharray="226" stroke-dashoffset="68" stroke-linecap="round"/>
+                </svg>
+                <div class="timer-ring-text">18:42</div>
+              </div>
+              <div style="font-size:10px;color:rgba(245,240,232,0.4);letter-spacing:0.06em;text-transform:uppercase;margin-top:2px;">Session 2 of 3</div>
+              <div class="timer-controls">
+                <button class="timer-btn" style="background:#e6a94f;color:#0d2420;">Pause</button>
+                <button class="timer-btn" style="background:rgba(245,240,232,0.08);color:rgba(245,240,232,0.6);">Reset</button>
+              </div>
+              <div class="timer-sessions">
+                <div class="timer-dot" style="background:#e6a94f;"></div>
+                <div class="timer-dot" style="background:#e6a94f;"></div>
+                <div class="timer-dot" style="background:rgba(245,240,232,0.15);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="section-copy">
+          <p class="copy-purpose">
+            The Focus Timer is a Pomodoro-style work timer that keeps you anchored to a single task. It counts down your session, tracks how many rounds you've completed, and signals when to rest — so your brain stays sharp across a long work day.
+          </p>
+          <div class="copy-how-title">How it works</div>
+          <div class="copy-steps">
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(230,169,79,0.15);color:#b87d1a;">1</div>
+              <p>Tap the <strong>Focus</strong> orb in The Pond or open it from your haven toolbar.</p>
+            </div>
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(230,169,79,0.15);color:#b87d1a;">2</div>
+              <p>Set your session length (default <strong>25 min</strong>) and target number of rounds. Start the timer.</p>
+            </div>
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(230,169,79,0.15);color:#b87d1a;">3</div>
+              <p>Work until the bell. Take your break. Completed sessions are shown as <strong>gold dots</strong> so you can see your momentum building.</p>
+            </div>
+          </div>
+          <div class="callout" style="background:rgba(230,169,79,0.08);border-left:3px solid #e6a94f;">
+            <strong>Best used for</strong>
+            Studying, writing, client work — any task that needs uninterrupted chunks of concentrated attention.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page footer -->
+    <div class="page-footer">
+      <span>cur8 · Feature Guide</span>
+      <span>Page 1 of 2</span>
+    </div>
+
+  </div><!-- /page 1 -->
+
+
+  <!-- ══════════════════════════════════════════════
+       PAGE 2
+  ═══════════════════════════════════════════════ -->
+  <div class="page">
+
+    <!-- Page 2 header strip -->
+    <div class="page2-header">
+      <div class="page2-header-left">
+        <div class="page2-logo-mark">c8</div>
+        <span>cur8 · Feature Guide</span>
+      </div>
+      <span>Continued — Page 2 of 2</span>
+    </div>
+
+    <!-- Section 03: Reflections -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <div class="section-icon" style="background:rgba(142,200,180,0.15);">🪞</div>
+        <span class="section-title">Reflections</span>
+        <span class="section-tag" style="background:rgba(142,200,180,0.12);color:#3a8a70;">Insight &amp; growth</span>
+      </div>
+      <div class="section-body">
+        <div class="section-widget">
+          <div class="widget-shell">
+            <div class="widget-title">Reflections</div>
+            <div class="reflection-card">
+              <div class="reflection-prompt">Prompt</div>
+              <div class="reflection-text">"What is one thing from what you saved this week that challenged your thinking?"</div>
+            </div>
+            <div class="reflection-card">
+              <div class="reflection-text">"The lecture on coaching presence shifted how I think about listening. It's not about waiting to speak — it's about staying genuinely curious."</div>
+              <div class="reflection-meta">Saved to The Koi Pond · 2 days ago</div>
+            </div>
+            <div class="reflection-composer">Write a new reflection…</div>
+          </div>
+        </div>
+        <div class="section-copy">
+          <p class="copy-purpose">
+            Reflections is your space to process and make meaning from what you've been saving. Each haven has its own reflection thread, so insights from your wellness reading stay separate from your coaching study or work research. Nothing gets lost, and your thinking compounds over time.
+          </p>
+          <div class="copy-how-title">How it works</div>
+          <div class="copy-steps">
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(142,200,180,0.15);color:#3a8a70;">1</div>
+              <p>Tap <strong>Reflect</strong> in any haven toolbar (or the floating Reflect button on the home screen).</p>
+            </div>
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(142,200,180,0.15);color:#3a8a70;">2</div>
+              <p>Read the AI-generated prompt, or skip it and write freely. You can also <strong>attach voice notes, images, or documents</strong> to any entry.</p>
+            </div>
+            <div class="copy-step">
+              <div class="step-num" style="background:rgba(142,200,180,0.15);color:#3a8a70;">3</div>
+              <p>Save. Your reflection is stored to that haven's thread — scroll back any time to revisit your thinking, or share it directly via email or WhatsApp.</p>
+            </div>
+          </div>
+          <div class="callout" style="background:rgba(142,200,180,0.08);border-left:3px solid #8ec8b4;">
+            <strong>Best used for</strong>
+            Processing lectures and books you've saved, journalling insights after coaching sessions, or capturing "aha" moments before they disappear.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- How they fit together -->
+    <div class="rhythm">
+      <div class="rhythm-title">How these features work together</div>
+      <div class="rhythm-steps">
+        <div class="rhythm-step">
+          <div class="rhythm-icon">🌬</div>
+          <div class="rhythm-name">Arrive</div>
+          <div class="rhythm-desc">Use Breathwork to settle your nervous system and move from reactive to intentional before you begin.</div>
+        </div>
+        <div style="color:rgba(201,168,76,0.4);font-size:18px;padding-top:14px;flex-shrink:0;">→</div>
+        <div class="rhythm-step">
+          <div class="rhythm-icon">⏱</div>
+          <div class="rhythm-name">Focus</div>
+          <div class="rhythm-desc">Use the Focus Timer to protect your attention. Work in clear, counted sessions with natural rest between them.</div>
+        </div>
+        <div style="color:rgba(201,168,76,0.4);font-size:18px;padding-top:14px;flex-shrink:0;">→</div>
+        <div class="rhythm-step">
+          <div class="rhythm-icon">🪞</div>
+          <div class="rhythm-name">Reflect</div>
+          <div class="rhythm-desc">Use Reflections to capture what you learned and what shifted — turning saved content into real insight.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing note -->
+    <div style="text-align:center;margin-bottom:40px;">
+      <p style="font-family:'Playfair Display',serif;font-size:13px;color:#888;font-style:italic;line-height:1.7;">
+        "Cur8 is built on the belief that information only becomes wisdom when you<br/>give it space to land. These tools create that space."
+      </p>
+    </div>
+
+    <!-- Page footer -->
+    <div class="page-footer">
+      <span>cur8 · Feature Guide</span>
+      <span>Page 2 of 2</span>
+    </div>
+
+  </div><!-- /page 2 -->
+
+</body>
+</html>
