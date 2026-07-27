@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -209,6 +209,131 @@ const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: 
   Images:    { accent: '#5a9e84', accentLight: '#e8f4ef', image: '/cur8/tile-sanctuary.png' },
   Documents: { accent: '#3a6b8c', accentLight: '#e8f0f6', image: '/cur8/tile-tide.png' },
   Web:       { accent: '#c9843c', accentLight: '#f5ede0', image: '/cur8/tile-ember.png' },
+}
+
+// ── SocialEmbed: renders Instagram / Facebook / Pinterest official embeds ──
+// Each platform provides a JS embed SDK — we inject the script once per mount
+// and call the platform's reprocess method whenever the URL changes.
+function SocialEmbed({ url, platform, thumbnail, title }: {
+  url: string
+  platform: 'instagram' | 'facebook' | 'pinterest'
+  thumbnail?: string
+  title?: string
+}) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const [failed, setFailed] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!ref.current) return
+    setFailed(false)
+
+    function loadScript(src: string, id: string, onLoad?: () => void) {
+      if (document.getElementById(id)) { onLoad?.(); return }
+      const s = document.createElement('script')
+      s.src = src
+      s.async = true
+      s.id = id
+      if (onLoad) s.onload = onLoad
+      s.onerror = () => setFailed(true)
+      document.body.appendChild(s)
+    }
+
+    if (platform === 'instagram') {
+      loadScript('https://www.instagram.com/embed.js', 'instagram-embed-js', () => {
+        try { (window as unknown as Record<string, unknown>).instgrm && ((window as unknown as Record<string, { Embeds: { process: () => void } }>).instgrm.Embeds.process()) } catch { /* noop */ }
+      })
+      // If script already loaded, reprocess
+      try { (window as unknown as Record<string, { Embeds: { process: () => void } }>).instgrm?.Embeds.process() } catch { /* noop */ }
+    }
+
+    if (platform === 'facebook') {
+      loadScript('https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v19.0', 'facebook-sdk', () => {
+        try { (window as unknown as Record<string, { XFBML: { parse: () => void } }>).FB?.XFBML.parse() } catch { /* noop */ }
+      })
+      try { (window as unknown as Record<string, { XFBML: { parse: () => void } }>).FB?.XFBML.parse() } catch { /* noop */ }
+    }
+
+    if (platform === 'pinterest') {
+      loadScript('https://assets.pinterest.com/js/pinit.js', 'pinterest-embed-js')
+    }
+  }, [url, platform])
+
+  const brandColors: Record<string, string> = { instagram: '#c13584', facebook: '#1877f2', pinterest: '#e60023' }
+  const brandColor = brandColors[platform]
+
+  // Fallback card — shown if embed fails or as the base layer
+  const FallbackCard = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: 28, textAlign: 'center' }}>
+      {thumbnail ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumbnail} alt={title ?? ''} style={{ width: '100%', maxWidth: 340, borderRadius: 14, objectFit: 'cover', aspectRatio: '4/3', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }} />
+      ) : (
+        <div style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: `${brandColor}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ImageIcon size={36} color={brandColor} />
+        </div>
+      )}
+      {title && <p style={{ fontSize: 14, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0, lineHeight: 1.45 }}>{title}</p>}
+      <button
+        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer' }}
+      >
+        <ExternalLink size={13} /> Open in {platform.charAt(0).toUpperCase() + platform.slice(1)}
+      </button>
+    </div>
+  )
+
+  return (
+    <div
+      ref={ref}
+      style={{ width: '100%', height: '100%', overflowY: 'auto', backgroundColor: '#0a1e1b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '16px 8px' }}
+    >
+      {failed ? (
+        <FallbackCard />
+      ) : (
+        <>
+          {platform === 'instagram' && (
+            <blockquote
+              className="instagram-media"
+              data-instgrm-permalink={url}
+              data-instgrm-version="14"
+              data-instgrm-captioned
+              style={{ background: '#fff', border: 0, borderRadius: 12, margin: '0 auto', maxWidth: 540, width: '100%', minWidth: 300 }}
+            />
+          )}
+          {platform === 'facebook' && (
+            <>
+              <div id="fb-root" />
+              <div
+                className="fb-post"
+                data-href={url}
+                data-width="500"
+                data-show-text="true"
+                style={{ margin: '0 auto' }}
+              />
+            </>
+          )}
+          {platform === 'pinterest' && (
+            <a
+              data-pin-do="embedPin"
+              data-pin-width="large"
+              data-pin-terse="true"
+              href={url}
+              style={{ display: 'block', margin: '0 auto' }}
+            />
+          )}
+          {/* Always show the fallback open button below the embed */}
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(245,240,232,0.08)', width: '100%', maxWidth: 540, textAlign: 'center' }}>
+            <button
+              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}
+            >
+              <ExternalLink size={12} /> Open in {platform.charAt(0).toUpperCase() + platform.slice(1)}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 interface Props { category: Category }
@@ -1132,52 +1257,19 @@ export default function Cur8Category({ category }: Props) {
       )
     }
 
-    // Instagram, Facebook, Pinterest — all block iframing.
-    // Show the cached thumbnail, title, and a branded open button.
-    if (type === 'instagram' || type === 'facebook' || type === 'pinterest') {
-      const poster = getThumbnailFromUrl(item.url, item.thumbnail)
-      const brandColors: Record<string, string> = {
-        instagram: '#c13584',
-        facebook: '#1877f2',
-        pinterest: '#e60023',
-      }
-      const brandLabels: Record<string, string> = {
-        instagram: 'Open on Instagram',
-        facebook: 'Open on Facebook',
-        pinterest: 'Open on Pinterest',
-      }
-      const brandColor = brandColors[type]
-      const label = brandLabels[type]
-      return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
-          {poster ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={poster}
-              alt={item.title}
-              style={{ maxWidth: '100%', maxHeight: '55%', borderRadius: 14, objectFit: 'cover', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
-            />
-          ) : (
-            <div style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: `${brandColor}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ImageIcon size={36} color={brandColor} />
-            </div>
-          )}
-          <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0, lineHeight: 1.4 }}>{item.title}</p>
-          {item.description ? (
-            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.5)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>{item.description}</p>
-          ) : (
-            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.4)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>
-              {type === 'pinterest' ? 'Pinterest pins open in the Pinterest app or browser.' : `${type === 'instagram' ? 'Instagram' : 'Facebook'} content opens in the app or browser.`}
-            </p>
-          )}
-          <button
-            onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 22px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer' }}
-          >
-            <ExternalLink size={14} /> {label}
-          </button>
-        </div>
-      )
+    // ── Instagram official embed ──
+    if (type === 'instagram') {
+      return <SocialEmbed key={item.url} url={item.url} platform="instagram" thumbnail={item.thumbnail} title={item.title} />
+    }
+
+    // ── Facebook official embed ──
+    if (type === 'facebook') {
+      return <SocialEmbed key={item.url} url={item.url} platform="facebook" thumbnail={item.thumbnail} title={item.title} />
+    }
+
+    // ── Pinterest official embed ──
+    if (type === 'pinterest') {
+      return <SocialEmbed key={item.url} url={item.url} platform="pinterest" thumbnail={item.thumbnail} title={item.title} />
     }
 
     if (type === 'image') {
@@ -1768,7 +1860,7 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
-      {/* ── Row 1: Folders bar ── */}
+      {/* ���─ Row 1: Folders bar ── */}
       {!mediaFocus && (
         <div style={{ flexShrink: 0, padding: '6px 12px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 8 }}>
 
