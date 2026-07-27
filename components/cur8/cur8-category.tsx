@@ -121,7 +121,7 @@ function filenameFromUrl(url: string, fallback: string): string {
 }
 
 // Determine how to render a URL in the preview panel
-function getPreviewType(url: string): 'youtube' | 'tiktok' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
+function getPreviewType(url: string): 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'pinterest' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
   // Private-blob proxy URLs — detect by extension in the pathname query param
   if (url.startsWith('/api/cur8/file')) {
     try {
@@ -130,21 +130,25 @@ function getPreviewType(url: string): 'youtube' | 'tiktok' | 'image' | 'pdf' | '
       if (p.match(/\.(jpg|jpeg|png|gif|webp|avif)$/)) return 'image'
       if (p.match(/\.(mp4|webm|mov)$/)) return 'video'
       if (p.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
-      if (p.match(/\.pdf$/)) return 'pdf' // native browser PDF viewer (same-origin iframe)
-      // Office / text docs must be rendered client-side (can't iframe a .docx)
+      if (p.match(/\.pdf$/)) return 'pdf'
       if (p.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv|md)$/)) return 'document'
     } catch {}
-    return 'document' // unknown uploaded file → let the viewer offer a download
+    return 'document'
   }
   try {
     const u = new URL(url)
-    if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') return 'youtube'
-    if (u.hostname.includes('tiktok.com')) return 'tiktok'
+    const h = u.hostname.toLowerCase()
+    if (h.includes('youtube.com') || h === 'youtu.be') return 'youtube'
+    if (h.includes('tiktok.com')) return 'tiktok'
+    // Social platforms that block iframing — show thumbnail + open button instead
+    if (h.includes('instagram.com') || h.includes('cdninstagram.com')) return 'instagram'
+    if (h.includes('facebook.com') || h.includes('fb.com') || h === 'fb.watch') return 'facebook'
+    if (h.includes('pinterest.') || h.includes('pin.it')) return 'pinterest'
     const path = u.pathname.toLowerCase()
     if (path.match(/\.(jpg|jpeg|png|gif|webp|svg|avif)$/)) return 'image'
     if (path.match(/\.(mp4|webm|mov|avi|mkv)$/)) return 'video'
     if (path.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
-    if (path.match(/\.pdf$/) || u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) return 'pdf'
+    if (path.match(/\.pdf$/) || h.includes('drive.google.com') || h.includes('docs.google.com')) return 'pdf'
     if (path.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf'
   } catch {}
   return 'iframe'
@@ -176,12 +180,8 @@ type ContentKind = 'video' | 'image' | 'doc'
 function getContentKind(item: { url: string }): ContentKind {
   const t = getPreviewType(item.url)
   if (t === 'image') return 'image'
-  if (t === 'youtube' || t === 'video' || t === 'audio') return 'video'
-  // Social platforms preview as generic iframes but are really videos
-  try {
-    const h = new URL(item.url).hostname.toLowerCase()
-    if (/tiktok|instagram|vimeo|fb\.watch|facebook|dailymotion|twitch|youtu/.test(h)) return 'video'
-  } catch {}
+  if (t === 'youtube' || t === 'tiktok' || t === 'video' || t === 'audio' || t === 'facebook' || t === 'instagram') return 'video'
+  if (t === 'pinterest') return 'image'
   return 'doc'
 }
 
@@ -1127,6 +1127,54 @@ export default function Cur8Category({ category }: Props) {
             onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer' }}>
             <Play size={13} /> Play on TikTok
+          </button>
+        </div>
+      )
+    }
+
+    // Instagram, Facebook, Pinterest — all block iframing.
+    // Show the cached thumbnail, title, and a branded open button.
+    if (type === 'instagram' || type === 'facebook' || type === 'pinterest') {
+      const poster = getThumbnailFromUrl(item.url, item.thumbnail)
+      const brandColors: Record<string, string> = {
+        instagram: '#c13584',
+        facebook: '#1877f2',
+        pinterest: '#e60023',
+      }
+      const brandLabels: Record<string, string> = {
+        instagram: 'Open on Instagram',
+        facebook: 'Open on Facebook',
+        pinterest: 'Open on Pinterest',
+      }
+      const brandColor = brandColors[type]
+      const label = brandLabels[type]
+      return (
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
+          {poster ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={poster}
+              alt={item.title}
+              style={{ maxWidth: '100%', maxHeight: '55%', borderRadius: 14, objectFit: 'cover', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
+            />
+          ) : (
+            <div style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: `${brandColor}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ImageIcon size={36} color={brandColor} />
+            </div>
+          )}
+          <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0, lineHeight: 1.4 }}>{item.title}</p>
+          {item.description ? (
+            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.5)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>{item.description}</p>
+          ) : (
+            <p style={{ fontSize: 12, color: 'rgba(245,240,232,0.4)', maxWidth: 280, margin: 0, lineHeight: 1.5 }}>
+              {type === 'pinterest' ? 'Pinterest pins open in the Pinterest app or browser.' : `${type === 'instagram' ? 'Instagram' : 'Facebook'} content opens in the app or browser.`}
+            </p>
+          )}
+          <button
+            onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 22px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer' }}
+          >
+            <ExternalLink size={14} /> {label}
           </button>
         </div>
       )

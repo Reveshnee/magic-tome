@@ -111,9 +111,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ title: 'TikTok video', description: '', thumbnail: '', favicon })
     }
 
+    // --- Pinterest: use oEmbed API for real title + thumbnail ---
+    if (hostname.includes('pinterest.')) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 6000)
+        const oEmbed = await fetch(
+          `https://www.pinterest.com/oembed/?url=${encodeURIComponent(url)}`,
+          { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Cur8Bot/1.0)' } }
+        )
+        clearTimeout(timer)
+        if (oEmbed.ok) {
+          const data = await oEmbed.json()
+          const thumbnail = data.thumbnail_url ? await cacheThumbnail(data.thumbnail_url) : ''
+          return NextResponse.json({
+            title: data.title || 'Pinterest pin',
+            description: data.author_name ? `by ${data.author_name}` : '',
+            thumbnail,
+            favicon,
+            platform: 'pinterest',
+          })
+        }
+      } catch { /* fall through to og scrape */ }
+    }
+
+    // --- Instagram: scrape with a realistic UA — Instagram does serve og tags ---
+    // --- Facebook: same approach ---
+    const isSocial = hostname.includes('instagram.com') || hostname.includes('facebook.com') || hostname.includes('fb.com')
+
     // --- General websites (incl. Instagram): scrape og:image / og:title ---
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Cur8Bot/1.0)' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+      },
       signal: AbortSignal.timeout(8000),
     })
 
@@ -147,12 +180,18 @@ export async function GET(req: NextRequest) {
       rawThumb.startsWith('//') ? `https:${rawThumb}` :
       rawThumb ? `${origin}${rawThumb}` : ''
 
-    // Social CDN images (Instagram/Facebook) are signed and expire — cache them.
-    if (thumbnail && /instagram|fbcdn|cdninstagram|facebook/.test(hostname + thumbnail)) {
+    // Social CDN images (Instagram/Facebook/Pinterest) are signed and expire — cache them.
+    if (thumbnail && /instagram|fbcdn|cdninstagram|facebook|pinimg/.test(hostname + thumbnail)) {
       thumbnail = await cacheThumbnail(thumbnail)
     }
 
-    return NextResponse.json({ title, description, thumbnail, favicon })
+    // Return a platform hint so the client knows not to try iframing these
+    const platform = hostname.includes('instagram.com') ? 'instagram'
+      : hostname.includes('facebook.com') || hostname.includes('fb.com') ? 'facebook'
+      : hostname.includes('pinterest.') ? 'pinterest'
+      : undefined
+
+    return NextResponse.json({ title, description, thumbnail, favicon, ...(platform ? { platform } : {}) })
   } catch {
     return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
   }
