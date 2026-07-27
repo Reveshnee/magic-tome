@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -121,7 +121,7 @@ function filenameFromUrl(url: string, fallback: string): string {
 }
 
 // Determine how to render a URL in the preview panel
-function getPreviewType(url: string): 'youtube' | 'tiktok' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
+function getPreviewType(url: string): 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'pinterest' | 'image' | 'pdf' | 'video' | 'audio' | 'document' | 'iframe' {
   // Private-blob proxy URLs — detect by extension in the pathname query param
   if (url.startsWith('/api/cur8/file')) {
     try {
@@ -130,21 +130,25 @@ function getPreviewType(url: string): 'youtube' | 'tiktok' | 'image' | 'pdf' | '
       if (p.match(/\.(jpg|jpeg|png|gif|webp|avif)$/)) return 'image'
       if (p.match(/\.(mp4|webm|mov)$/)) return 'video'
       if (p.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
-      if (p.match(/\.pdf$/)) return 'pdf' // native browser PDF viewer (same-origin iframe)
-      // Office / text docs must be rendered client-side (can't iframe a .docx)
+      if (p.match(/\.pdf$/)) return 'pdf'
       if (p.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv|md)$/)) return 'document'
     } catch {}
-    return 'document' // unknown uploaded file → let the viewer offer a download
+    return 'document'
   }
   try {
     const u = new URL(url)
-    if (u.hostname.includes('youtube.com') || u.hostname === 'youtu.be') return 'youtube'
-    if (u.hostname.includes('tiktok.com')) return 'tiktok'
+    const h = u.hostname.toLowerCase()
+    if (h.includes('youtube.com') || h === 'youtu.be') return 'youtube'
+    if (h.includes('tiktok.com')) return 'tiktok'
+    // Social platforms that block iframing — show thumbnail + open button instead
+    if (h.includes('instagram.com') || h.includes('cdninstagram.com')) return 'instagram'
+    if (h.includes('facebook.com') || h.includes('fb.com') || h === 'fb.watch') return 'facebook'
+    if (h.includes('pinterest.') || h.includes('pin.it')) return 'pinterest'
     const path = u.pathname.toLowerCase()
     if (path.match(/\.(jpg|jpeg|png|gif|webp|svg|avif)$/)) return 'image'
     if (path.match(/\.(mp4|webm|mov|avi|mkv)$/)) return 'video'
     if (path.match(/\.(mp3|wav|ogg|m4a|aac)$/)) return 'audio'
-    if (path.match(/\.pdf$/) || u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com')) return 'pdf'
+    if (path.match(/\.pdf$/) || h.includes('drive.google.com') || h.includes('docs.google.com')) return 'pdf'
     if (path.match(/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)$/)) return 'pdf'
   } catch {}
   return 'iframe'
@@ -176,12 +180,8 @@ type ContentKind = 'video' | 'image' | 'doc'
 function getContentKind(item: { url: string }): ContentKind {
   const t = getPreviewType(item.url)
   if (t === 'image') return 'image'
-  if (t === 'youtube' || t === 'video' || t === 'audio') return 'video'
-  // Social platforms preview as generic iframes but are really videos
-  try {
-    const h = new URL(item.url).hostname.toLowerCase()
-    if (/tiktok|instagram|vimeo|fb\.watch|facebook|dailymotion|twitch|youtu/.test(h)) return 'video'
-  } catch {}
+  if (t === 'youtube' || t === 'tiktok' || t === 'video' || t === 'audio' || t === 'facebook' || t === 'instagram') return 'video'
+  if (t === 'pinterest') return 'image'
   return 'doc'
 }
 
@@ -209,6 +209,131 @@ const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: 
   Images:    { accent: '#5a9e84', accentLight: '#e8f4ef', image: '/cur8/tile-sanctuary.png' },
   Documents: { accent: '#3a6b8c', accentLight: '#e8f0f6', image: '/cur8/tile-tide.png' },
   Web:       { accent: '#c9843c', accentLight: '#f5ede0', image: '/cur8/tile-ember.png' },
+}
+
+// ── SocialEmbed: renders Instagram / Facebook / Pinterest official embeds ──
+// Each platform provides a JS embed SDK — we inject the script once per mount
+// and call the platform's reprocess method whenever the URL changes.
+function SocialEmbed({ url, platform, thumbnail, title }: {
+  url: string
+  platform: 'instagram' | 'facebook' | 'pinterest'
+  thumbnail?: string
+  title?: string
+}) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const [failed, setFailed] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!ref.current) return
+    setFailed(false)
+
+    function loadScript(src: string, id: string, onLoad?: () => void) {
+      if (document.getElementById(id)) { onLoad?.(); return }
+      const s = document.createElement('script')
+      s.src = src
+      s.async = true
+      s.id = id
+      if (onLoad) s.onload = onLoad
+      s.onerror = () => setFailed(true)
+      document.body.appendChild(s)
+    }
+
+    if (platform === 'instagram') {
+      loadScript('https://www.instagram.com/embed.js', 'instagram-embed-js', () => {
+        try { (window as unknown as Record<string, unknown>).instgrm && ((window as unknown as Record<string, { Embeds: { process: () => void } }>).instgrm.Embeds.process()) } catch { /* noop */ }
+      })
+      // If script already loaded, reprocess
+      try { (window as unknown as Record<string, { Embeds: { process: () => void } }>).instgrm?.Embeds.process() } catch { /* noop */ }
+    }
+
+    if (platform === 'facebook') {
+      loadScript('https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v19.0', 'facebook-sdk', () => {
+        try { (window as unknown as Record<string, { XFBML: { parse: () => void } }>).FB?.XFBML.parse() } catch { /* noop */ }
+      })
+      try { (window as unknown as Record<string, { XFBML: { parse: () => void } }>).FB?.XFBML.parse() } catch { /* noop */ }
+    }
+
+    if (platform === 'pinterest') {
+      loadScript('https://assets.pinterest.com/js/pinit.js', 'pinterest-embed-js')
+    }
+  }, [url, platform])
+
+  const brandColors: Record<string, string> = { instagram: '#c13584', facebook: '#1877f2', pinterest: '#e60023' }
+  const brandColor = brandColors[platform]
+
+  // Fallback card — shown if embed fails or as the base layer
+  const FallbackCard = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: 28, textAlign: 'center' }}>
+      {thumbnail ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumbnail} alt={title ?? ''} style={{ width: '100%', maxWidth: 340, borderRadius: 14, objectFit: 'cover', aspectRatio: '4/3', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }} />
+      ) : (
+        <div style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: `${brandColor}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ImageIcon size={36} color={brandColor} />
+        </div>
+      )}
+      {title && <p style={{ fontSize: 14, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0, lineHeight: 1.45 }}>{title}</p>}
+      <button
+        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer' }}
+      >
+        <ExternalLink size={13} /> Open in {platform.charAt(0).toUpperCase() + platform.slice(1)}
+      </button>
+    </div>
+  )
+
+  return (
+    <div
+      ref={ref}
+      style={{ width: '100%', height: '100%', overflowY: 'auto', backgroundColor: '#0a1e1b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '16px 8px' }}
+    >
+      {failed ? (
+        <FallbackCard />
+      ) : (
+        <>
+          {platform === 'instagram' && (
+            <blockquote
+              className="instagram-media"
+              data-instgrm-permalink={url}
+              data-instgrm-version="14"
+              data-instgrm-captioned
+              style={{ background: '#fff', border: 0, borderRadius: 12, margin: '0 auto', maxWidth: 540, width: '100%', minWidth: 300 }}
+            />
+          )}
+          {platform === 'facebook' && (
+            <>
+              <div id="fb-root" />
+              <div
+                className="fb-post"
+                data-href={url}
+                data-width="500"
+                data-show-text="true"
+                style={{ margin: '0 auto' }}
+              />
+            </>
+          )}
+          {platform === 'pinterest' && (
+            <a
+              data-pin-do="embedPin"
+              data-pin-width="large"
+              data-pin-terse="true"
+              href={url}
+              style={{ display: 'block', margin: '0 auto' }}
+            />
+          )}
+          {/* Always show the fallback open button below the embed */}
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(245,240,232,0.08)', width: '100%', maxWidth: 540, textAlign: 'center' }}>
+            <button
+              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}
+            >
+              <ExternalLink size={12} /> Open in {platform.charAt(0).toUpperCase() + platform.slice(1)}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 interface Props { category: Category }
@@ -1132,6 +1257,21 @@ export default function Cur8Category({ category }: Props) {
       )
     }
 
+    // ── Instagram official embed ──
+    if (type === 'instagram') {
+      return <SocialEmbed key={item.url} url={item.url} platform="instagram" thumbnail={item.thumbnail} title={item.title} />
+    }
+
+    // ── Facebook official embed ──
+    if (type === 'facebook') {
+      return <SocialEmbed key={item.url} url={item.url} platform="facebook" thumbnail={item.thumbnail} title={item.title} />
+    }
+
+    // ── Pinterest official embed ──
+    if (type === 'pinterest') {
+      return <SocialEmbed key={item.url} url={item.url} platform="pinterest" thumbnail={item.thumbnail} title={item.title} />
+    }
+
     if (type === 'image') {
       return (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
@@ -1720,7 +1860,7 @@ export default function Cur8Category({ category }: Props) {
         </div>
       )}
 
-      {/* ── Row 1: Folders bar ── */}
+      {/* ���─ Row 1: Folders bar ── */}
       {!mediaFocus && (
         <div style={{ flexShrink: 0, padding: '6px 12px', backgroundColor: '#0a1e1b', borderBottom: '1px solid rgba(245,240,232,0.07)', display: 'flex', alignItems: 'center', gap: 8 }}>
 
