@@ -2542,7 +2542,7 @@ export default function Cur8Category({ category }: Props) {
             style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)', padding: 16 }}
             onClick={(e) => { if (e.target === e.currentTarget) closeModal() }}>
             <motion.div initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
-              style={{ width: '100%', maxWidth: 440, borderRadius: 20, backgroundColor: '#122e29', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(245,240,232,0.1)' }}>
+              style={{ width: '100%', maxWidth: 440, borderRadius: 20, backgroundColor: '#122e29', padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.6)', border: '1px solid rgba(245,240,232,0.1)', maxHeight: 'calc(100dvh - 40px)', overflowY: 'auto' }}>
               {/* Modal header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <h2 style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 18, fontWeight: 700, color: '#f5f0e8' }}>Save to {gardenName}</h2>

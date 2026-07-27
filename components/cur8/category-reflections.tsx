@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PenLine, Mic, MicOff, Send, Trash2, X, Mail, MessageCircle, Pencil, Paperclip } from 'lucide-react'
+import { PenLine, Mic, MicOff, Send, Trash2, X, Mail, MessageCircle, Pencil, Paperclip, Wand2, Loader2 } from 'lucide-react'
 import { useDictation } from '@/hooks/use-speech'
 import type { ReflectionDTO } from '@/app/actions/cur8'
 import { getSettings, type Cur8Settings } from '@/app/actions/notes'
+import { cleanupBrainDump, type CleanupResult } from '@/app/actions/ai-features'
 import { AttachmentChips, AttachmentPicker, useAttachments, type PendingAttachment } from '@/components/cur8/attachment-panel'
 import { addAttachment } from '@/app/actions/cur8'
 import { composeShareText } from '@/lib/cur8-share'
@@ -38,6 +39,9 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
   const [attachFor, setAttachFor] = useState<string | null>(null)
   const [draftAttachOpen, setDraftAttachOpen] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [cleanup, setCleanup] = useState<CleanupResult | null>(null)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupError, setCleanupError] = useState('')
   const baseRef = useRef('')
   const reflectionIds = reflections.map((r) => r.id)
   const attachments = useAttachments('reflection', reflectionIds, open)
@@ -200,6 +204,26 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
             >
               <Paperclip size={13} /> Attach
             </button>
+            <button
+              onClick={async () => {
+                if (!draft.trim()) return
+                setCleanup(null)
+                setCleanupError('')
+                setCleanupLoading(true)
+                try {
+                  const result = await cleanupBrainDump(draft)
+                  if (result && result.tidy) setCleanup(result)
+                  else setCleanupError('Could not tidy just now — please try again in a moment.')
+                } catch {
+                  setCleanupError('Could not tidy just now — please try again in a moment.')
+                } finally { setCleanupLoading(false) }
+              }}
+              disabled={cleanupLoading || !draft.trim()}
+              title="AI: tidy this reflection and pull out key points"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 50, border: 'none', cursor: cleanupLoading || !draft.trim() ? 'not-allowed' : 'pointer', fontSize: 11.5, fontWeight: 600, backgroundColor: `${accent}18`, color: cleanupLoading || !draft.trim() ? 'rgba(245,240,232,0.3)' : accent }}
+            >
+              {cleanupLoading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Wand2 size={13} />} Tidy
+            </button>
           </div>
           <button
             onClick={submit}
@@ -209,6 +233,37 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
             <Send size={12} /> Save
           </button>
         </div>
+
+        {/* Tidy error */}
+        {cleanupError && (
+          <p style={{ fontSize: 12, color: '#e8a598', margin: '8px 0 0' }}>{cleanupError}</p>
+        )}
+
+        {/* Tidy result */}
+        {cleanup && (
+          <div style={{ marginTop: 10, borderRadius: 12, border: `1px solid ${accent}44`, backgroundColor: '#0e2822', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: accent }}>Tidied reflection</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => { setDraft(cleanup.tidy); setCleanup(null) }} style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 10px', borderRadius: 50, color: '#0d2420', backgroundColor: accent, border: 'none', cursor: 'pointer' }}>Use this</button>
+                <button onClick={() => setCleanup(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(245,240,232,0.5)', display: 'flex' }}><X size={13} /></button>
+              </div>
+            </div>
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: '#f5f0e8', margin: 0 }}>{cleanup.tidy}</p>
+            {cleanup.bullets.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.45)', margin: 0 }}>Key points</p>
+                {cleanup.bullets.map((b, i) => <p key={i} style={{ fontSize: 12, color: 'rgba(245,240,232,0.8)', margin: 0, paddingLeft: 10, borderLeft: `2px solid ${accent}55` }}>{b}</p>)}
+              </div>
+            )}
+            {cleanup.actions.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.45)', margin: 0 }}>Action items</p>
+                {cleanup.actions.map((a, i) => <p key={i} style={{ fontSize: 12, color: '#c8e6c9', margin: 0, paddingLeft: 10, borderLeft: '2px solid #5a9e84' }}>{a}</p>)}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* List */}
@@ -320,5 +375,6 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
         </>
       )}
     </AnimatePresence>
+    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
   )
 }
