@@ -372,9 +372,9 @@ export default function CategoryReflections({ open, onClose, categoryLabel, acce
               onPick={(p) => setPendingAttachments((prev) => [...prev, p])}
             />
           )}
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
         </>
       )}
     </AnimatePresence>
-    <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
   )
 }
