@@ -211,127 +211,124 @@ const TILE_STYLES: Record<string, { accent: string; accentLight: string; image: 
   Web:       { accent: '#c9843c', accentLight: '#f5ede0', image: '/cur8/tile-ember.png' },
 }
 
-// ── SocialEmbed: renders Instagram / Facebook / Pinterest official embeds ──
-// Each platform provides a JS embed SDK — we inject the script once per mount
-// and call the platform's reprocess method whenever the URL changes.
-function SocialEmbed({ url, platform, thumbnail, title }: {
+// ── SocialCard: thumbnail + title + open button for platforms that block embedding ──
+// TikTok, Instagram, and Facebook all actively block third-party iframes.
+// Pinterest is the one platform whose embed SDK works reliably for public pins.
+function SocialCard({ url, platform, thumbnail, title, accent }: {
   url: string
-  platform: 'instagram' | 'facebook' | 'pinterest'
+  platform: 'instagram' | 'facebook' | 'pinterest' | 'tiktok'
   thumbnail?: string
   title?: string
+  accent?: string
 }) {
-  const ref = React.useRef<HTMLDivElement>(null)
-  const [failed, setFailed] = React.useState(false)
+  const brandColors: Record<string, string> = {
+    instagram: '#c13584',
+    facebook: '#1877f2',
+    pinterest: '#e60023',
+    tiktok: '#010101',
+  }
+  const brandLabels: Record<string, string> = {
+    instagram: 'Open in Instagram',
+    facebook: 'Open in Facebook',
+    pinterest: 'Open in Pinterest',
+    tiktok: 'Watch on TikTok',
+  }
+  const brandColor = accent ?? brandColors[platform]
+  const label = brandLabels[platform]
 
-  React.useEffect(() => {
-    if (!ref.current) return
-    setFailed(false)
+  // Pinterest: use the official pinit.js embed for public pins
+  if (platform === 'pinterest') {
+    return <PinterestEmbed url={url} thumbnail={thumbnail} title={title} brandColor={brandColor} label={label} />
+  }
 
-    function loadScript(src: string, id: string, onLoad?: () => void) {
-      if (document.getElementById(id)) { onLoad?.(); return }
-      const s = document.createElement('script')
-      s.src = src
-      s.async = true
-      s.id = id
-      if (onLoad) s.onload = onLoad
-      s.onerror = () => setFailed(true)
-      document.body.appendChild(s)
-    }
-
-    if (platform === 'instagram') {
-      loadScript('https://www.instagram.com/embed.js', 'instagram-embed-js', () => {
-        try { (window as unknown as Record<string, unknown>).instgrm && ((window as unknown as Record<string, { Embeds: { process: () => void } }>).instgrm.Embeds.process()) } catch { /* noop */ }
-      })
-      // If script already loaded, reprocess
-      try { (window as unknown as Record<string, { Embeds: { process: () => void } }>).instgrm?.Embeds.process() } catch { /* noop */ }
-    }
-
-    if (platform === 'facebook') {
-      loadScript('https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v19.0', 'facebook-sdk', () => {
-        try { (window as unknown as Record<string, { XFBML: { parse: () => void } }>).FB?.XFBML.parse() } catch { /* noop */ }
-      })
-      try { (window as unknown as Record<string, { XFBML: { parse: () => void } }>).FB?.XFBML.parse() } catch { /* noop */ }
-    }
-
-    if (platform === 'pinterest') {
-      loadScript('https://assets.pinterest.com/js/pinit.js', 'pinterest-embed-js')
-    }
-  }, [url, platform])
-
-  const brandColors: Record<string, string> = { instagram: '#c13584', facebook: '#1877f2', pinterest: '#e60023' }
-  const brandColor = brandColors[platform]
-
-  // Fallback card — shown if embed fails or as the base layer
-  const FallbackCard = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: 28, textAlign: 'center' }}>
+  // All others: show the saved thumbnail + branded open button
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, backgroundColor: '#0a1e1b', padding: '24px 20px', textAlign: 'center' }}>
       {thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumbnail} alt={title ?? ''} style={{ width: '100%', maxWidth: 340, borderRadius: 14, objectFit: 'cover', aspectRatio: '4/3', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }} />
+        <img
+          src={thumbnail}
+          alt={title ?? ''}
+          style={{ width: '100%', maxWidth: 320, borderRadius: 16, objectFit: 'cover', aspectRatio: platform === 'tiktok' ? '9/16' : '4/3', maxHeight: '55%', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}
+        />
       ) : (
-        <div style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: `${brandColor}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ImageIcon size={36} color={brandColor} />
+        <div style={{ width: 88, height: 88, borderRadius: 22, backgroundColor: `${brandColor}22`, border: `1.5px solid ${brandColor}44`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Play size={36} color={brandColor} />
         </div>
       )}
-      {title && <p style={{ fontSize: 14, fontWeight: 600, color: '#f5f0e8', maxWidth: 300, margin: 0, lineHeight: 1.45 }}>{title}</p>}
+      {title && (
+        <p style={{ fontSize: 14, fontWeight: 600, color: '#f5f0e8', maxWidth: 280, margin: 0, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{title}</p>
+      )}
+      <p style={{ fontSize: 11, color: 'rgba(245,240,232,0.38)', margin: 0, maxWidth: 260, lineHeight: 1.5 }}>
+        {platform === 'tiktok'
+          ? 'TikTok videos cannot play inside the app. Tap below to watch.'
+          : `${platform.charAt(0).toUpperCase() + platform.slice(1)} content opens in its own app or browser.`}
+      </p>
       <button
         onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 20px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer' }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 24px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer', boxShadow: `0 4px 16px ${brandColor}55` }}
       >
-        <ExternalLink size={13} /> Open in {platform.charAt(0).toUpperCase() + platform.slice(1)}
+        <ExternalLink size={14} /> {label}
       </button>
     </div>
   )
+}
+
+// Pinterest pinit.js embed — only platform that reliably supports third-party embeds
+function PinterestEmbed({ url, thumbnail, title, brandColor, label }: {
+  url: string; thumbnail?: string; title?: string; brandColor: string; label: string
+}) {
+  const [loaded, setLoaded] = React.useState(false)
+  const [failed, setFailed] = React.useState(false)
+
+  React.useEffect(() => {
+    setLoaded(false); setFailed(false)
+    const id = 'pinterest-embed-js'
+    function run() {
+      // @ts-ignore
+      if (window.PinUtils) { try { window.PinUtils.build() } catch { /* noop */ } }
+      setTimeout(() => setLoaded(true), 1500)
+    }
+    if (document.getElementById(id)) { run(); return }
+    const s = document.createElement('script')
+    s.src = 'https://assets.pinterest.com/js/pinit.js'
+    s.async = true; s.id = id
+    s.onload = run
+    s.onerror = () => setFailed(true)
+    document.body.appendChild(s)
+  }, [url])
+
+  if (failed) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
+        {thumbnail && <img src={thumbnail} alt={title ?? ''} style={{ maxWidth: 300, borderRadius: 14, objectFit: 'cover' }} />} {/* eslint-disable-line */}
+        {title && <p style={{ fontSize: 14, fontWeight: 600, color: '#f5f0e8', maxWidth: 280, margin: 0 }}>{title}</p>}
+        <button onClick={() => window.open(url, '_blank', 'noopener,noreferrer')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 22px', borderRadius: 50, fontSize: 13, fontWeight: 700, color: '#fff', backgroundColor: brandColor, border: 'none', cursor: 'pointer' }}>
+          <ExternalLink size={13} /> {label}
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <div
-      ref={ref}
-      style={{ width: '100%', height: '100%', overflowY: 'auto', backgroundColor: '#0a1e1b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '16px 8px' }}
-    >
-      {failed ? (
-        <FallbackCard />
-      ) : (
-        <>
-          {platform === 'instagram' && (
-            <blockquote
-              className="instagram-media"
-              data-instgrm-permalink={url}
-              data-instgrm-version="14"
-              data-instgrm-captioned
-              style={{ background: '#fff', border: 0, borderRadius: 12, margin: '0 auto', maxWidth: 540, width: '100%', minWidth: 300 }}
-            />
-          )}
-          {platform === 'facebook' && (
-            <>
-              <div id="fb-root" />
-              <div
-                className="fb-post"
-                data-href={url}
-                data-width="500"
-                data-show-text="true"
-                style={{ margin: '0 auto' }}
-              />
-            </>
-          )}
-          {platform === 'pinterest' && (
-            <a
-              data-pin-do="embedPin"
-              data-pin-width="large"
-              data-pin-terse="true"
-              href={url}
-              style={{ display: 'block', margin: '0 auto' }}
-            />
-          )}
-          {/* Always show the fallback open button below the embed */}
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(245,240,232,0.08)', width: '100%', maxWidth: 540, textAlign: 'center' }}>
-            <button
-              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer' }}
-            >
-              <ExternalLink size={12} /> Open in {platform.charAt(0).toUpperCase() + platform.slice(1)}
-            </button>
-          </div>
-        </>
+    <div style={{ width: '100%', height: '100%', overflowY: 'auto', backgroundColor: '#0a1e1b', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 8px', gap: 12 }}>
+      <a
+        data-pin-do="embedPin"
+        data-pin-width="large"
+        data-pin-terse="true"
+        href={url}
+        style={{ display: 'block', margin: '0 auto' }}
+      />
+      {!loaded && thumbnail && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumbnail} alt={title ?? ''} style={{ maxWidth: 300, borderRadius: 14, objectFit: 'cover', position: 'absolute', opacity: 0.4 }} />
       )}
+      <button
+        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 50, fontSize: 12, fontWeight: 600, color: 'rgba(245,240,232,0.7)', backgroundColor: 'rgba(245,240,232,0.08)', border: 'none', cursor: 'pointer', marginTop: 8 }}
+      >
+        <ExternalLink size={12} /> {label}
+      </button>
     </div>
   )
 }
@@ -1201,75 +1198,34 @@ export default function Cur8Category({ category }: Props) {
       )
     }
 
+    // TikTok blocks third-party iframes ("overload-protect triggered").
+    // Show the saved thumbnail + "Watch on TikTok" button.
     if (type === 'tiktok') {
-      const tkId = extractTikTokId(item.url)
-      // Full /video/ links embed & play inline via TikTok's player.
-      if (tkId) {
-        const poster = getThumbnailFromUrl(item.url, item.thumbnail)
-        if (!embedActive) {
-          return (
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => setEmbedActive(true)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setEmbedActive(true) }}
-              title="Play TikTok"
-              style={{ width: '100%', height: '100%', position: 'relative', cursor: 'pointer', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              {poster && (
-                <img src={poster} alt={item.title} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-              )}
-              <div style={{ position: 'relative', zIndex: 2, width: 64, height: 64, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,255,255,0.7)', backdropFilter: 'blur(4px)' }}>
-                <Play size={28} color="#fff" style={{ marginLeft: 4 }} />
-              </div>
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 40%)', zIndex: 1 }} />
-              <p style={{ position: 'absolute', bottom: 14, left: 16, right: 16, zIndex: 3, fontSize: 13, fontWeight: 600, color: '#fff', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</p>
-            </div>
-          )
-        }
-        return (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
-            <iframe
-              style={{ width: '100%', maxWidth: 340, height: '100%', border: 'none', display: 'block' }}
-              src={`https://www.tiktok.com/embed/v2/${tkId}`}
-              title={item.title}
-              allow="autoplay; encrypted-media; fullscreen"
-              allowFullScreen
-            />
-          </div>
-        )
-      }
-      // Short links (vm.tiktok.com) have no embeddable id — show the poster + open button.
-      const poster = getThumbnailFromUrl(item.url, item.thumbnail)
       return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: '#0a1e1b', padding: 24, textAlign: 'center' }}>
-          {poster ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={poster} alt={item.title} style={{ maxWidth: 220, maxHeight: '55%', borderRadius: 14, objectFit: 'cover' }} />
-          ) : null}
-          <p style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: 15, fontWeight: 600, color: '#f5f0e8', maxWidth: 300 }}>{item.title}</p>
-          <button
-            onClick={() => window.open(item.url, '_blank', 'noopener,noreferrer')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 50, fontSize: 12, fontWeight: 700, color: '#fff', backgroundColor: tileStyle.accent, border: 'none', cursor: 'pointer' }}>
-            <Play size={13} /> Play on TikTok
-          </button>
-        </div>
+        <SocialCard
+          key={item.url}
+          url={item.url}
+          platform="tiktok"
+          thumbnail={getThumbnailFromUrl(item.url, item.thumbnail)}
+          title={item.title}
+          accent={tileStyle.accent}
+        />
       )
     }
 
-    // ── Instagram official embed ──
+    // Instagram — blocks iframes outside its own domain
     if (type === 'instagram') {
-      return <SocialEmbed key={item.url} url={item.url} platform="instagram" thumbnail={item.thumbnail} title={item.title} />
+      return <SocialCard key={item.url} url={item.url} platform="instagram" thumbnail={item.thumbnail} title={item.title} />
     }
 
-    // ── Facebook official embed ──
+    // Facebook — SDK requires domain registration, blocks otherwise
     if (type === 'facebook') {
-      return <SocialEmbed key={item.url} url={item.url} platform="facebook" thumbnail={item.thumbnail} title={item.title} />
+      return <SocialCard key={item.url} url={item.url} platform="facebook" thumbnail={item.thumbnail} title={item.title} />
     }
 
-    // ── Pinterest official embed ──
+    // Pinterest — pinit.js embed works for public pins
     if (type === 'pinterest') {
-      return <SocialEmbed key={item.url} url={item.url} platform="pinterest" thumbnail={item.thumbnail} title={item.title} />
+      return <SocialCard key={item.url} url={item.url} platform="pinterest" thumbnail={item.thumbnail} title={item.title} />
     }
 
     if (type === 'image') {
